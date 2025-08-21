@@ -1,0 +1,1 @@
+export const userAPI_Auth_Login = '/Auth/login';
