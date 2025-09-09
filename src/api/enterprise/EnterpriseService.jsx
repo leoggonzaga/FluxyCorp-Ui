@@ -79,3 +79,12 @@ export const enterpriseApiGetGender = async () => {
     }
 }
 
+export const enterpriseApiGetCatalog = async (param) => {
+    try {
+        const result = await enterpriseApi.get(endpoints.enterpriseAPI_Catalog, { params: param });
+        return result.data;
+    }
+    catch (err) {
+        return null
+    }
+}

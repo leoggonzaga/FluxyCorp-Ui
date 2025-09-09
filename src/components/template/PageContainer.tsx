@@ -6,6 +6,7 @@ import {
     PAGE_CONTAINER_GUTTER_Y,
 } from '@/constants/theme.constant'
 import Footer from '@/components/template/Footer'
+import MessageAlert from '@/components/template/MessageAlert'
 import type { CommonProps } from '@/@types/common'
 import type { Meta } from '@/@types/routes'
 import type { ElementType, ComponentPropsWithRef } from 'react'
@@ -81,6 +82,7 @@ const PageContainer = (props: PageContainerProps) => {
                     )}
                 </div>
             </main>
+            <MessageAlert/>
             {footer && (
                 <Footer
                     pageContainerType={

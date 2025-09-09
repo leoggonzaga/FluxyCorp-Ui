@@ -7,6 +7,7 @@ import Layout from '@/components/layouts'
 import mockServer from './mock'
 import appConfig from '@/configs/app.config'
 import './locales'
+import  WebSocketContext from './webSocket/WebSocketContext'
 
 const environment = process.env.NODE_ENV
 
@@ -20,13 +21,15 @@ const environment = process.env.NODE_ENV
 function App() {
     return (
         <Provider store={store}>
-            <PersistGate loading={null} persistor={persistor}>
-                <BrowserRouter>
-                    <Theme>
-                        <Layout />
-                    </Theme>
-                </BrowserRouter>
-            </PersistGate>
+            <WebSocketContext>
+                <PersistGate loading={null} persistor={persistor}>
+                    <BrowserRouter>
+                        <Theme>
+                            <Layout />
+                        </Theme>
+                    </BrowserRouter>
+                </PersistGate>
+            </WebSocketContext>
         </Provider>
     )
 }

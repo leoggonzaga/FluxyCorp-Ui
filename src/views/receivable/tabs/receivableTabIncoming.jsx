@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button, Card, DateValue, Dropdown, MoneyValue, Tag, Tooltip } from "../../../components/ui";
-import { HiArrowNarrowRight, HiArrowRight, HiCash, HiClipboardList, HiDotsHorizontal, HiExternalLink, HiLibrary, HiOutlineChevronRight, HiOutlinePencil, HiPencil, HiTrash } from "react-icons/hi";
+import { HiArrowNarrowRight, HiArrowRight, HiCash, HiClipboardList, HiDotsHorizontal, HiExternalLink, HiLibrary, HiOutlineChevronRight, HiOutlinePencil, HiOutlineTrash, HiPencil, HiTrash } from "react-icons/hi";
 
 const ReceivabletabIncoming = ({ loadIncoming, openIncomingUpsert }) => {
 
@@ -33,16 +33,16 @@ const ReceivabletabIncoming = ({ loadIncoming, openIncomingUpsert }) => {
                         <Card className={`group ${index % 2 === 0 ? 'bg-gray-100' : 'bg-gray-50'}`}>
                             <div className='flex items-center justify-between w-full'>
                                 <div className='w-5/6 flex items-center'>
-                                    <div className='w-2/3 flex items-center '>
+                                    <div className='w-5/8 flex items-center '>
                                         <div className='w-1/4 flex items-center gap-3'>
                                             <HiOutlineChevronRight size={16} className='hover:text-gray-600 cursor-pointer' onClick={() => toggleExpand(item)} />
 
                                             <div className='flex flex-col gap-1'>
                                                 <Tooltip title='Data de Recebimento'>
-                                                    <DateValue className='font-bold text-base' value={item.date} />
+                                                    <DateValue className='font-bold text-lg' value={item.date} />
                                                 </Tooltip>
 
-
+                                                <MoneyValue className='text-emerald-600 flex justify-center text-base font-semibold' value={item.amount} />
                                             </div>
                                         </div>
                                         <span className=' font-semibold w-3/4 justify-start  gap-1  flex flex-col'>
@@ -68,7 +68,7 @@ const ReceivabletabIncoming = ({ loadIncoming, openIncomingUpsert }) => {
                                             <span className='text-xs'>{item.description}</span>
                                         </span>
                                     </div>
-                                    <div className='w-1/3 flex flex-col justify-center items-center'>
+                                    <div className='w-3/8 flex flex-col items-center'>
                                         <div className='flex items-center gap-1'>
                                             <HiCash />
 
@@ -96,30 +96,11 @@ const ReceivabletabIncoming = ({ loadIncoming, openIncomingUpsert }) => {
                                     </div>
                                 </div>
 
-                                <div className='flex items-center w-1/6 justify-end gap-1'>
-                                    <div className='flex justify-between items-center w-full'>
-                                        <div className="flex items-center gap-2">
-                                            <MoneyValue className='text-emerald-600 font-semibold' value={item.amount} />
-                                        </div>
-
-                                        <div className='opacity-0 group-hover:opacity-100'>
-                                            <Dropdown
-                                                renderTitle={<Button
-                                                    className='ml-2'
-                                                    shape='circle'
-                                                    variant='solid'
-                                                    size='xs'
-                                                    color='gray-400'
-                                                    icon={<HiDotsHorizontal />}
-                                                />}
-                                                placement="middle-end-top"
-                                            >
-                                                <Dropdown.Item eventKey="1" onClick={() => openIncomingUpsert(item)}><HiPencil /> Editar</Dropdown.Item>
-                                                <Dropdown.Item eventKey="1" className="text-red-600"><HiTrash /> Excluir</Dropdown.Item>
-                                            </Dropdown>
-                                        </div>
+                                <div className='flex items-center justify-end gap-1'>
+                                    <div className='flex justify-end items-center w-full gap-1'>
+                                        <Button icon={<HiOutlinePencil className='text-sky-700' />} size="xs" />
+                                        <Button icon={<HiOutlineTrash className='text-red-700' />} size="xs" />
                                     </div>
-
                                 </div>
                             </div>
                         </Card>

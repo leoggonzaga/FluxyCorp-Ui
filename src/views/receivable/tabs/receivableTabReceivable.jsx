@@ -60,6 +60,10 @@ const ReceivableTabReceivable = ({ loadReceivable, openReceivableUpsert, openInc
 
                                                 }
 
+                                                {' - '}
+
+                                                <MoneyValue className='text-emerald-600  font-semibold' value={item.amount} />
+
                                                 {
                                                     !!item.isPartial &&
                                                     <Tag className='bg-emerald-600 text-gray-100'>Parcial</Tag>
@@ -73,7 +77,7 @@ const ReceivableTabReceivable = ({ loadReceivable, openReceivableUpsert, openInc
                                 <div className='flex items-center w-1/6 justify-end gap-1'>
                                     <div className='flex justify-between items-center w-full'>
                                         <div className="flex items-center gap-2">
-                                            <MoneyValue className='text-emerald-600 font-semibold' value={item.amount} />
+                                            {/* <MoneyValue className='text-emerald-600 font-semibold' value={item.amount} /> */}
                                         </div>
 
                                         <div className='opacity-0 group-hover:opacity-100'>

@@ -124,7 +124,7 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>((props, ref) => {
         color || colorContext || `${themeColor}-${primaryColorLevel}`
 
     const checkboxDefaultClass = `checkbox text-${checkboxColor}`
-    const checkboxColorClass = disabled && 'disabled'
+    const checkboxColorClass = disabled && 'opacity-30 cursor-not-allowed'//'disabled'
     const labelDefaultClass = `checkbox-label`
     const labelDisabledClass = disabled && 'disabled'
 

@@ -4,7 +4,7 @@ import ImageMapper from 'react-img-mapper'
 import { Button, Card } from "../components/ui"
 import { HiOutlineChevronDown, HiOutlineChevronUp, HiOutlinePlus, HiPlusCircle, HiTrash } from "react-icons/hi"
 
-const FaceChart = () => {
+const FaceChart = ({className}) => {
     const [areas, setAreas] = useState([
         { id: 'cheek-left', name: 'Bochecha Esquerda', shape: 'rect', coords: [89, 248, 136, 283] },
         { id: 'cheek-right', name: 'Bochecha Direita', shape: 'rect', coords: [346, 243, 301, 282] },
@@ -53,8 +53,8 @@ const FaceChart = () => {
     }
 
     return (
-        <div className='flex '>
-            <div>
+        <div className={`flex ${className}`}>
+            <div className="min-w-[400px] min-h-[560px]">
                 <ImageMapper
                     src="/img/facingFront.jpg"
                     name="face"
@@ -62,6 +62,7 @@ const FaceChart = () => {
                     parentWidth={400}
                     responsive={true}
                     onClick={(area) => onAreaClick(area)}
+                    onLoad={() =>'teste'}
                 />
             </div>
             <div className='border-1 rounded-tr-lg rounded-br-lg min-w-[500px] overflow-hidden'>

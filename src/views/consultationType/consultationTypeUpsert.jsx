@@ -78,7 +78,7 @@ const ConsultationTypeUpsert = ({ data, onClose }) => {
                                     </FormItem>
                                 </div>
 
-                                <div className='flex items-center gap-2 justify-center mt-3'>
+                                <div className='flex items-center gap-2 justify-center mt-6'>
                                     <Button
                                         type='button'
                                         onClick={onClose}

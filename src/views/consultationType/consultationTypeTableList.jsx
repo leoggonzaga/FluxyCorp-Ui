@@ -28,15 +28,13 @@ const ConsultationTypeTableList = ({ data, onOpenUpsert, onDeleteType }) => {
                                             <Button
                                                 size="xs"
                                                 icon={<HiOutlinePencil />}
-                                                variant='solid'
-                                                color="blue-600"
+                                                className="text-sky-700"
                                                 onClick={() => onOpenUpsert(type)}
                                             />
                                             <Button
                                                 size="xs"
                                                 icon={<HiOutlineTrash />}
-                                                variant='solid'
-                                                color="red-600"
+                                                className="text-red-700"
                                                 onClick={() => onDeleteType(type.id)}
                                             />
                                         </div>

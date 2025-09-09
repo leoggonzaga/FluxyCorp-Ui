@@ -1,0 +1,1 @@
+export const enterpriseAPI_Catalog = '/Catalogs';
