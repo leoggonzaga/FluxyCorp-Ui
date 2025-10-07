@@ -23,7 +23,7 @@ const DefaultLoading = (props: BaseLoadingProps) => {
         asElement: Component = 'div',
         customLoader,
     } = props
-
+    
     return loading ? (
         <Component
             className={classNames(

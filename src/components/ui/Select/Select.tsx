@@ -218,7 +218,7 @@ function _Select<
             classNamePrefix={'select'}
             classNames={{
                 control: () =>
-                    `h-${CONTROL_SIZES[selectSize]} min-h-${CONTROL_SIZES[selectSize]}`,
+                    `{${props.isMulti == true ? `h-${CONTROL_SIZES[selectSize]}` : ''}} min-h-${CONTROL_SIZES[selectSize]}`,
             }}
             styles={{
                 control: (provided, state) => {

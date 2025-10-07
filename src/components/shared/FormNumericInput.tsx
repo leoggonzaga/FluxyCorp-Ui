@@ -1,6 +1,5 @@
 import { NumericFormat } from 'react-number-format'
 import Input from '@/components/ui/Input'
-import { HiCurrencyDollar } from 'react-icons/hi'
 import { useTranslation } from 'react-i18next'
 
 const NumberInput = ({ inputSuffix, inputPrefix, ...props }) => {
@@ -18,20 +17,22 @@ const NumberFormatInput = ({ onValueChange, form, field, ...rest }) => {
     return (
         <NumericFormat
             customInput={NumberInput}
-            form={form}
-            field={field}
+            value={field?.value ?? rest.value ?? null}
             onBlur={field?.onBlur}
-            onValueChange={onValueChange}
+            onValueChange={(values, sourceInfo) => {
+                form?.setFieldValue(field.name, values.floatValue ?? null)
+                if (typeof onValueChange === 'function') {
+                    onValueChange(values, sourceInfo)
+                }
+            }}
             {...rest}
         />
     )
 }
 
 const FormNumericInput = ({ form, field, inputSuffix, inputPrefix, onValueChange, defaultValue, ...rest }) => {
-
     const { i18n } = useTranslation()
     const lang = i18n.language || 'pt-BR'
-
     const pref = inputPrefix || (lang == 'pt-BR' ? 'R$' : '$')
     const thousandSeparator = lang == 'en' ? ',' : '.'
     const decimalSeparator = lang == 'en' ? '.' : ','
@@ -48,7 +49,7 @@ const FormNumericInput = ({ form, field, inputSuffix, inputPrefix, onValueChange
             decimalScale={2}
             placeholder={`0${decimalSeparator}00`}
             fixedDecimalScale
-            value={defaultValue}
+            value={field?.value ?? defaultValue ?? null}
             {...rest}
         />
     )

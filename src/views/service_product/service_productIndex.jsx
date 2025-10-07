@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Dialog, Dropdown, Input, Tabs } from "../../components/ui";
+import { Button, Dialog, Dropdown, Input, Notification, Tabs, toast } from "../../components/ui";
 import TabContent from "../../components/ui/Tabs/TabContent";
 import TabList from "../../components/ui/Tabs/TabList";
 import TabNav from "../../components/ui/Tabs/TabNav";
@@ -10,46 +10,18 @@ import { HiOutlineClipboard, HiOutlinePlus, HiOutlineSearch, HiOutlineTag } from
 import ServiceUpsert from "./service/serviceUpsert";
 import ProductUpsert from "./product/productUpsert";
 import BundleUpsert from "./bundle/bundleUpsert";
+import { catalogApi } from "../../api/apiBaseService";
+import { catalogApiDeleteProduct, catalogApiDeleteService, catalogApiGetBundle, catalogApiGetProducts, catalogApiGetServices } from "../../api/catalog/catalogService";
+import { ConfirmDialog } from "../../components/shared";
 
 const Service_ProductIndex = () => {
     const [currentTab, setCurrentTab] = useState('service');
+
     const [isUpsertOpen, setIsUpsertOpen] = useState(false)
     const [itemSelected, setItemSelected] = useState(null)
     const [upsertType, setUpsertType] = useState(null)
 
-    const [services, setServices] = useState([
-        {
-            id: 1,
-            name: 'Avaliação Orto',
-            price: 345.78,
-            isActive: true,
-            category: {
-                id: 1,
-                name: 'Ortodontia'
-            },
-            catalogList: [
-                {
-                    id: 1,
-                    name: 'Catálogo 2025 UniOdonto'
-                },
-                {
-                    id: 2,
-                    name: 'Catálogo 2024 UniOdonto'
-                }
-            ]
-        },
-        {
-            id: 2,
-            name: 'Manutenção Orto',
-            price: 1123.49,
-            isActive: true,
-            category: {
-                id: 2,
-                name: 'Endodontia'
-            },
-            catalogList: []
-        }
-    ]);
+    const [services, setServices] = useState([]);
     const [products, setProducts] = useState([]);
     const [bundles, setBundles] = useState([]);
 
@@ -67,6 +39,53 @@ const Service_ProductIndex = () => {
         setItemSelected(null)
         setIsUpsertOpen(false)
         setUpsertType(null)
+    }
+
+
+
+    const getServices = async () => {
+        const result = await catalogApiGetServices();
+
+        if (result?.data) {
+            setServices(result.data)
+        }
+        else {
+            toast.push(
+                <Notification type='danger' title="Falha na Consulta">
+                    Falha ao consultar a lista de serviços. Tente novamente mais tarde
+                </Notification>
+            )
+        }
+    }
+
+    const getBundles = async () => {
+        const result = await catalogApiGetBundle();
+        debugger;
+        if (result?.data) {
+            setBundles(result.data)
+        }
+        else {
+            toast.push(
+                <Notification type='danger' title="Falha na Consulta">
+                    Falha ao consultar a lista de kits. Tente novamente mais tarde
+                </Notification>
+            )
+        }
+    }
+
+    const getProducts = async () => {
+        const result = await catalogApiGetProducts();
+
+        if (result?.data) {
+            setProducts(result.data)
+        }
+        else {
+            toast.push(
+                <Notification type='danger' title="Falha na Consulta">
+                    Falha ao consultar a lista de produtos. Tente novamente mais tarde
+                </Notification>
+            )
+        }
     }
 
     return (
@@ -118,13 +137,25 @@ const Service_ProductIndex = () => {
 
                     <div className="mt-2">
                         <TabContent value="service">
-                            <ServiceList data={services} onOpenUpsert={onOpenUpsert}/>
+                            <ServiceList
+                                data={services}
+                                load={() => getServices()}
+                                onOpenUpsert={(item) => onOpenUpsert('service', item)}
+                            />
                         </TabContent>
                         <TabContent value="product">
-                            <ProductList data={products} />
+                            <ProductList
+                                data={products}
+                                load={() => getProducts()}
+                                onOpenUpsert={(item) => onOpenUpsert('product', item)}
+                            />
                         </TabContent>
                         <TabContent value="bundle">
-                            <BundleList data={bundles} />
+                            <BundleList 
+                                data={bundles}
+                                load={() => getBundles()}
+                                onOpenUpsert={(item) => onOpenUpsert('bundle', item)}
+                            />
                         </TabContent>
                     </div>
 
@@ -139,15 +170,15 @@ const Service_ProductIndex = () => {
             >
                 {
                     upsertType == 'service' &&
-                    <ServiceUpsert data={itemSelected} onClose={() => onCloseUpsert()}/>
+                    <ServiceUpsert data={itemSelected} onClose={() => onCloseUpsert()} load={() => getServices()} />
                 }
                 {
                     upsertType == 'product' &&
-                    <ProductUpsert data={itemSelected} onClose={() => onCloseUpsert()}/>
+                    <ProductUpsert data={itemSelected} onClose={() => onCloseUpsert()} load={() => getProducts()} />
                 }
                 {
                     upsertType == 'bundle' &&
-                    <BundleUpsert data={itemSelected} onClose={() => onCloseUpsert()}/>
+                    <BundleUpsert data={itemSelected} onClose={() => onCloseUpsert()} load={() => getBundles()} />
                 }
             </Dialog>
         </div>

@@ -16,6 +16,7 @@ interface ConfirmDialogProps extends DialogProps {
     cancelText?: ReactNode | string
     confirmText?: ReactNode | string
     confirmButtonColor?: string
+    confirmDisabled?: boolean
     type?: StatusType
     title?: ReactNode | string
     onCancel?: () => void
@@ -83,6 +84,7 @@ const ConfirmDialog = (props: ConfirmDialogProps) => {
         onConfirm,
         cancelText = 'Cancel',
         confirmText = 'Confirm',
+        confirmDisabled,
         confirmButtonColor,
         ...rest
     } = props
@@ -96,7 +98,7 @@ const ConfirmDialog = (props: ConfirmDialogProps) => {
     }
 
     return (
-        <Dialog contentClassName="pb-0 px-0" {...rest}>
+        <Dialog onClose={() => onCancel?.()} contentClassName="pb-0 px-0" overlayClassName={'z-999'} {...rest}>
             <div className="px-6 pb-6 pt-2 flex">
                 <div>
                     <StatusIcon status={type} />
@@ -119,6 +121,7 @@ const ConfirmDialog = (props: ConfirmDialogProps) => {
                     variant="solid"
                     color={confirmButtonColor}
                     onClick={handleConfirm}
+                    disabled={confirmDisabled}
                 >
                     {confirmText}
                 </Button>

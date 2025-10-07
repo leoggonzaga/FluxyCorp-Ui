@@ -8,8 +8,9 @@ const MoneyValue = ({value = 0, className}) => {
     const symbol = locale == 'pt-BR' ? "R$" : "$"
 
     return(
-        <div className={`flex ${className}`}>
-            {symbol} {value.toLocaleString(locale, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+        <div className={`flex items-center gap-1 ${className}`}>
+            <span>{symbol}</span>
+            <span>{value.toLocaleString(locale, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
         </div>
     )
 }

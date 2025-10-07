@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 
-const DateValue = ({ value, className, timeOrientation = 'vertical'}) => {
+const DateValue = ({ value, className, timeOrientation = 'vertical', isDateOnly = true}) => {
     const { i18n } = useTranslation();
     const lang = i18n?.language || 'pt-BR';
     const dateOnly = { day: '2-digit', month: '2-digit', year: 'numeric' }
@@ -20,7 +20,7 @@ const DateValue = ({ value, className, timeOrientation = 'vertical'}) => {
     return (
         <div className='flex'>
             {!!value && (
-                showTime ? (
+                showTime && !isDateOnly ? (
                     <div className={`${className} ${timeOrientation == 'horizontal' ? 'flex gap-1 items-center' : 'flex flex-col'}`}>
                         <span>{d.toLocaleDateString(lang, dateOnly)}</span>
                         <span className={`${timeOrientation == 'horizontal' ? '' : 'flex justify-center'}`}>{d.toLocaleTimeString(lang, timeOnly)}</span>

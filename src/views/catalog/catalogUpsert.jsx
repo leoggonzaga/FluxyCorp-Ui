@@ -1,7 +1,7 @@
 import { Formik, Field, Form } from 'formik'
 import { FormItem, FormContainer } from '@/components/ui/Form'
 import { HiOutlineCheckCircle } from "react-icons/hi"
-import { Button, Input } from '../../components/ui';
+import { Button, Input, Notification, toast } from '../../components/ui';
 import * as Yup from 'yup'
 import { useState } from 'react';
 import { Loading } from '../../components/shared';
@@ -17,7 +17,6 @@ const CatalogUpsert = ({ data, onClose, load }) => {
     })
 
     const handleCreate = async (values) => {
-        debugger;
         setIsSubmitting(true)
 
         const result = await catalogApiPostCatalogs(values)
@@ -35,11 +34,10 @@ const CatalogUpsert = ({ data, onClose, load }) => {
         setIsSubmitting(false);
     }
 
-    const handleUpdate = async (values) => {
-        debugger;
+    const handleUpdate = async (values) => {    
         setIsSubmitting(true)
-
-        const result = await catalogApiPutCatalogs(values)
+        
+        const result = await catalogApiPutCatalogs(values.publicId, values)
 
         if (!result) {
             toast.push(
