@@ -96,10 +96,18 @@ const CatalogItemDualList = ({ catalogId, onClose, onConfirmDialogClose }) => {
         const items = catalogItemsSubmitted.map(catalogItem => { return ({ itemPublicId: catalogItem.publicId, price: catalogItem.price, itemType: catalogItem.type }) })
 
         const result = await catalogApiPostCatalogItem(catalogId, { items: items });
+        debugger;
 
         setConfirmSubmitOpen(false)
 
-        if (result?.data) {
+        if (result?.data?.erros){
+            toast.push(
+                <Notification type='danger' title='Falha na Criação'>
+                    Falha ao criar itens de catálogo. Tente novamente mais tarde.
+                </Notification>
+            )
+        }
+        else if (result?.data){
             toast.push(
                 <Notification type='success' title='Item de Catálogo Criado'>
                     Item de Catálogo criado com sucesso!
@@ -107,13 +115,6 @@ const CatalogItemDualList = ({ catalogId, onClose, onConfirmDialogClose }) => {
             )
 
             onConfirmDialogClose();
-        }
-        else {
-            toast.push(
-                <Notification type='danger' title='Falha na Criação'>
-                    Falha ao criar itens de catálogo. Tente novamente mais tarde.
-                </Notification>
-            )
         }
     }
     const getServicesAndProducts = async () => {

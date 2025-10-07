@@ -116,7 +116,7 @@ const CatalogView = () => {
                 </div>
 
                 <div className="mt-4">
-                    <CatalogItemDualList catalogId={id} onClose={() => onDialogClose()} onConfirmDialogClose={() => onConfirmDialogClose()}/>
+                    <CatalogItemDualList catalogId={id} onClose={() => onDialogClose()} onConfirmDialogClose={() => onConfirmDialogClose()} />
                 </div>
             </Dialog>
 

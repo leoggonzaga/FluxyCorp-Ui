@@ -51,6 +51,7 @@ const CatalogIndex = () => {
     const getCatalogs = async () => {
         setIsLoading(true)
 
+        debugger;
         const result = await catalogApiGetCatalogs({
             pageNumber: paging.pageNumber
         });

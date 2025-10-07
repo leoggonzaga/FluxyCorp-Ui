@@ -10,7 +10,6 @@ import TabContent from "../../../components/ui/Tabs/TabContent";
 import CatalogItemTableList from "./components/catalogItemTableList";
 
 const CatalogItemList = ({ data, load, type }) => {
-    debugger;
     const [currentTab, setCurrentTab] = useState('service')
 
     const [isUpsertOpen, setIsUpsertOpen] = useState(false);
@@ -20,7 +19,6 @@ const CatalogItemList = ({ data, load, type }) => {
     const [confirmDeleteId, setConfirmDeleteId] = useState(null)
 
     const onEditItem = (item) => {
-        debugger;
         setSelectedItem({ item: item, type: item.type });
         setIsUpsertOpen(true);
     }
@@ -41,7 +39,6 @@ const CatalogItemList = ({ data, load, type }) => {
     }
 
     const handleDeleteItem = async () => {
-        debugger;
         const param = {
             [type + 'Id']: confirmDeleteId
         }
@@ -83,7 +80,7 @@ const CatalogItemList = ({ data, load, type }) => {
                 onRequestClose={() => onCloseUpsert()}
                 onClose={() => onCloseUpsert()}
             >
-                <CatalogItemUpsert data={selectedItem} onClose={() => onCloseUpsert()} />
+                <CatalogItemUpsert data={selectedItem} onClose={(createdItem) => onCloseUpsert(createdItem)} />
             </Dialog>
 
             <ConfirmDialog

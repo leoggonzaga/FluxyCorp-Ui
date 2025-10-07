@@ -23,7 +23,7 @@ const CatalogItemUpsert = ({ data, onClose }) => {
         }
 
         const result = await catalogApiPutCatalogItem(id, param);
-
+        debugger;
         if (result?.data){
             toast.push(
                 <Notification title="Item de Catálogo Atualizado" type="success">
