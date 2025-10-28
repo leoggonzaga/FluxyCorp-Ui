@@ -14,12 +14,18 @@ const CatalogView = () => {
 
     const [isLoading, setIsLoading] = useState(false)
 
-    const [catalog, setCatalog] = useState(null)
+    const [catalog, setCatalog] = useState({ items: []})
 
     const [isDualListOpen, setIsDualListOpen] = useState(false)
     const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
     const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false)
 
+    const pushNewCatalogItems = (catalogItems) => {
+        setCatalog(prev => ({
+            ...prev,
+            items: [...(prev.items ?? []), ...catalogItems]
+        }));
+    }
 
     const onDialogClose = () => {
         setIsCancelDialogOpen(true)
@@ -116,7 +122,7 @@ const CatalogView = () => {
                 </div>
 
                 <div className="mt-4">
-                    <CatalogItemDualList catalogId={id} onClose={() => onDialogClose()} onConfirmDialogClose={() => onConfirmDialogClose()} />
+                    <CatalogItemDualList catalogId={id} onClose={() => onDialogClose()} onConfirmDialogClose={() => onConfirmDialogClose()} updateCatalogItems={(newCatalogItems) => pushNewCatalogItems(newCatalogItems)} />
                 </div>
             </Dialog>
 

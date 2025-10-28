@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react'
 import classNames from 'classnames'
-import Badge from '@/components/ui/Badge'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
-import Dialog from '@/components/ui/Dialog'
-import CalendarUpsert from '../../views/calendar/calendarUpsert'
 import CalendarEventMonth from '../../views/calendar/calendarEvents/calendarEventMonth'
 import CalendarEventWeek from '../../views/calendar/calendarEvents/calendarEventWeek'
 import CalendarEventDay from '../../views/calendar/calendarEvents/calendarEventDay'
 import CalendarSlot from '../../views/calendar/calendarSlot'
+import { appointmentApiGetEventsByRange } from '../../api/appointment/appointmentService'
 
 const defaultColorList = {
     red: { bg: 'bg-red-50 dark:bg-red-500/10', text: 'text-red-500 dark:text-red-100', dot: 'bg-red-500' },
@@ -41,12 +39,29 @@ const CalendarView = (props) => {
 
     const handleEventClick = (clickInfo) => {
         let event = {
-            patientFullName: clickInfo.event?.extendedProps?.patientName,
+            ...clickInfo.event?.extendedProps,
             start: clickInfo.event?.startStr,
             end: clickInfo.event?.endStr
         }
 
         openUpsert(event);
+    }
+
+    const getEvents = (info, success, failure) => {
+        appointmentApiGetEventsByRange(info.startStr.slice(0, 16), info.endStr.slice(0, 16))
+            .then(res => {
+                const items = Array.isArray(res.data) ? res.data : (res.data?.events ?? []);
+
+                success(items.map(item => ({
+                    id: String(item.id),
+                    title: item.title,
+                    start: item.scheduledAt ? item.scheduledAt.slice(0, 16) : null,
+                    end: item.scheduledEnd ? item.scheduledEnd.slice(0, 16) : null,
+                    allDay: !!item.allDay,
+                    extendedProps: { ...item }
+                })));
+            })
+            .catch(failure);
     }
 
     useEffect(() => {
@@ -78,73 +93,22 @@ const CalendarView = (props) => {
                 slotEventOverlap={true}
                 slotLabelFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
                 slotLabelInterval="00:15:00"
-                slotLabelContent={(arg) => <CalendarSlot arg={arg}/>}
-                events={[
-                    {
-                        id: '1',
-                        title: 'Reunião de planejamento',
-                        start: '2025-08-03T09:00:00',
-                        end: '2025-08-03T10:30:00',
-                        patientName: 'Ana Silva',
-                        serviceColor: 'pink'
-                    },
-                    {
-                        id: '99',
-                        title: 'Reunião de planejamento',
-                        start: '2025-08-03T09:00:00',
-                        end: '2025-08-03T10:30:00',
-                        patientName: 'Ana Gomes',
-                        serviceColor: 'yellow'
-                    },
-                    {
-                        id: '9999',
-                        title: 'Reunião de planejamento',
-                        start: '2025-08-03T09:00:00',
-                        end: '2025-08-03T10:30:00',
-                        patientName: 'Ana Fernanda',
-                        serviceColor: 'red'
-                    },
-                    {
-                        id: '999',
-                        title: 'Reunião de planejamento',
-                        start: '2025-08-03T09:00:00',
-                        end: '2025-08-03T10:30:00',
-                        patientName: 'Ana Donizete',
-                        serviceColor: 'purple'
-
-                    },
-                    {
-                        id: '2',
-                        title: 'Consulta com paciente – João Silva',
-                        start: '2025-08-06T14:00:00',  // evento na data de hoje
-                        end: '2025-08-06T15:00:00',
-                        patientName: 'João Silva',
-                        serviceColor: 'orange'
-                    },
-                    {
-                        id: '3',
-                        title: 'Treinamento de equipe',
-                        start: '2025-08-12T11:00:00',
-                        end: '2025-08-12T12:15:00',
-                        patientName: 'Bruna Costa'
-                    },
-                    {
-                        id: '4',
-                        title: 'Demonstração de produto',
-                        start: '2025-08-20T16:00:00',
-                        end: '2025-08-20T17:00:00',
-                        patientName: 'Carlos Eduardo',
-                        serviceColor: 'green'
-                    },
-                    {
-                        id: '5',
-                        title: 'Revisão mensal de métricas',
-                        start: '2025-08-28T13:30:00',
-                        end: '2025-08-28T14:30:00',
-                        patientName: 'Débora Almeida da Silva Gomes',
-                        serviceColor: 'gray'
-                    }
-                ]}
+                slotLabelContent={(arg) => <CalendarSlot arg={arg} />}
+                refetchResourcesOnNavigate={true}
+                events={getEvents}
+                // eventSources={[{
+                //     url: '/api/events',
+                //     method: 'GET',
+                //     startParam: 'start',
+                //     endParam: 'end',
+                //     failure(err) { console.error('[eventSource failure]', err); }
+                // }]}
+                // eventSourceSuccess={(content) => {
+                //     return Array.isArray(content) ? content
+                //         : content?.events
+                //         ?? content?.items
+                //         ?? [];
+                // }}
                 initialView="dayGridMonth"
                 headerToolbar={{
                     left: 'title',
@@ -152,7 +116,6 @@ const CalendarView = (props) => {
                     right: 'dayGridMonth,timeGridWeek,timeGridDay prev,next',
                 }}
                 eventContent={(arg) => {
-                    debugger;
                     if (arg.view.type === 'dayGridMonth')
                         return <CalendarEventMonth event={arg.event} timeText={arg.timeText} />
                     if (arg.view.type === 'timeGridWeek')

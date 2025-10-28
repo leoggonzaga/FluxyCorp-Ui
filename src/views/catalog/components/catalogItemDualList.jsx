@@ -7,7 +7,7 @@ import { catalogApiGetProducts, catalogApiGetServices, catalogApiPostCatalogItem
 import { ConfirmDialog, FormNumericInput } from "../../../components/shared"
 import { HiOutlineChevronDown, HiOutlineChevronUp } from "react-icons/hi"
 
-const CatalogItemDualList = ({ catalogId, onClose, onConfirmDialogClose }) => {
+const CatalogItemDualList = ({ catalogId, onClose, onConfirmDialogClose, updateCatalogItems }) => {
     const [currentTab, setCurrentTab] = useState('service')
     const [isLoading, setIsLoading] = useState(false)
     const [catalogItemsSubmitted, setCatalogItemsSubmitted] = useState([])
@@ -96,7 +96,7 @@ const CatalogItemDualList = ({ catalogId, onClose, onConfirmDialogClose }) => {
         const items = catalogItemsSubmitted.map(catalogItem => { return ({ itemPublicId: catalogItem.publicId, price: catalogItem.price, itemType: catalogItem.type }) })
 
         const result = await catalogApiPostCatalogItem(catalogId, { items: items });
-        debugger;
+        updateCatalogItems(result.data)
 
         setConfirmSubmitOpen(false)
 

@@ -18,7 +18,7 @@
   }
 
   &.select-lg {
-    @apply text-lg;
+    /* @apply text-lg; */
 
     .select-dropdown-indicator {
       @apply text-2xl;

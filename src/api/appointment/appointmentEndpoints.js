@@ -1,0 +1,1 @@
+export const appointmentAPI_range = '/appointments/range';

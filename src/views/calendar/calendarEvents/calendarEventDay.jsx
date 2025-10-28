@@ -3,7 +3,7 @@ import { Tooltip } from "../../../components/ui"
 import { useState } from "react"
 
 const CalendarEventDay = ({ event }) => {
-    const { patientName, serviceColor } = event.extendedProps
+    const { consumerName, serviceColor, appointmentType } = event.extendedProps
 
     const start = event.start ? dayjs(event.start).format('HH:mm') : ''
     const end = event.end ? dayjs(event.end).format('HH:mm') : ''
@@ -22,8 +22,8 @@ const CalendarEventDay = ({ event }) => {
                 </Tooltip>
 
                 <div className=''>
-                    <Tooltip title={patientName} placement="left">
-                        <span style={{ fontWeight: 'bold' }}>{patientName}</span>
+                    <Tooltip title={consumerName} placement="left">
+                        <span style={{ fontWeight: 'bold' }}>{consumerName}</span>
                     </Tooltip>
 
                 </div>

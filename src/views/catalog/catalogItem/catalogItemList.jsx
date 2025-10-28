@@ -1,5 +1,5 @@
 import { HiOutlinePencil, HiOutlineTrash } from "react-icons/hi";
-import { Button, Dialog, MoneyValue, Pagination, Tabs } from "../../../components/ui";
+import { Button, Dialog, MoneyValue, Notification, Pagination, Tabs, toast } from "../../../components/ui";
 import { useEffect, useState } from "react";
 import CatalogItemUpsert from "./catalogItemUpsert";
 import { ConfirmDialog } from "../../../components/shared";
@@ -39,15 +39,18 @@ const CatalogItemList = ({ data, load, type }) => {
     }
 
     const handleDeleteItem = async () => {
-        const param = {
-            [type + 'Id']: confirmDeleteId
-        }
-
-        const result = await catalogApiDeleteCatalogItem(data.publicId, param);
-
+        debugger;
+        const result = await catalogApiDeleteCatalogItem(data.publicId, confirmDeleteId);
+        debugger;
         if (result?.data) {
             onCloseDelete()
             load()
+
+            toast.push(
+                <Notification title="Excluído" type="success">
+                    Item excluído com sucesso!
+                </Notification>
+            )
         }
     }
 

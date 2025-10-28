@@ -1,0 +1,1 @@
+export const consultationTypeAPI_types = '/consultation/types';

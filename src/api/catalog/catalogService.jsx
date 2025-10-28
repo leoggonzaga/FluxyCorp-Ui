@@ -94,8 +94,8 @@ export const catalogApiPutCatalogItem = async (id, param) => {
     return await catalogApi.put(endpoints.enterpriseAPI_Catalog + `/${id}` + '/items', param);
 }
 
-export const catalogApiDeleteCatalogItem = async (id, param) => {
-    return await catalogApi.delete(endpoints.enterpriseAPI_Catalog + `/${id}` + '/items', { data: { ...param } });
+export const catalogApiDeleteCatalogItem = async (id, catalogItemId) => {
+    return await catalogApi.delete(endpoints.enterpriseAPI_Catalog + `/${id}` + '/items/' + catalogItemId);
 }
 
 

@@ -21,11 +21,9 @@ function createApi({ baseURL, defaultHeaders = {} }) {
 
   instance.interceptors.response.use(
     (response) => {
-        debugger;
         return response.data
     },
     (error) => {
-        debugger;
       toast.push(
         <Notification type="danger" title="Error">
             {
@@ -64,4 +62,12 @@ export const enterpriseApi = createApi({
 
 export const catalogApi = createApi({
   baseURL: import.meta.env.VITE_CATALOG_URL
+});
+
+export const appointmentApi = createApi({
+  baseURL: import.meta.env.VITE_APPOINTMENT_URL
+});
+
+export const consultationTypeApi = createApi({
+  baseURL: import.meta.env.VITE_CONSULTATION_TYPE_URL
 });

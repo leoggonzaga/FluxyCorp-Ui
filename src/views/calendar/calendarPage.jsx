@@ -2,7 +2,8 @@ import CalendarView from '@/components/shared/CalendarView'
 import { Card, Dialog } from '@/components/ui'
 import CalendarOptions from './calendarOptions'
 import { useRef, useState } from 'react'
-import CalendarUpsert from './calendarUpsert'
+import AppointmentUpsert from './appointmentUpsert'
+
 
 const CalendarPage = ({ on }) => {
     const calendarRef = useRef()
@@ -47,8 +48,9 @@ const CalendarPage = ({ on }) => {
                     isOpen={isUpsertOpen}
                     onRequestClose={() => closeUpsert()}
                     onClose={() => closeUpsert()}
+                    width={630}
                 >
-                    <CalendarUpsert data={selectedEvent} onClose={() => closeUpsert()} />
+                    <AppointmentUpsert data={selectedEvent} onClose={() => closeUpsert()} />
                 </Dialog>
             </div>
         </div>

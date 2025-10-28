@@ -3,17 +3,17 @@ import dayjs from 'dayjs'
 import { Tooltip } from '../../../components/ui';
 
 const CalendarEventMonth = ({ event }) => {
-    const { patientName, serviceColor } = event.extendedProps
+    const { consumerName, serviceColor, appointmentType, consultationTypePublicId } = event.extendedProps
 
-    const start = event.start ? dayjs(event.start).format('HH:mm') : ''
-    const end = event.end ? dayjs(event.end).format('HH:mm') : ''
+    const start = event.start ? dayjs(event.start).format('HH:mm') : '';
+    const end = event.end ? dayjs(event.end).format('HH:mm') : '';
 
-    const [hover, setHover] = useState(false)
+    const [hover, setHover] = useState(false);
 
     return (
         <div
             style={{
-                backgroundColor: hover ? '#0170e7ff' : '#007BFF', // muda no hover
+                backgroundColor: appointmentType == "Service" ? (hover ? '#0170e7ff' : '#007BFF') : (hover ? '#2fc900ff' : '#2ab101ff'),
                 color: '#fff',
                 padding: '2px 4px',
                 borderRadius: '4px',
@@ -41,7 +41,7 @@ const CalendarEventMonth = ({ event }) => {
                 </div>
 
                 <div className=''>
-                    <span style={{ fontWeight: 'bold' }}>{patientName}</span>
+                    <span style={{ fontWeight: 'bold' }}>{consumerName}</span>
                 </div>
             </div>
 

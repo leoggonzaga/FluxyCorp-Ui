@@ -54,7 +54,7 @@ const InputPhone = forwardRef((props, ref) => {
             case 'es':
                 return '+00 000 000 000'
             default:
-                return '+00 000 000 000'
+                return '(00) 00000-0000'
         }
     }, [currentLang])
 
@@ -143,6 +143,7 @@ const InputPhone = forwardRef((props, ref) => {
         <IMaskInput
             {...inputProps}
             mask={phoneMask}
+            placeholder={phoneMask}
             unmask={false}
             onAccept={(val, maskRef, e) => {
                 if (onChange) {
