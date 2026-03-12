@@ -43,6 +43,7 @@ function useAuth() {
           companyTypeId: decoded?.companyTypeId,
           companyPublicId: decoded?.companyPublicId
         }));
+        dispatch(setLang(decoded.culture || 'pt-BR'))
         const redirectUrl = query.get(REDIRECT_URL_KEY);
         navigate(redirectUrl ? redirectUrl : appConfig.authenticatedEntryPath);
         return { status: 'success', message: '' };

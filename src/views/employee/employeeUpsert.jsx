@@ -55,7 +55,7 @@ const EmployeeUpsert = ({ data, onClose, load }) => {
         if (result?.data) {
             setGenders(
                 result.data.map(item => {
-                    return { value: item.id, label: item.name }
+                    return { value: item.genderId, label: item.name }
                 })
             )
         }
