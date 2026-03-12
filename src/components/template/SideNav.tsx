@@ -77,32 +77,42 @@ const SideNav = () => {
         <>
             {larger.md && (
                 <div
-                    style={
-                        sideNavCollapse ? sideNavCollapseStyle : sideNavStyle
-                    }
+                    style={{
+                        ...(sideNavCollapse ? sideNavCollapseStyle : sideNavStyle),
+                        borderRadius: '18px',
+                        boxShadow: '0 4px 24px 0 rgba(31,38,135,0.08)',
+                        background: 'linear-gradient(135deg, rgba(255,255,255,0.98) 60%, rgba(230,240,255,0.85) 100%)',
+                        border: '1px solid #f3f4f6',
+                        margin: '18px 8px',
+                        padding: sideNavCollapse ? '8px' : '18px 8px',
+                        minHeight: 'calc(100vh - 36px)',
+                        transition: 'all 0.3s',
+                    }}
                     className={classNames(
                         'side-nav',
                         sideNavColor(),
                         !sideNavCollapse && 'side-nav-expand',
+                        'backdrop-blur-md',
                     )}
                 >
-                    <div className="side-nav-header">
+                    <div className="side-nav-header flex items-center justify-center mb-4">
                         <Logo
-                            mode={logoMode()}
+                            mode={['light','dark'].includes(logoMode()) ? logoMode() : 'light'}
                             type={sideNavCollapse ? 'streamline' : 'full'}
-                            className={
-                                sideNavCollapse
-                                    ? SIDE_NAV_CONTENT_GUTTER
-                                    : LOGO_X_GUTTER
-                            }
+                            className={sideNavCollapse ? SIDE_NAV_CONTENT_GUTTER : LOGO_X_GUTTER}
+                           
+                           
                         />
                     </div>
+                    <hr className="border-t border-gray-200 mb-4" />
                     {sideNavCollapse ? (
                         menuContent
                     ) : (
                         <div className="side-nav-content">
                             <ScrollBar autoHide direction={direction}>
-                                {menuContent}
+                                <div className="space-y-2">
+                                    {menuContent}
+                                </div>
                             </ScrollBar>
                         </div>
                     )}

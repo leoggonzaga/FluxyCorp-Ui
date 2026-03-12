@@ -12,14 +12,13 @@ interface LogoProps extends CommonProps {
 const LOGO_SRC_PATH = '/img/logo/'
 
 const Logo = (props: LogoProps) => {
-    const {
-        type = 'full',
-        mode = 'light',
-        className,
-        imgClass,
-        style,
-        logoWidth = 'auto',
-    } = props
+    let { type = 'full', mode = 'light', className, imgClass, style, logoWidth = 'auto' } = props;
+
+    // Garantir valores válidos
+    const validTypes = ['full', 'streamline'];
+    const validModes = ['light', 'dark'];
+    if (!validTypes.includes(type)) type = 'full';
+    if (!validModes.includes(mode)) mode = 'light';
 
     return (
         <div
@@ -33,6 +32,9 @@ const Logo = (props: LogoProps) => {
                 className={imgClass}
                 src={`${LOGO_SRC_PATH}logo-${mode}-${type}.png`}
                 alt={`${APP_NAME} logo`}
+                onError={e => {
+                    e.currentTarget.src = `${LOGO_SRC_PATH}logo-light-full.png`;
+                }}
             />
         </div>
     )

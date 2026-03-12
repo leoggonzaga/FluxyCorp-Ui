@@ -111,13 +111,13 @@ const EmployeeUpsert = ({ data, onClose, load }) => {
         >
             {({ touched, errors, resetForm }) => (
                 <Form>
-                    <FormContainer className='min-h-[300px] flex flex-col justify-center text-gray-700'>
+                    <FormContainer className='min-h-[300px] flex flex-col justify-center text-gray-700 bg-white rounded-xl shadow-lg p-8 border border-gray-200 max-w-2xl mx-auto'>
                         <Loading loading={loading}>
-                            <h3 className='flex justify-center mt-2'>
+                            <h3 className='flex justify-center mt-2 text-2xl font-bold text-primary mb-6'>
                                 {!data ? 'Cadastrar' : 'Editar'} Funcionário
                             </h3>
 
-                            <div className='mt-2'>
+                            <div className='mt-2 space-y-6'>
                                 <FormItem
                                     label="Nome Completo"
                                     asterisk
@@ -129,6 +129,7 @@ const EmployeeUpsert = ({ data, onClose, load }) => {
                                         name="fullName"
                                         placeholder="Nome Completo"
                                         component={Input}
+                                        className="rounded-lg border-gray-300 focus:border-primary focus:ring-primary shadow-sm"
                                     />
                                 </FormItem>
 
@@ -137,7 +138,6 @@ const EmployeeUpsert = ({ data, onClose, load }) => {
                                     asterisk
                                     invalid={errors.email && touched.email}
                                     errorMessage={errors.email}
-
                                 >
                                     <Field name="email">
                                         {({ field, form }) => (
@@ -146,6 +146,7 @@ const EmployeeUpsert = ({ data, onClose, load }) => {
                                                 name='email'
                                                 field={field}
                                                 form={form}
+                                                className="rounded-lg border-gray-300 focus:border-primary focus:ring-primary shadow-sm"
                                             />
                                         )}
                                     </Field>
@@ -246,16 +247,18 @@ const EmployeeUpsert = ({ data, onClose, load }) => {
                                 </div>
                             </div>
 
-                            <div className='flex items-center gap-2 justify-center mt-3'>
+                            <div className='flex items-center gap-4 justify-center mt-8'>
                                 <Button
                                     type='button'
                                     onClick={onClose}
+                                    className='px-6 py-2 rounded-lg border border-gray-300 bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all shadow-sm font-semibold'
                                 >
                                     Cancelar
                                 </Button>
                                 <Button
                                     variant='solid'
                                     icon={<HiOutlineCheckCircle />}
+                                    className='px-6 py-2 rounded-lg bg-primary text-white hover:bg-primary-dark transition-all shadow-md font-semibold flex items-center gap-2'
                                 >
                                     Salvar
                                 </Button>
