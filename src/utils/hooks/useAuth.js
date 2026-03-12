@@ -28,11 +28,12 @@ function useAuth() {
         employeePublicId: "c781986c-916f-4bd1-bfd6-68bfae783ed1",
         culture: 'pt-BR'
       });
-      if (resp?.data) {
-        const { token } = resp.data;
+      debugger;
+      if (resp) {      
+        const { token } = resp;
         dispatch(signInSuccess(token));
-        const decoded = JSON.parse(atob(resp.data.token.split('.')[1]));
-        dispatch(setUser(resp.data.user || {
+        const decoded = JSON.parse(atob(resp.token.split('.')[1]));
+        dispatch(setUser(resp.user || {
           avatar: '',
           userName: decoded?.["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"],
           authenticationId: decoded?.["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"],

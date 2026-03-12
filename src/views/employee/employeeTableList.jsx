@@ -19,7 +19,7 @@ const EmployeeTableList = (props) => {
                         <div
                             className='cursor-pointer hover:bg-indigo-50/60 border-1 p-3 rounded-lg'
                             key={item.id}
-                            onClick={() => navigate(`/employee-view/${item.identifier}`)}
+                            onClick={() => navigate(`/employee-view/${item.publicId}`)}
                         >
                             <div className='items-center flex'>
                                 <div className='flex items-center w-1/3'>
