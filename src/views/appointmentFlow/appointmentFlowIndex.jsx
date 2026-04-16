@@ -74,6 +74,13 @@ const AppointmentCard = ({ appointment, dragStyle, dragAttributes, dragListeners
                 </div>
             )}
 
+            {appointment.waitingTime && (
+                <div className='mt-2 px-2 py-1 rounded-lg bg-indigo-50 border border-indigo-100 text-[11px] text-indigo-700 flex items-center gap-1'>
+                    <HiOutlineClock className='w-3.5 h-3.5' />
+                    <span className='font-semibold'>Espera: </span>{appointment.waitingTime}
+                </div>
+            )}
+
             {appointment.reason && (
                 <div className='mt-2 px-2 py-1 rounded-lg bg-rose-50 border border-rose-100 text-[11px] text-rose-700'>
                     <span className='font-semibold'>Motivo: </span>{appointment.reason}
@@ -179,7 +186,7 @@ const AppointmentFlowIndex = () => {
             { id: '3', patientName: 'Pedro Oliveira', phone: '(11) 97654-3210', time: '11:00', service: 'Avaliação', professional: 'Dr. Bruno' },
         ],
         waitingRoom: [
-            { id: '9', patientName: 'Carla Mendes', phone: '(11) 91234-5678', time: '09:45', service: 'Consulta', professional: 'Dr. Carlos', arrivalTime: '09:50' },
+            { id: '9', patientName: 'Carla Mendes', phone: '(11) 91234-5678', time: '09:45', service: 'Consulta', professional: 'Dr. Carlos', arrivalTime: '09:50', waitingTime: '8 min' },
         ],
         inProgress: [
             { id: '4', patientName: 'Lucas Costa', phone: '(11) 96543-2109', time: '09:30', service: 'Consulta', professional: 'Dr. Carlos' },

@@ -170,6 +170,16 @@ const navigationConfig: NavigationTree[] = [
                         subMenu: [],
                     },
                     {
+                        key: 'clinicProducts',
+                        path: '/clinic-products',
+                        title: 'Produtos da Clínica',
+                        translateKey: '',
+                        icon: 'clipboarList',
+                        type: NAV_ITEM_TYPE_ITEM,
+                        authority: [],
+                        subMenu: [],
+                    },
+                    {
                         key: 'roleManagement',
                         path: '/settings',
                         title: 'Gerenciar Perfis',

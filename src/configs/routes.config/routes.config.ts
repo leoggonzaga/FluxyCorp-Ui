@@ -66,6 +66,12 @@ export const protectedRoutes = [
         authority: [],
     },
     {
+        key: 'clinicProducts',
+        path: '/clinic-products',
+        component: lazy(() => import('@/views/clinicProducts/clinicProductsIndex')),
+        authority: [],
+    },
+    {
         key: 'settings',
         path: '/settings',
         component: lazy(() => import('@/views/settings')),
