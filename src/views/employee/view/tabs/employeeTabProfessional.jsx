@@ -2,7 +2,7 @@ import { HiOutlineCheckCircle, HiOutlinePencil } from "react-icons/hi"
 import { Button, Card, Input } from "../../../../components/ui"
 import { useState } from "react"
 
-const EmployeeTabPersonal = ({ data }) => {
+const EmployeeTabProfessional = ({ data }) => {
 
     const [isEditing, setIsEditing] = useState(false)
 
@@ -10,53 +10,59 @@ const EmployeeTabPersonal = ({ data }) => {
         setIsEditing(prev => !prev);
     }
 
-    const person = data?.person || {}
+    const professional = data?.professional || data || {}
+
+    const getValue = (camelKey, pascalKey) => {
+        return professional?.[camelKey] ?? professional?.[pascalKey]
+    }
 
     const fieldGroups = [
         {
-            title: 'Identificação',
+            title: 'Vinculo Profissional',
             fields: [
-                { label: 'Id', value: person?.id ?? data?.id, readOnly: true },
-                { label: 'PublicId', value: person?.publicId ?? data?.publicId, readOnly: true },
-                { label: 'Nome Completo', value: person?.fullName },
-                { label: 'Nome Social', value: person?.socialName },
-                { label: 'Apelido', value: person?.nickname },
-                { label: 'Sexo Biológico', value: person?.sexyType },
-                { label: 'GenderId', value: person?.genderId },
-                { label: 'Gênero', value: person?.gender?.name },
-                { label: 'RaceId', value: person?.raceId },
-                { label: 'Raça', value: person?.race?.name },
+                { label: 'UserId', value: getValue('userId', 'UserId'), readOnly: true },
+                { label: 'Data de Contratacao', value: getValue('hireDate', 'HireDate') },
+                { label: 'Matricula', value: getValue('employeeNumber', 'EmployeeNumber') },
+                { label: 'Email', value: getValue('email', 'Email') },
+                { label: 'JobTitleId', value: getValue('jobTitleId', 'JobTitleId') },
+                {
+                    label: 'Cargo',
+                    value:
+                        professional?.jobTitle?.name ??
+                        professional?.JobTitle?.name ??
+                        professional?.jobTitleName ??
+                        professional?.jobTitle,
+                },
             ],
         },
         {
-            title: 'Filiação E Origem',
+            title: 'Conselho / Federacao Profissional',
             fields: [
-                { label: 'Nome da Mãe', value: person?.motherName },
-                { label: 'Data de Nascimento', value: person?.birthDate },
-                { label: 'Nacionalidade', value: person?.nationality },
-                { label: 'Cidade Natal', value: person?.hometown },
-                { label: 'País Natal', value: person?.homeCountry },
-                { label: 'Data de Naturalização', value: person?.naturalizationDate },
+                {
+                    label: 'Codigo da Federacao',
+                    value: getValue('professionalFderationCode', 'ProfessionalFderationCode'),
+                },
+                {
+                    label: 'Numero da Federacao',
+                    value: getValue('professionalFderationNumber', 'ProfessionalFderationNumber'),
+                },
+                {
+                    label: 'UF da Federacao',
+                    value: getValue('professionalFderationUF', 'ProfessionalFderationUF'),
+                },
             ],
         },
         {
-            title: 'Documentos Nacionais',
+            title: 'Classificacao Ocupacional',
             fields: [
-                { label: 'CPF', value: person?.nationalDocumentNumber },
-                { label: 'RG', value: person?.nationalDocumentNumberSec },
-                { label: 'RG - Órgão Emissor', value: person?.nationalIdDepartment },
-                { label: 'RG - UF', value: person?.nationalIdUF },
-                { label: 'RG - Data de Emissão', value: person?.nationalIdDate },
-                { label: 'CNS', value: person?.cns || person?.CNS },
-            ],
-        },
-        {
-            title: 'Passaporte (Estrangeiros)',
-            fields: [
-                { label: 'Passaporte', value: person?.passportNumber },
-                { label: 'País Emissor do Passaporte', value: person?.passportIssuingCountry },
-                { label: 'Data de Emissão do Passaporte', value: person?.passportIssueDate },
-                { label: 'Data de Validade do Passaporte', value: person?.passportExpiryDate },
+                { label: 'CBOId', value: getValue('cboId', 'CBOId') },
+                {
+                    label: 'CBO',
+                    value:
+                        professional?.cbo?.name ??
+                        professional?.CBO?.name ??
+                        professional?.cboName,
+                },
             ],
         },
     ]
@@ -111,4 +117,4 @@ const EmployeeTabPersonal = ({ data }) => {
     )
 }
 
-export default EmployeeTabPersonal
+export default EmployeeTabProfessional

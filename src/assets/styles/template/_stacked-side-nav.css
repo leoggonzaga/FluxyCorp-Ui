@@ -17,18 +17,46 @@
   }
   
   .stacked-side-nav-mini-light {
-    @apply bg-white border-r border-gray-200;
+    @apply border-r border-purple-900/40;
+    background-image: linear-gradient(to bottom, #19801c 0%, #63060c 100%) !important;
+    background-color: transparent !important;
+    background-size: 100% 100%;
+    background-position: top right;
+    background-repeat: no-repeat;
   }
   
   .stacked-side-nav-mini-dark {
-    @apply bg-gray-800 border-r border-gray-700;
+    @apply border-r border-purple-900/40;
+    background-image: linear-gradient(to bottom, #198046 0%, #06630e 100%) !important;
+    background-color: transparent !important;
+    background-size: 100% 100%;
+    background-position: top right;
+    background-repeat: no-repeat;
+  }
+
+  .stacked-side-nav-mini-themed {
+    background-image: linear-gradient(to bottom, #80191b 0%, #616306 100%) !important;
+    background-color: transparent !important;
+    background-size: 100% 100%;
+    background-position: top right;
+    background-repeat: no-repeat;
   }
   
   .stacked-side-nav-secondary-light {
-    @apply bg-white border-r border-gray-200;
+    @apply border-r border-purple-900/40;
+    background-image: linear-gradient(to bottom, #6f8019 0%, #066063 100%) !important;
+    background-color: transparent !important;
+    background-size: 100% 100%;
+    background-position: top right;
+    background-repeat: no-repeat;
   }
   
   .stacked-side-nav-secondary-dark {
-    @apply bg-gray-800 border-r border-gray-700;
+    @apply border-r border-purple-900/40;
+    background-image: linear-gradient(to bottom, #804b19 0%, #796579 100%) !important;
+    background-color: transparent !important;
+    background-size: 100% 100%;
+    background-position: top right;
+    background-repeat: no-repeat;
   }  
 }

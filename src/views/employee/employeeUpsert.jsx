@@ -18,6 +18,12 @@ const EmployeeUpsert = ({ data, onClose, load }) => {
     const [genders, setGenders] = useState([])
     const [jobTitles, setJobTitles] = useState([])
 
+    const sexTypeOptions = [
+        { value: 1, label: 'Masculino' },
+        { value: 2, label: 'Feminino' },
+        { value: 3, label: 'Outro' },
+    ]
+
     const handleCreate = async (values) => {
         debugger;
         setIsSubmitting(true)
@@ -96,6 +102,7 @@ const EmployeeUpsert = ({ data, onClose, load }) => {
         email: Yup.string().email('Email inválido').required('Campo Obrigatório'),
         fullName: Yup.string().required('Campo Obrigatório'),
         nationalDocumentNumber: Yup.string().required('Campo Obrigatório'),
+        motherName: Yup.string().required('Campo Obrigatório'),
     })
 
     return (
@@ -181,16 +188,35 @@ const EmployeeUpsert = ({ data, onClose, load }) => {
                                         <FormItem
                                             label='Sexo'
                                             asterisk
+                                            invalid={errors.sexyType && touched.sexyType}
+                                            errorMessage={errors.sexyType?.label || errors.sexyType}
+                                        >
+                                            <Field name="sexyType">
+                                                {({ field, form }) => (
+                                                    <Select
+                                                        placeholder='Sexo Biológico'
+                                                        options={sexTypeOptions}
+                                                        value={sexTypeOptions.find((option) => option.value === field.value) || null}
+                                                        onChange={(option) => form.setFieldValue(field.name, option?.value)}
+                                                        onBlur={() => form.setFieldTouched(field.name, true)}
+                                                    />
+                                                )}
+                                            </Field>
+                                        </FormItem>
+
+                                        <FormItem
+                                            label='Gênero'
+                                            asterisk
                                             invalid={errors.genderId && touched.genderId}
                                             errorMessage={errors.genderId?.label || errors.genderId}
                                         >
                                             <Field name="genderId">
                                                 {({ field, form }) => (
                                                     <Select
-                                                        placeholder='Sexo'
+                                                        placeholder='Gênero'
                                                         options={genders}
+                                                        value={genders.find((option) => option.value === field.value) || null}
                                                         onChange={(option) => {
-                                                            debugger;
                                                             form.setFieldValue(field.name, option?.value)
                                                         }}
                                                         onBlur={() => form.setFieldTouched(field.name, true)}
@@ -237,6 +263,7 @@ const EmployeeUpsert = ({ data, onClose, load }) => {
                                                     <Select
                                                         placeholder="Cargo"
                                                         options={jobTitles}
+                                                        value={jobTitles.find((option) => option.value === field.value) || null}
                                                         onChange={(option) => form.setFieldValue(field.name, option.value)}
                                                         onBlur={() => form.setFieldTouched(field.name, true)}
                                                     />
@@ -244,6 +271,155 @@ const EmployeeUpsert = ({ data, onClose, load }) => {
                                             </Field>
                                         </FormItem>
                                     </div>
+                                </div>
+
+                                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                                    <FormItem
+                                        label="Nome Social"
+                                        invalid={errors.socialName && touched.socialName}
+                                        errorMessage={errors.socialName}
+                                    >
+                                        <Field type="text" name="socialName" placeholder="Nome Social" component={Input} />
+                                    </FormItem>
+
+                                    <FormItem
+                                        label="Apelido"
+                                        invalid={errors.nickname && touched.nickname}
+                                        errorMessage={errors.nickname}
+                                    >
+                                        <Field type="text" name="nickname" placeholder="Apelido" component={Input} />
+                                    </FormItem>
+
+                                    <FormItem
+                                        label="Nome da Mãe"
+                                        asterisk
+                                        invalid={errors.motherName && touched.motherName}
+                                        errorMessage={errors.motherName}
+                                    >
+                                        <Field type="text" name="motherName" placeholder="Nome da Mãe" component={Input} />
+                                    </FormItem>
+
+                                    <FormItem
+                                        label="Data de Nascimento"
+                                        invalid={errors.birthDate && touched.birthDate}
+                                        errorMessage={errors.birthDate}
+                                    >
+                                        <Field type="date" name="birthDate" component={Input} />
+                                    </FormItem>
+
+                                    <FormItem
+                                        label="Raça (Id)"
+                                        invalid={errors.raceId && touched.raceId}
+                                        errorMessage={errors.raceId}
+                                    >
+                                        <Field type="number" name="raceId" placeholder="Raça Id" component={Input} />
+                                    </FormItem>
+
+                                    <FormItem
+                                        label="Nacionalidade"
+                                        invalid={errors.nationality && touched.nationality}
+                                        errorMessage={errors.nationality}
+                                    >
+                                        <Field type="text" name="nationality" placeholder="Nacionalidade" component={Input} />
+                                    </FormItem>
+
+                                    <FormItem
+                                        label="Cidade Natal"
+                                        invalid={errors.hometown && touched.hometown}
+                                        errorMessage={errors.hometown}
+                                    >
+                                        <Field type="text" name="hometown" placeholder="Cidade Natal" component={Input} />
+                                    </FormItem>
+
+                                    <FormItem
+                                        label="País Natal"
+                                        invalid={errors.homeCountry && touched.homeCountry}
+                                        errorMessage={errors.homeCountry}
+                                    >
+                                        <Field type="text" name="homeCountry" placeholder="País Natal" component={Input} />
+                                    </FormItem>
+
+                                    <FormItem
+                                        label="Data de Naturalização"
+                                        invalid={errors.naturalizationDate && touched.naturalizationDate}
+                                        errorMessage={errors.naturalizationDate}
+                                    >
+                                        <Field type="date" name="naturalizationDate" component={Input} />
+                                    </FormItem>
+
+                                    <FormItem
+                                        label="RG"
+                                        invalid={errors.nationalDocumentNumberSec && touched.nationalDocumentNumberSec}
+                                        errorMessage={errors.nationalDocumentNumberSec}
+                                    >
+                                        <Field type="text" name="nationalDocumentNumberSec" placeholder="RG" component={Input} />
+                                    </FormItem>
+
+                                    <FormItem
+                                        label="RG - Órgão Emissor"
+                                        invalid={errors.nationalIdDepartment && touched.nationalIdDepartment}
+                                        errorMessage={errors.nationalIdDepartment}
+                                    >
+                                        <Field type="text" name="nationalIdDepartment" placeholder="Órgão Emissor" component={Input} />
+                                    </FormItem>
+
+                                    <FormItem
+                                        label="RG - UF"
+                                        invalid={errors.nationalIdUF && touched.nationalIdUF}
+                                        errorMessage={errors.nationalIdUF}
+                                    >
+                                        <Field type="text" name="nationalIdUF" placeholder="UF" component={Input} />
+                                    </FormItem>
+
+                                    <FormItem
+                                        label="RG - Data de Emissão"
+                                        invalid={errors.nationalIdDate && touched.nationalIdDate}
+                                        errorMessage={errors.nationalIdDate}
+                                    >
+                                        <Field type="date" name="nationalIdDate" component={Input} />
+                                    </FormItem>
+
+                                    <FormItem
+                                        label="CNS"
+                                        invalid={errors.cns && touched.cns}
+                                        errorMessage={errors.cns}
+                                    >
+                                        <Field type="text" name="cns" placeholder="Cartão Nacional de Saúde" component={Input} />
+                                    </FormItem>
+                                </div>
+
+                                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                                    <FormItem
+                                        label="Passaporte"
+                                        invalid={errors.passportNumber && touched.passportNumber}
+                                        errorMessage={errors.passportNumber}
+                                    >
+                                        <Field type="text" name="passportNumber" placeholder="Número do Passaporte" component={Input} />
+                                    </FormItem>
+
+                                    <FormItem
+                                        label="País Emissor do Passaporte"
+                                        invalid={errors.passportIssuingCountry && touched.passportIssuingCountry}
+                                        errorMessage={errors.passportIssuingCountry}
+                                    >
+                                        <Field type="text" name="passportIssuingCountry" placeholder="País Emissor" component={Input} />
+                                    </FormItem>
+
+                                    <FormItem
+                                        label="Data de Emissão do Passaporte"
+                                        invalid={errors.passportIssueDate && touched.passportIssueDate}
+                                        errorMessage={errors.passportIssueDate}
+                                    >
+                                        <Field type="date" name="passportIssueDate" component={Input} />
+                                    </FormItem>
+
+                                    <FormItem
+                                        label="Data de Validade do Passaporte"
+                                        invalid={errors.passportExpiryDate && touched.passportExpiryDate}
+                                        errorMessage={errors.passportExpiryDate}
+                                    >
+                                        <Field type="date" name="passportExpiryDate" component={Input} />
+                                    </FormItem>
                                 </div>
                             </div>
 

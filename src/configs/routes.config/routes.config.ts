@@ -65,7 +65,30 @@ export const protectedRoutes = [
         component: lazy(() => import('@/views/service_product/service_productIndex')),
         authority: [],
     },
-    /** Example purpose only, please remove */
+    {
+        key: 'settings',
+        path: '/settings',
+        component: lazy(() => import('@/views/settings')),
+        authority: [],
+    },
+    {
+        key: 'settingsTemplates',
+        path: '/settings/templates',
+        component: lazy(() => import('@/views/settings/SettingsTemplates')),
+        authority: [],
+    },
+    {
+        key: 'appointmentFlow',
+        path: '/appointment-flow',
+        component: lazy(() => import('@/views/appointmentFlow/appointmentFlowIndex')),
+        authority: [],
+    },
+    {
+        key: 'patients',
+        path: '/patients',
+        component: lazy(() => import('@/views/patient/patientRecordIndex')),
+        authority: [],
+    },
     // {
     //     key: 'singleMenuItem',
     //     path: '/single-menu-view',

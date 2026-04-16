@@ -5,6 +5,10 @@ import TabList from "../../../components/ui/Tabs/TabList";
 import TabNav from "../../../components/ui/Tabs/TabNav";
 import TabContent from "../../../components/ui/Tabs/TabContent";
 import EmployeeTabPersonal from "./tabs/employeeTabPersonal";
+import EmployeeTabProfessional from "./tabs/employeeTabProfessional";
+import EmployeeTabAvailableSchedule from "./tabs/employeeTabAvailableSchedule";
+import EmployeeTabPermissions from "./tabs/employeeTabPermissions";
+
 
 const EmployeeViewTabs = ({data}) => {
     return (
@@ -15,7 +19,7 @@ const EmployeeViewTabs = ({data}) => {
                         Dados Cadastrais
                     </TabNav>
                     <TabNav value='tabProfessional' icon={<HiOutlineBriefcase/>}>
-                        Dados Cadastrais
+                        Dados Profissionais
                     </TabNav>
                     <TabNav value='tabTimes' icon={<HiOutlineClock/>}>
                         Horários
@@ -29,7 +33,13 @@ const EmployeeViewTabs = ({data}) => {
                         <EmployeeTabPersonal data={data}/>
                     </TabContent>
                     <TabContent value='tabProfessional'>
-                        Professional
+                        <EmployeeTabProfessional data={data}/>
+                    </TabContent>
+                    <TabContent value='tabTimes'>
+                        <EmployeeTabAvailableSchedule data={data}/>
+                    </TabContent>
+                    <TabContent value='tabPermissions'>
+                        <EmployeeTabPermissions data={data}/>
                     </TabContent>
                 </div>
             </Tabs>

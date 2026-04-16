@@ -81,7 +81,6 @@ const SideNav = () => {
                         ...(sideNavCollapse ? sideNavCollapseStyle : sideNavStyle),
                         borderRadius: '18px',
                         boxShadow: '0 4px 24px 0 rgba(31,38,135,0.08)',
-                        background: 'linear-gradient(135deg, rgba(255,255,255,0.98) 60%, rgba(230,240,255,0.85) 100%)',
                         border: '1px solid #f3f4f6',
                         margin: '18px 8px',
                         padding: sideNavCollapse ? '8px' : '18px 8px',

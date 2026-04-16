@@ -3,15 +3,19 @@
     @apply uppercase font-semibold px-3 mt-4 mb-2;
 
     &.menu-title-light {
-      @apply text-gray-500;
+      @apply text-white;
     }
 
     &.menu-title-dark {
-      @apply text-gray-300;
+      @apply text-white;
     }
 
     &.menu-title-themed {
-      @apply text-gray-100/50;
+      @apply text-white;
+    }
+
+    &.menu-title-transparent {
+      @apply text-white;
     }
   }
 
