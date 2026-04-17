@@ -42,7 +42,7 @@ const DefaultItem = ({ nav, onLinkClick, userAuthority }: DefaultItemProps) => {
                 }
                 eventKey={nav.key}
                 expanded={false}
-                className="mb-2"
+                className="mb-1"
             >
                 {nav.subMenu.map((subNav) => (
                     <AuthorityCheck
@@ -97,7 +97,7 @@ const CollapsedItem = ({
     direction,
 }: CollapsedItemProps) => {
     const menuItem = (
-        <MenuItem key={nav.key} eventKey={nav.key} className="mb-2">
+        <MenuItem key={nav.key} eventKey={nav.key} className="mb-1">
             <VerticalMenuIcon icon={nav.icon} />
         </MenuItem>
     )

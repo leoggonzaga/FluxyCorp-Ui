@@ -1,22 +1,6 @@
 @layer components {
   .menu-title {
-    @apply uppercase font-semibold px-3 mt-4 mb-2;
-
-    &.menu-title-light {
-      @apply text-white;
-    }
-
-    &.menu-title-dark {
-      @apply text-white;
-    }
-
-    &.menu-title-themed {
-      @apply text-white;
-    }
-
-    &.menu-title-transparent {
-      @apply text-white;
-    }
+    @apply flex items-center gap-2 px-2 mt-7 mb-2;
   }
 
   .menu-light {

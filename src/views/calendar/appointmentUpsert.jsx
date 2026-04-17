@@ -8,6 +8,7 @@ import TimeInputRange from '../../components/ui/TimeInput/TimeInputRange';
 import AsyncSelect from 'react-select/async'
 import { components } from 'react-select'
 import Loading from '../../components/shared/Loading'
+import Odontogram from '../../components/shared/Odontogram'
 import { enterpriseApiGetEmployees, enterpriseApiGetEmployeeSimplifiedById } from '../../api/enterprise/EnterpriseService';
 import { useEffect, useState } from 'react';
 import { consultationTypeApiGetTypes } from '../../api/consultation/consultationService';
@@ -56,6 +57,7 @@ const AppointmentUpsert = ({ data, onClose }) => {
     console.log(data);
 
     const [isLoading, setIsLoading] = useState(false);
+    const [selectedTeeth, setSelectedTeeth] = useState(data?.selectedTeeth || {});
 
     const [employees, setEmployees] = useState([]);
     const [consultationTypes, setConsultationTypes] = useState([]);
@@ -107,9 +109,9 @@ const AppointmentUpsert = ({ data, onClose }) => {
                     validationSchema={validationSchema}
                     onSubmit={(values) => {
                         !data ?
-                            handleCreate(values)
+                            handleCreate({ ...values, selectedTeeth })
                             :
-                            handleUpdate(values)
+                            handleUpdate({ ...values, selectedTeeth })
                     }}
                 >
                     {({ values, touched, errors, resetForm }) => (
@@ -335,6 +337,15 @@ const AppointmentUpsert = ({ data, onClose }) => {
                                             )}
                                         </Field>
                                     </FormItem>
+
+                                    {/* Odontograma */}
+                                    <div className='mt-6'>
+                                        <Odontogram
+                                            selectedTeeth={selectedTeeth}
+                                            onTeethChange={setSelectedTeeth}
+                                            genderColor='blue'
+                                        />
+                                    </div>
 
 
                                 </div>

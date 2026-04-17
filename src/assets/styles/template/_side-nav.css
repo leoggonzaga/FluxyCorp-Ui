@@ -1,8 +1,7 @@
   @layer components {
     :root {
       --menu-reference-gradient:
-        linear-gradient(164deg,rgba(20, 1, 1, 1) 38%, rgba(140, 130, 118, 1) 86%, rgba(168, 168, 168, 1) 100%),
-        linear-gradient(180deg, rgb(22 22 28) 0%, rgb(10 10 14) 55%, rgb(0 0 0) 100%);
+        linear-gradient(160deg, #0f0b2e 0%, #0a0820 55%, #07050f 100%);
     }
 
     .side-nav {

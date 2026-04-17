@@ -30,10 +30,10 @@ const Logo = (props: LogoProps) => {
         >
             <img
                 className={imgClass}
-                src={`${LOGO_SRC_PATH}logo-${mode}-${type}.png`}
-                alt={`${APP_NAME} logo`}
+                src={`${LOGO_SRC_PATH}Odonto%20Branco_Direito.png`}
+                alt="Odonto Branco logo"
                 onError={e => {
-                    e.currentTarget.src = `${LOGO_SRC_PATH}logo-light-full.png`;
+                    e.currentTarget.src = `${LOGO_SRC_PATH}Odonto%20Branco_Direito.png`;
                 }}
             />
         </div>

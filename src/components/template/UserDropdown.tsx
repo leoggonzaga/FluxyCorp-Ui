@@ -2,9 +2,10 @@ import Avatar from '@/components/ui/Avatar'
 import Dropdown from '@/components/ui/Dropdown'
 import withHeaderItem from '@/utils/hoc/withHeaderItem'
 import useAuth from '@/utils/hooks/useAuth'
+import useDarkMode from '@/utils/hooks/useDarkmode'
 import { Link } from 'react-router-dom'
 import classNames from 'classnames'
-import { HiOutlineLogout, HiOutlineUser } from 'react-icons/hi'
+import { HiOutlineLogout, HiOutlineUser, HiOutlineMoon, HiOutlineSun } from 'react-icons/hi'
 import type { CommonProps } from '@/@types/common'
 import type { JSX } from 'react'
 
@@ -18,6 +19,7 @@ const dropdownItemList: DropdownList[] = []
 
 const _UserDropdown = ({ className }: CommonProps) => {
     const { signOut } = useAuth()
+    const [isDark, setMode] = useDarkMode()
 
     const UserAvatar = (
         <div className={classNames(className, 'flex items-center gap-2')}>
@@ -67,7 +69,32 @@ const _UserDropdown = ({ className }: CommonProps) => {
                         </Link>
                     </Dropdown.Item>
                 ))}
-                {/* <Dropdown.Item variant="divider" /> */}
+                <Dropdown.Item variant="divider" />
+                <Dropdown.Item
+                    eventKey="theme-toggle"
+                    className="px-0 mb-1"
+                    onClick={() => setMode(isDark ? 'light' : 'dark')}
+                >
+                    <div className="flex items-center justify-between w-full px-3">
+                        <span className="flex gap-2 items-center">
+                            <span className="text-xl opacity-50">
+                                {isDark ? <HiOutlineSun /> : <HiOutlineMoon />}
+                            </span>
+                            <span>{isDark ? 'Modo Claro' : 'Modo Escuro'}</span>
+                        </span>
+                        <span
+                            className={classNames(
+                                'text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wide',
+                                isDark
+                                    ? 'bg-indigo-500/20 text-indigo-300'
+                                    : 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
+                            )}
+                        >
+                            {isDark ? 'ESCURO' : 'CLARO'}
+                        </span>
+                    </div>
+                </Dropdown.Item>
+                <Dropdown.Item variant="divider" />
                 <Dropdown.Item
                     eventKey="Sign Out"
                     className="gap-2"

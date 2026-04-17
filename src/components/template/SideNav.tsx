@@ -42,6 +42,7 @@ const SideNav = () => {
     const userAuthority = useAppSelector((state) => state.auth.user.authority)
 
     const { larger } = useResponsive()
+    // sidebar only on screens ≥ 1024px; below that uses MobileNav drawer
 
     const sideNavColor = () => {
         if (navMode === NAV_MODE_THEMED) {
@@ -75,7 +76,7 @@ const SideNav = () => {
 
     return (
         <>
-            {larger.md && (
+            {larger.lg && (
                 <div
                     style={{
                         ...(sideNavCollapse ? sideNavCollapseStyle : sideNavStyle),
@@ -103,13 +104,13 @@ const SideNav = () => {
                            
                         />
                     </div>
-                    <hr className="border-t border-gray-200 mb-4" />
+                    <hr className="border-t border-white/10 mb-4 mx-2" />
                     {sideNavCollapse ? (
                         menuContent
                     ) : (
                         <div className="side-nav-content">
                             <ScrollBar autoHide direction={direction}>
-                                <div className="space-y-2">
+                                <div className="space-y-1">
                                     {menuContent}
                                 </div>
                             </ScrollBar>

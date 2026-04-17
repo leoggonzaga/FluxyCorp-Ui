@@ -64,7 +64,7 @@ const MobileNav = () => {
 
     return (
         <>
-            {smaller.md && (
+            {smaller.lg && (
                 <>
                     <div className="text-2xl" onClick={openDrawer}>
                         <MobileNavToggle toggled={isOpen} />

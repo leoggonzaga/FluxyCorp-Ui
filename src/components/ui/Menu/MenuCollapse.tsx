@@ -78,13 +78,17 @@ const MenuCollapse = (props: MenuCollapseProps) => {
             </div>
             <CollapseContextProvider value={isExpanded}>
                 <motion.ul
-                    className={direction === 'rtl' ? 'mr-5' : 'ml-5'}
+                    className={
+                        direction === 'rtl'
+                            ? 'mr-3 pr-2 border-r border-white/[0.08]'
+                            : 'ml-3 pl-2 border-l border-white/[0.08]'
+                    }
                     initial={{ opacity: 0, height: 0, overflow: 'hidden' }}
                     animate={{
                         opacity: isExpanded ? 1 : 0,
                         height: isExpanded ? 'auto' : 0,
                     }}
-                    transition={{ duration: 0.15 }}
+                    transition={{ duration: 0.18 }}
                 >
                     {children}
                 </motion.ul>

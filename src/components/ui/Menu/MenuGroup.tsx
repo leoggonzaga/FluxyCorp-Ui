@@ -30,7 +30,11 @@ const MenuGroup = (props: MenuGroupProps) => {
                     )}
                     id={entityHeaderId}
                 >
-                    {label}
+                    <span className="w-3 h-px bg-violet-400/60 flex-shrink-0 rounded-full" />
+                    <span className="text-[9.5px] uppercase tracking-[0.18em] font-bold text-white/35 whitespace-nowrap px-0.5">
+                        {label}
+                    </span>
+                    <span className="flex-1 h-px bg-white/[0.08]" />
                 </div>
             )}
             <GroupContextProvider value={null}>

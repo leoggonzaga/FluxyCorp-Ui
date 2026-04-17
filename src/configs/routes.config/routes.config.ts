@@ -95,6 +95,12 @@ export const protectedRoutes = [
         component: lazy(() => import('@/views/patient/patientRecordIndex')),
         authority: [],
     },
+    {
+        key: 'attendance',
+        path: '/attendance',
+        component: lazy(() => import('@/views/attendance/AttendanceIndex')),
+        authority: [],
+    },
     // {
     //     key: 'singleMenuItem',
     //     path: '/single-menu-view',

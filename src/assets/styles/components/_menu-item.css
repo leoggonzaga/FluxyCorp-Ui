@@ -1,73 +1,93 @@
 @layer components {
   .menu-item {
-    @apply cursor-pointer font-semibold px-3 rounded-md flex items-center w-full whitespace-nowrap gap-x-2;
+    @apply cursor-pointer font-medium px-3 rounded-xl flex items-center w-full whitespace-nowrap gap-x-2 transition-all duration-200;
 
     &.menu-item-light {
-      @apply text-white;
+      @apply text-white/60;
 
       &.menu-item-hoverable {
-        @apply hover:text-white hover:bg-white/10;
+        @apply hover:text-white/90 hover:bg-white/[0.07];
       }
 
       &.menu-item-active {
-        @apply text-white bg-white/20 hover:bg-white/20;
+        @apply text-white;
+        background: linear-gradient(135deg, rgba(124, 58, 237, 0.88) 0%, rgba(79, 57, 246, 0.95) 100%);
+        box-shadow: 0 4px 20px rgba(79, 57, 246, 0.38);
+
+        &.menu-item-hoverable {
+          @apply hover:text-white hover:bg-transparent;
+        }
       }
     }
 
     &.menu-item-dark {
-      @apply text-white;
+      @apply text-white/60;
 
       &.menu-item-hoverable {
-        @apply hover:text-white hover:bg-white/10;
+        @apply hover:text-white/90 hover:bg-white/[0.07];
       }
 
       &.menu-item-active {
-        @apply text-white bg-white/20 hover:bg-white/20;
+        @apply text-white;
+        background: linear-gradient(135deg, rgba(124, 58, 237, 0.88) 0%, rgba(79, 57, 246, 0.95) 100%);
+        box-shadow: 0 4px 20px rgba(79, 57, 246, 0.38);
+
+        &.menu-item-hoverable {
+          @apply hover:text-white hover:bg-transparent;
+        }
       }
     }
 
     &.menu-item-themed {
-      @apply text-white;
+      @apply text-white/60;
 
       &.menu-item-hoverable {
-        @apply hover:text-white hover:bg-white/10;
+        @apply hover:text-white/90 hover:bg-white/[0.07];
       }
 
       &.menu-item-active {
-        @apply text-white bg-white/20 hover:bg-white/20;
+        @apply text-white;
+        background: linear-gradient(135deg, rgba(124, 58, 237, 0.88) 0%, rgba(79, 57, 246, 0.95) 100%);
+        box-shadow: 0 4px 20px rgba(79, 57, 246, 0.38);
+
+        &.menu-item-hoverable {
+          @apply hover:text-white hover:bg-transparent;
+        }
       }
     }
 
     &.menu-item-transparent {
-      @apply text-white;
+      @apply text-white/60;
 
       &.menu-item-hoverable {
-        @apply hover:text-white hover:bg-white/10;
+        @apply hover:text-white/90 hover:bg-white/[0.07];
       }
 
       &.menu-item-active {
-        @apply text-white bg-white/20;
+        @apply text-white;
+        background: linear-gradient(135deg, rgba(124, 58, 237, 0.88) 0%, rgba(79, 57, 246, 0.95) 100%);
+        box-shadow: 0 4px 20px rgba(79, 57, 246, 0.38);
       }
     }
   }
 
   .menu-collapse-item {
-    @apply cursor-pointer select-none font-semibold px-3 h-10 rounded-md flex items-center justify-between;
+    @apply cursor-pointer select-none font-medium px-3 h-10 rounded-xl flex items-center justify-between transition-all duration-200;
 
     &.menu-collapse-item-light {
-      @apply text-white hover:text-white hover:bg-white/10;
+      @apply text-white/60 hover:text-white/90 hover:bg-white/[0.07];
     }
 
     &.menu-collapse-item-dark {
-      @apply text-white hover:text-white hover:bg-white/10;
+      @apply text-white/60 hover:text-white/90 hover:bg-white/[0.07];
     }
 
     &.menu-collapse-item-themed {
-      @apply text-white hover:text-white hover:bg-white/10;
+      @apply text-white/60 hover:text-white/90 hover:bg-white/[0.07];
     }
 
     &.menu-collapse-item-transparent {
-      @apply text-white hover:text-white hover:bg-white/10;
+      @apply text-white/60 hover:text-white/90 hover:bg-white/[0.07];
     }
   }
 
