@@ -1,99 +1,118 @@
-import EmployeeTableList from './employeeTableList';
-import { HiOutlineCheckCircle, HiOutlinePlus, HiOutlineSearch, HiOutlineUserGroup, HiUserGroup } from "react-icons/hi"
-import { enterpriseApiGetEmployees } from '../../api/enterprise/EnterpriseService';
-import { useEffect, useState } from 'react';
-import { Button, Card, Dialog, Input, Notification, Pagination, Select, toast } from '../../components/ui';
-import EmployeeUpsert from './employeeUpsert';
-import { useSelector } from 'react-redux';
+import EmployeeTableList from './employeeTableList'
+import { HiOutlinePlus, HiOutlineSearch } from 'react-icons/hi'
+import { enterpriseApiGetEmployees } from '../../api/enterprise/EnterpriseService'
+import { useEffect, useState } from 'react'
+import { Button, Dialog, Input, Notification, Pagination, toast } from '../../components/ui'
+import EmployeeUpsert from './employeeUpsert'
 
-
-
-const employeeList = (props) => {
+const EmployeeList = (props) => {
     const { data } = props
 
-    // const state = useSelector((state) => state)
-
     const [employees, setEmployees] = useState([])
+    const [filtered, setFiltered] = useState([])
     const [loading, setLoading] = useState(false)
-    const [isUpsertOpen, setIsUpsertOpen] = useState(false);
-    const [paging, setPaging] = useState({
-        page: 1,
-        pageSize: 10,
-        total: 0
-    });
+    const [search, setSearch] = useState('')
+    const [isUpsertOpen, setIsUpsertOpen] = useState(false)
+    const [paging, setPaging] = useState({ page: 1, pageSize: 10, total: 0 })
 
     const loadEmployees = async () => {
         setLoading(true)
-
-        const result = await enterpriseApiGetEmployees();
-
-        if (!!result?.data) {
-            setEmployees(result.data);
+        const result = await enterpriseApiGetEmployees()
+        if (result?.data) {
+            setEmployees(result.data)
+            setFiltered(result.data)
             setPaging(prev => ({ ...prev, total: result.data.length }))
-        }
-        else {
+        } else {
             toast.push(
                 <Notification type='danger' title='Falha'>
-                    Falha ao carregar a lista de Funcionários. Tente novamente, mais tarde.
+                    Falha ao carregar a lista de funcionários. Tente novamente mais tarde.
                 </Notification>
             )
         }
-
         setLoading(false)
     }
 
+    useEffect(() => { loadEmployees() }, [paging.page])
+
     useEffect(() => {
-        loadEmployees();
-    }, [paging.page])
+        const q = search.toLowerCase().trim()
+        setFiltered(
+            q
+                ? employees.filter(e =>
+                    e.fullName?.toLowerCase().includes(q) ||
+                    e.email?.toLowerCase().includes(q) ||
+                    e.jobTitle?.toLowerCase().includes(q)
+                )
+                : employees
+        )
+        setPaging(prev => ({ ...prev, page: 1 }))
+    }, [search, employees])
+
+    const paginated = filtered.slice(
+        (paging.page - 1) * paging.pageSize,
+        paging.page * paging.pageSize
+    )
 
     return (
-        <>
-            <div className='flex items-center gap-2'>
-                <h2 className='text-gray-800'>Funcionários</h2>
+        <div className='space-y-5'>
+            {/* Header */}
+            <div className='flex items-center justify-between gap-4'>
+                <div>
+                    <h3 className='text-xl font-bold text-gray-800 dark:text-gray-100 leading-tight'>
+                        Funcionários
+                    </h3>
+                    <p className='text-sm text-gray-400 dark:text-gray-500 mt-0.5'>
+                        {!loading && (
+                            <>
+                                <span className='font-semibold text-indigo-500'>{employees.length}</span>
+                                {' '}colaboradores cadastrados
+                            </>
+                        )}
+                    </p>
+                </div>
                 <Button
-                    shape='circle'
                     icon={<HiOutlinePlus />}
                     variant='solid'
-                    size='xs'
-                    onClick={() => setIsUpsertOpen(true)}
-                />
-            </div>
-
-            <div className='flex w-full justify-end items-center gap-2'>
-                <Input
-                    className='w-[500px]'
-                    placeholder={'Insira o nome do Profissional'}
                     size='sm'
-                    prefix={<HiOutlineSearch className='text-lg' />}
-                />
-            </div>
-
-            <div className='mt-4'>
-                <div>
-                    <div className=''>
-                        <EmployeeTableList data={employees} loading={loading} />
-                    </div>
-
-                    <div className='flex w-full justify-center mt-4'>
-                        <Pagination
-                            pageSize={paging.pageSize}
-                            total={paging.total}
-                            currentPage={paging.page}
-                            onChange={(newPage) => { setPaging(prev => ({ ...prev, page: newPage })) }}
-                        />
-                    </div>
-                </div>
-
-                <Dialog
-                    isOpen={isUpsertOpen}
-                    onClose={() => setIsUpsertOpen(false)}
-                    onRequestClose={() => setIsUpsertOpen(false)}
+                    onClick={() => setIsUpsertOpen(true)}
                 >
-                    <EmployeeUpsert data={data} onClose={() => setIsUpsertOpen(false)} load={() => loadEmployees()}/>
-                </Dialog>
+                    Novo Funcionário
+                </Button>
             </div>
-        </>
+
+            {/* Busca */}
+            <Input
+                placeholder='Buscar por nome, e-mail ou cargo…'
+                size='sm'
+                prefix={<HiOutlineSearch className='text-gray-400' />}
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+            />
+
+            {/* Lista */}
+            <EmployeeTableList data={paginated} loading={loading} />
+
+            {/* Paginação */}
+            {filtered.length > paging.pageSize && (
+                <div className='flex justify-center pt-1'>
+                    <Pagination
+                        pageSize={paging.pageSize}
+                        total={filtered.length}
+                        currentPage={paging.page}
+                        onChange={(p) => setPaging(prev => ({ ...prev, page: p }))}
+                    />
+                </div>
+            )}
+
+            <Dialog
+                isOpen={isUpsertOpen}
+                onClose={() => setIsUpsertOpen(false)}
+                onRequestClose={() => setIsUpsertOpen(false)}
+            >
+                <EmployeeUpsert data={data} onClose={() => setIsUpsertOpen(false)} load={loadEmployees} />
+            </Dialog>
+        </div>
     )
 }
 
-export default employeeList;
+export default EmployeeList

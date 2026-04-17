@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import classNames from 'classnames'
 import { Notification, toast, Button, Dialog } from '@/components/ui'
 import Odontogram from './components/Odontogram'
+import ToothFaceSelector from './components/ToothFaceSelector'
 import {
     HiOutlineCheck,
     HiOutlineCheckCircle,
@@ -185,6 +186,7 @@ const AttendanceIndex = () => {
     const [selectedTeeth, setSelectedTeeth] = useState([])
     const [currentTooth, setCurrentTooth] = useState(null)
     const [selectedToothProcedureId, setSelectedToothProcedureId] = useState(null)
+    const [selectedToothFaces, setSelectedToothFaces] = useState([])
     const [toothModalOpen, setToothModalOpen] = useState(false)
     const [saveStatus, setSaveStatus]         = useState('saved')
     const [showFinish, setShowFinish]         = useState(false)
@@ -239,6 +241,7 @@ const AttendanceIndex = () => {
 
     const handleToggleTooth = (tooth) => {
         setCurrentTooth(tooth)
+        setSelectedToothFaces([])
         setToothModalOpen(true)
         setSelectedTeeth((prev) =>
             prev.includes(tooth) ? prev : [...prev, tooth]
@@ -246,7 +249,7 @@ const AttendanceIndex = () => {
     }
 
     const handleAssignToothProcedure = () => {
-        if (!currentTooth || !selectedToothProcedureId) return
+        if (!currentTooth || !selectedToothProcedureId || selectedToothFaces.length === 0) return
         const procedure = PROCEDURE_CATALOG.flatMap((cat) => cat.items).find((item) => item.id === selectedToothProcedureId)
         if (!procedure) return
 
@@ -254,13 +257,14 @@ const AttendanceIndex = () => {
             ...prev,
             [currentTooth]: [
                 ...(prev[currentTooth] || []),
-                { id: procedure.id, name: procedure.name },
+                { id: procedure.id, name: procedure.name, faces: selectedToothFaces },
             ],
         }))
 
         handleAddProcedure(procedure)
         setToothModalOpen(false)
         setSelectedToothProcedureId(null)
+        setSelectedToothFaces([])
     }
 
     const handleRemoveProcedure = (id) => {
@@ -769,7 +773,7 @@ const AttendanceIndex = () => {
                 width={500}
                 title={currentTooth ? `Procedimento - Dente ${currentTooth}` : 'Procedimento por Dente'}
             >
-                <div className='space-y-4'>
+                <div className='space-y-6'>
                     <div>
                         <label className='block text-sm font-medium text-gray-700 mb-2'>Selecione o procedimento</label>
                         <select
@@ -783,12 +787,22 @@ const AttendanceIndex = () => {
                             ))}
                         </select>
                     </div>
-                    <div className='flex justify-end gap-2'>
+
+                    {selectedToothProcedureId && (
+                        <div className='border-t pt-6'>
+                            <ToothFaceSelector
+                                selectedFaces={selectedToothFaces}
+                                onFaceToggle={setSelectedToothFaces}
+                            />
+                        </div>
+                    )}
+
+                    <div className='flex justify-end gap-2 pt-4 border-t'>
                         <Button variant='plain' onClick={() => setToothModalOpen(false)}>Cancelar</Button>
                         <Button
                             variant='solid'
                             onClick={handleAssignToothProcedure}
-                            disabled={!selectedToothProcedureId}
+                            disabled={!selectedToothProcedureId || selectedToothFaces.length === 0}
                         >
                             Adicionar ao dente
                         </Button>

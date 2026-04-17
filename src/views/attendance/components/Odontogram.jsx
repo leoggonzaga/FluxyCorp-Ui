@@ -21,37 +21,66 @@ const HEIGHT = { molar: 'h-9', premolar: 'h-8', canine: 'h-8', incisor: 'h-7' }
 const Tooth = ({ num, selected, procedures = [], onToggle }) => {
     const type = toothType(num)
     const procedureCount = procedures.length
-    const proceduresText = procedures.map((proc) => proc.name).join(', ')
+    const proceduresText = procedures.map((proc) => `${proc.name}${proc.faces ? ` (${proc.faces.join(', ')})` : ''}`).join('\n')
 
-    const button = (
+    // Determina a cor de fundo baseada no estado
+    let baseColor = 'bg-gradient-to-b from-white to-blue-50 dark:from-gray-300 dark:to-gray-200'
+    let borderColor = 'border-gray-300 dark:border-gray-500'
+    let shadowColor = 'shadow-gray-300/60 dark:shadow-gray-700/60'
+    let textColor = 'text-gray-600 dark:text-gray-800'
+
+    if (selected && procedureCount > 0) {
+        baseColor = 'bg-gradient-to-b from-indigo-200 to-indigo-100 dark:from-indigo-600 dark:to-indigo-700'
+        borderColor = 'border-indigo-400 dark:border-indigo-700'
+        shadowColor = 'shadow-indigo-400/60 dark:shadow-indigo-900/60'
+        textColor = 'text-indigo-900 dark:text-white'
+    } else if (selected) {
+        baseColor = 'bg-gradient-to-b from-indigo-100 to-indigo-50 dark:from-indigo-500 dark:to-indigo-600'
+        borderColor = 'border-indigo-300 dark:border-indigo-600'
+        shadowColor = 'shadow-indigo-300/50 dark:shadow-indigo-800/50'
+        textColor = 'text-indigo-700 dark:text-indigo-100'
+    } else if (procedureCount > 0) {
+        baseColor = 'bg-gradient-to-b from-emerald-100 to-emerald-50 dark:from-emerald-600 dark:to-emerald-700'
+        borderColor = 'border-emerald-400 dark:border-emerald-700'
+        shadowColor = 'shadow-emerald-400/60 dark:shadow-emerald-900/60'
+        textColor = 'text-emerald-900 dark:text-white'
+    }
+
+    return (
         <button
             onClick={() => onToggle(num)}
-            title={`Dente ${num}${procedureCount > 0 ? ` · ${procedureCount} procedimento(s): ${proceduresText}` : ''}`}
+            title={`Dente ${num}${procedureCount > 0 ? ` · ${procedureCount} procedimento(s):\n${proceduresText}` : ''}`}
             className={classNames(
-                'relative flex-1 flex flex-col items-center justify-between pb-1 pt-0.5 rounded-md border text-[9px] font-bold transition-all active:scale-90 select-none',
+                'relative flex-1 flex flex-col items-center justify-start pt-1 px-0.5 pb-0.5 rounded-t-2xl rounded-b-sm border-2 transition-all active:scale-90 select-none overflow-hidden group',
                 HEIGHT[type],
-                selected && procedureCount > 0
-                    ? 'bg-indigo-100 dark:bg-indigo-900/50 border-indigo-400 dark:border-indigo-500 text-indigo-700 dark:text-indigo-300 shadow-sm shadow-indigo-200 dark:shadow-indigo-900'
-                    : selected
-                    ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-400 dark:border-indigo-500/70 text-indigo-600 dark:text-indigo-400'
-                    : procedureCount > 0
-                    ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-600/50 text-emerald-700 dark:text-emerald-400'
-                    : 'bg-white dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-indigo-200 dark:hover:border-indigo-700 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20',
+                baseColor,
+                borderColor,
+                'hover:shadow-lg',
+                shadowColor && `shadow-md ${shadowColor}`,
             )}
         >
-            <span className='leading-none'>{num}</span>
+            {/* Brilho/reflexo no topo (coroa do dente) */}
+            <div className='absolute top-0 left-0 right-0 h-1 bg-gradient-to-b from-white/60 to-transparent rounded-t-2xl' />
+
+            {/* Número do dente */}
+            <span className={classNames('leading-none text-[8px] font-bold mt-0.5', textColor)}>
+                {num}
+            </span>
+
+            {/* Raiz (fundo mais escuro) */}
+            <div className='flex-1 w-full bg-gradient-to-b from-transparent via-gray-100/20 to-gray-300/30 dark:via-gray-600/10 dark:to-gray-700/30 rounded-b-sm' />
 
             {/* Dot indicator per procedure count */}
-            <div className='flex gap-[2px] items-center justify-center h-2'>
-                {procedureCount > 0 && Array.from({ length: Math.min(procedureCount, 3) }).map((_, i) => (
-                    <div key={i} className='w-1 h-1 rounded-full bg-emerald-400 dark:bg-emerald-500' />
-                ))}
-                {procedureCount > 3 && <span className='text-[7px] text-emerald-500 font-bold leading-none'>+</span>}
-            </div>
+            {procedureCount > 0 && (
+                <div className='flex gap-[2px] items-center justify-center h-1.5 mb-1'>
+                    {Array.from({ length: Math.min(procedureCount, 3) }).map((_, i) => (
+                        <div key={i} className='w-0.5 h-0.5 rounded-full bg-emerald-500 dark:bg-emerald-400' />
+                    ))}
+                    {procedureCount > 3 && <span className='text-[6px] text-emerald-600 dark:text-emerald-400 font-bold leading-none'>+</span>}
+                </div>
+            )}
         </button>
     )
-
-    return button
 }
 
 const Odontogram = ({ selectedTeeth = [], onToggleTooth, proceduresByTooth = {} }) => {
