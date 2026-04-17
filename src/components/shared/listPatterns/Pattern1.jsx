@@ -4,12 +4,16 @@
  * Ideal para: listas densas, consulta rápida, qualquer entidade com email/cargo.
  *
  * Props do item: { id, name, email?, meta?, badge?, status, avatarName? }
+ * Props extras:
+ *   actions: Array<{ key, icon, onClick(item), className?, tooltip? }>
+ *            Botões de ação renderizados no lado direito de cada linha.
+ *            O clique nos botões não dispara onItemClick.
  */
 import Loading from '@/components/shared/Loading'
 import { HiOutlineBriefcase, HiOutlineIdentification, HiOutlineMail } from 'react-icons/hi'
 import { getInitials, getAvatarColor, StatusDot, EmptyState } from './patternUtils'
 
-const Pattern1 = ({ items = [], loading, onItemClick, emptyMessage }) => (
+const Pattern1 = ({ items = [], loading, onItemClick, emptyMessage, actions = [] }) => (
     <Loading loading={loading}>
         {!loading && items.length === 0 ? (
             <EmptyState message={emptyMessage} />
@@ -55,6 +59,24 @@ const Pattern1 = ({ items = [], loading, onItemClick, emptyMessage }) => (
                         )}
 
                         <StatusDot status={item.status} />
+
+                        {actions.length > 0 && (
+                            <div
+                                className='flex items-center gap-0.5 ml-1 flex-shrink-0'
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                {actions.map((action) => (
+                                    <button
+                                        key={action.key}
+                                        title={action.tooltip}
+                                        onClick={() => action.onClick?.(item)}
+                                        className={`p-1.5 rounded-lg transition-colors duration-150 ${action.className ?? 'text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                                    >
+                                        {action.icon}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>

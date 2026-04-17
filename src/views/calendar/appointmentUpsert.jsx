@@ -1,6 +1,7 @@
 import { Formik, Field, Form } from 'formik'
 import { FormItem, FormContainer } from '@/components/ui/Form'
-import { HiOutlineBan, HiOutlineCheckCircle, HiOutlineClock, HiOutlineTrash, HiOutlineUser } from "react-icons/hi"
+import { HiOutlineBan, HiOutlineCheckCircle, HiOutlineClock, HiOutlineTrash, HiOutlineUser, HiOutlineCalendar } from "react-icons/hi"
+import dayjs from 'dayjs'
 import { Button, Input, Notification, Select, toast, InputPhone, InputNationalDocument, TimeInput, Avatar } from '../../components/ui';
 import * as Yup from 'yup'
 import DatePickerInputtable from '../../components/ui/DatePicker/DatePickerInputtable';
@@ -8,7 +9,6 @@ import TimeInputRange from '../../components/ui/TimeInput/TimeInputRange';
 import AsyncSelect from 'react-select/async'
 import { components } from 'react-select'
 import Loading from '../../components/shared/Loading'
-import Odontogram from '../../components/shared/Odontogram'
 import { enterpriseApiGetEmployees, enterpriseApiGetEmployeeSimplifiedById } from '../../api/enterprise/EnterpriseService';
 import { useEffect, useState } from 'react';
 import { consultationTypeApiGetTypes } from '../../api/consultation/consultationService';
@@ -57,7 +57,6 @@ const AppointmentUpsert = ({ data, onClose }) => {
     console.log(data);
 
     const [isLoading, setIsLoading] = useState(false);
-    const [selectedTeeth, setSelectedTeeth] = useState(data?.selectedTeeth || {});
 
     const [employees, setEmployees] = useState([]);
     const [consultationTypes, setConsultationTypes] = useState([]);
@@ -104,14 +103,32 @@ const AppointmentUpsert = ({ data, onClose }) => {
                 </div>
 
 
+                {/* Badge de range pré-selecionado (só aparece quando vem do drag) */}
+                {data?.timeRange && (
+                    <div className="flex items-center gap-2 px-3 py-2 mb-4 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/40">
+                        <HiOutlineCalendar className="w-4 h-4 text-indigo-500 shrink-0" />
+                        <span className="text-xs text-indigo-700 dark:text-indigo-300">
+                            Horário selecionado:{' '}
+                            <strong>
+                                {dayjs(data.start).format('DD/MM/YYYY')}
+                                {' · '}
+                                {dayjs(data.start).format('HH:mm')}
+                                {' – '}
+                                {dayjs(data.end).format('HH:mm')}
+                            </strong>
+                        </span>
+                    </div>
+                )}
+
                 <Formik
+                    enableReinitialize
                     initialValues={data || {}}
                     validationSchema={validationSchema}
                     onSubmit={(values) => {
                         !data ?
-                            handleCreate({ ...values, selectedTeeth })
+                            handleCreate(values)
                             :
-                            handleUpdate({ ...values, selectedTeeth })
+                            handleUpdate(values)
                     }}
                 >
                     {({ values, touched, errors, resetForm }) => (
@@ -338,14 +355,6 @@ const AppointmentUpsert = ({ data, onClose }) => {
                                         </Field>
                                     </FormItem>
 
-                                    {/* Odontograma */}
-                                    <div className='mt-6'>
-                                        <Odontogram
-                                            selectedTeeth={selectedTeeth}
-                                            onTeethChange={setSelectedTeeth}
-                                            genderColor='blue'
-                                        />
-                                    </div>
 
 
                                 </div>

@@ -96,9 +96,45 @@ export const protectedRoutes = [
         authority: [],
     },
     {
+        key: 'attendanceToday',
+        path: '/attendance-today',
+        component: lazy(() => import('@/views/attendance/attendanceTodayIndex')),
+        authority: [],
+    },
+    {
         key: 'attendance',
         path: '/attendance',
         component: lazy(() => import('@/views/attendance/AttendanceIndex')),
+        authority: [],
+    },
+    {
+        key: 'leads',
+        path: '/leads',
+        component: lazy(() => import('@/views/leads/leadsIndex')),
+        authority: [],
+    },
+    {
+        key: 'cashFlowDashboard',
+        path: '/cash-flow',
+        component: lazy(() => import('@/views/cashFlow/cashFlowDashboard')),
+        authority: [],
+    },
+    {
+        key: 'cashClosing',
+        path: '/cash-closing',
+        component: lazy(() => import('@/views/cashFlow/cashClosingIndex')),
+        authority: [],
+    },
+    {
+        key: 'accountsReceivable',
+        path: '/accounts-receivable',
+        component: lazy(() => import('@/views/cashFlow/accountsReceivableIndex')),
+        authority: [],
+    },
+    {
+        key: 'accountsPayable',
+        path: '/accounts-payable',
+        component: lazy(() => import('@/views/cashFlow/accountsPayableIndex')),
         authority: [],
     },
     // {

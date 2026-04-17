@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Badge, Card, Notification, Tabs, toast } from '@/components/ui'
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
+import { Badge, Card, Input, Notification, Tabs, toast } from '@/components/ui'
+import { Pattern1 } from '@/components/shared/listPatterns'
 import {
     HiOutlineCalendar,
+    HiOutlineChevronLeft,
     HiOutlineClipboardList,
     HiOutlineClock,
     HiOutlineCollection,
@@ -271,15 +273,38 @@ const calcAge = (birthDate) => {
 const sortByDateDesc = (items) => [...items].sort((a, b) => new Date(b.date) - new Date(a.date))
 const sortByDateAsc  = (items) => [...items].sort((a, b) => new Date(a.date) - new Date(b.date))
 
+const RECENTES_KEY = 'prontuario_recentes'
+
+const toPatternItem = (patient) => ({
+    id:         patient.id,
+    name:       patient.name,
+    email:      patient.email,
+    meta:       patient.cpf,
+    badge:      patient.insurance,
+    status:     'ativo',
+    avatarName: patient.name,
+    _raw:       patient,
+})
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const PatientRecordIndex = () => {
     const { TabNav, TabList, TabContent } = Tabs
 
     const navigate = useNavigate()
+    const location = useLocation()
 
     const [searchTerm, setSearchTerm] = useState('')
     const [selectedPatient, setSelectedPatient] = useState(null)
+    const [historyStack, setHistoryStack] = useState([])
+    const [recentIds, setRecentIds] = useState(() => {
+        try {
+            const stored = localStorage.getItem(RECENTES_KEY)
+            return stored ? JSON.parse(stored) : PATIENTS.slice(0, 3).map((p) => p.id)
+        } catch {
+            return PATIENTS.slice(0, 3).map((p) => p.id)
+        }
+    })
     const [searchParams] = useSearchParams()
     const [patientImages, setPatientImages] = useState([])
     const [patientDocuments, setPatientDocuments] = useState([])
@@ -305,6 +330,15 @@ const PatientRecordIndex = () => {
             if (Array.isArray(parsed)) setPrintTemplates(parsed)
         } catch (_) {}
     }, [])
+
+    useEffect(() => {
+        if (!selectedPatient) return
+        setRecentIds((prev) => {
+            const next = [selectedPatient.id, ...prev.filter((id) => id !== selectedPatient.id)].slice(0, 8)
+            localStorage.setItem(RECENTES_KEY, JSON.stringify(next))
+            return next
+        })
+    }, [selectedPatient?.id])
 
     useEffect(() => {
         if (!selectedPatient) {
@@ -435,6 +469,28 @@ const PatientRecordIndex = () => {
     const handleSchedule = () =>
         toast.push(<Notification type='info' title='Agendar'>Acesse a aba de agendamento.</Notification>)
 
+    const openPatient = (patient, fromLabel) => {
+        setHistoryStack((prev) => [
+            ...prev,
+            { label: fromLabel ?? (selectedPatient ? selectedPatient.name : 'Prontuários Recentes'), patient: selectedPatient },
+        ])
+        setSelectedPatient(patient)
+    }
+
+    const goBack = () => {
+        if (historyStack.length > 0) {
+            const prev = historyStack[historyStack.length - 1]
+            setHistoryStack((s) => s.slice(0, -1))
+            setSelectedPatient(prev.patient)
+        } else {
+            navigate(-1)
+        }
+    }
+
+    const backLabel = historyStack.length > 0
+        ? historyStack[historyStack.length - 1].label
+        : (location.state?.fromLabel ?? null)
+
     // ─── Render ───────────────────────────────────────────────────────────────
 
     return (
@@ -443,6 +499,20 @@ const PatientRecordIndex = () => {
             {/* ── Patient Content ── */}
             {selectedPatient && (
                 <>
+                    {/* ── Breadcrumb / Voltar ── */}
+                    <button
+                        onClick={goBack}
+                        className='group flex items-center gap-1.5 text-sm text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-150'
+                    >
+                        <HiOutlineChevronLeft
+                            size={16}
+                            className='transition-transform duration-150 group-hover:-translate-x-0.5'
+                        />
+                        <span className='font-medium'>
+                            {backLabel ?? 'Voltar'}
+                        </span>
+                    </button>
+
                     {/* ── Header ── */}
                     <div className={`relative rounded-2xl overflow-hidden shadow-sm border border-white/80 ${
                         selectedPatient.gender === 'female'
@@ -826,15 +896,49 @@ const PatientRecordIndex = () => {
                 </>
             )}
 
-            {/* ── Empty state ── */}
+            {/* ── Recentes / Busca ── */}
             {!selectedPatient && (
-                <Card className='py-16'>
-                    <div className='text-center text-gray-400'>
-                        <HiOutlineIdentification className='w-16 h-16 mx-auto mb-4 opacity-40' />
-                        <p className='text-lg font-semibold'>Nenhum paciente selecionado</p>
-                        <p className='text-sm mt-1'>Use a barra de pesquisa no topo para encontrar um prontuário</p>
-                    </div>
-                </Card>
+                <div className='space-y-5'>
+                    <Input
+                        placeholder='Buscar paciente por nome ou CPF…'
+                        size='sm'
+                        prefix={<HiOutlineSearch className='text-gray-400' />}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+
+                    {searchTerm.trim() ? (
+                        <div className='space-y-3'>
+                            <div className='flex items-center gap-2'>
+                                <p className='text-xs font-semibold text-gray-400 uppercase tracking-wide'>
+                                    Resultados
+                                </p>
+                                <span className='px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400'>
+                                    {filteredPatients.length}
+                                </span>
+                            </div>
+                            <Pattern1
+                                items={filteredPatients.map(toPatternItem)}
+                                emptyMessage='Nenhum paciente encontrado'
+                                onItemClick={(item) => openPatient(item._raw, 'Busca')}
+                            />
+                        </div>
+                    ) : (
+                        <div className='space-y-3'>
+                            <p className='text-xs font-semibold text-gray-400 uppercase tracking-wide'>
+                                Prontuários Recentes
+                            </p>
+                            <Pattern1
+                                items={recentIds
+                                    .map((id) => PATIENTS.find((p) => p.id === id))
+                                    .filter(Boolean)
+                                    .map(toPatternItem)}
+                                emptyMessage='Nenhum prontuário acessado recentemente'
+                                onItemClick={(item) => openPatient(item._raw, 'Prontuários Recentes')}
+                            />
+                        </div>
+                    )}
+                </div>
             )}
         </div>
     )

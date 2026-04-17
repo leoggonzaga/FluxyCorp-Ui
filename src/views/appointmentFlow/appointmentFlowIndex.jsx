@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
     DndContext,
     DragOverlay,
@@ -15,7 +16,8 @@ import {
     verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Card, Badge, Notification, toast } from '@/components/ui'
+import { Badge, Notification, toast } from '@/components/ui'
+import { KanbanCard, KanbanColumn } from '@/components/shared'
 import {
     HiOutlinePhone,
     HiOutlineClock,
@@ -25,6 +27,7 @@ import {
     HiOutlineUsers,
     HiOutlineFilter,
     HiOutlineChevronUp,
+    HiOutlineClipboardList,
 } from 'react-icons/hi'
 
 const columns = [
@@ -36,16 +39,14 @@ const columns = [
     { key: 'cancelled',   title: 'Cancelado',        icon: HiOutlineX,            accent: '#ef4444', accentLight: 'rgba(239,68,68,0.08)',   dot: 'bg-rose-400' },
 ]
 
-const AppointmentCard = ({ appointment, dragStyle, dragAttributes, dragListeners, dragRef, isDragging }) => {
+const AppointmentCard = ({ appointment, dragStyle, dragAttributes, dragListeners, dragRef, isDragging, onViewRecord }) => {
     return (
-        <div
-            ref={dragRef}
-            {...dragAttributes}
-            {...dragListeners}
-            style={dragStyle}
-            className={`group bg-white/80 backdrop-blur-sm rounded-xl p-3 border border-white shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing transition-all duration-150 ${
-                isDragging ? 'shadow-xl ring-2 ring-indigo-300 opacity-90 rotate-1' : ''
-            }`}
+        <KanbanCard
+            dragRef={dragRef}
+            dragAttributes={dragAttributes}
+            dragListeners={dragListeners}
+            dragStyle={dragStyle}
+            isDragging={isDragging}
         >
             <div className='flex items-start justify-between gap-2'>
                 <p className='font-semibold text-gray-800 text-sm leading-tight'>{appointment.patientName}</p>
@@ -92,11 +93,20 @@ const AppointmentCard = ({ appointment, dragStyle, dragAttributes, dragListeners
                     <span className='font-semibold'>Pendente: </span>{appointment.pendingDoc}
                 </div>
             )}
-        </div>
+
+            <button
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); onViewRecord?.(appointment) }}
+                className='mt-2.5 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-indigo-100 bg-indigo-50/60 hover:bg-indigo-100 text-indigo-600 text-[11px] font-semibold transition-colors duration-150'
+            >
+                <HiOutlineClipboardList size={13} />
+                Ver Prontuário
+            </button>
+        </KanbanCard>
     )
 }
 
-const SortableAppointmentCard = ({ appointment }) => {
+const SortableAppointmentCard = ({ appointment, onViewRecord }) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: appointment.id,
         data: { type: 'appointment' },
@@ -116,6 +126,7 @@ const SortableAppointmentCard = ({ appointment }) => {
             dragListeners={listeners}
             dragRef={setNodeRef}
             isDragging={isDragging}
+            onViewRecord={onViewRecord}
         />
     )
 }
@@ -130,76 +141,59 @@ const findColumnByItemId = (appointments, itemId) => {
     return null
 }
 
-const Column = ({ column, items }) => {
+const Column = ({ column, items, onViewRecord }) => {
     const { setNodeRef, isOver } = useDroppable({ id: column.key })
-    const IconComponent = column.icon
 
     return (
-        <div
-            ref={setNodeRef}
-            style={{ background: isOver ? column.accentLight.replace('0.08', '0.14') : column.accentLight }}
-            className='rounded-2xl border border-white/60 backdrop-blur-md shadow-sm transition-colors duration-200 overflow-hidden'
+        <KanbanColumn
+            columnRef={setNodeRef}
+            isOver={isOver}
+            accent={column.accent}
+            accentLight={column.accentLight}
+            icon={column.icon}
+            title={column.title}
+            count={items.length}
+            minHeight='18rem'
         >
-            {/* Column header */}
-            <div className='flex items-center gap-2 px-3 pt-3 pb-2'>
-                <div
-                    className='w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0'
-                    style={{ background: column.accent + '22' }}
-                >
-                    <IconComponent className='w-4 h-4' style={{ color: column.accent }} />
-                </div>
-                <h3 className='font-semibold text-gray-700 text-xs flex-1 leading-tight'>{column.title}</h3>
-                <span
-                    className='text-xs font-bold min-w-[20px] text-center px-1.5 py-0.5 rounded-full'
-                    style={{ background: column.accent + '22', color: column.accent }}
-                >
-                    {items.length}
-                </span>
-            </div>
-
-            {/* Divider */}
-            <div className='mx-3 h-px mb-2' style={{ background: column.accent + '30' }} />
-
             <SortableContext items={items.map((item) => item.id)} strategy={verticalListSortingStrategy}>
-                <div className={`px-2 pb-2 space-y-2 min-h-72 rounded-b-2xl transition-colors duration-150`}>
-                    {items.map((appointment) => (
-                        <SortableAppointmentCard key={appointment.id} appointment={appointment} />
-                    ))}
-
-                    {items.length === 0 && (
-                        <div className='flex items-center justify-center h-20 rounded-xl border border-dashed text-[11px] text-gray-400'
-                            style={{ borderColor: column.accent + '40' }}>
-                            Vazio
-                        </div>
-                    )}
-                </div>
+                {items.map((appointment) => (
+                    <SortableAppointmentCard key={appointment.id} appointment={appointment} onViewRecord={onViewRecord} />
+                ))}
             </SortableContext>
-        </div>
+        </KanbanColumn>
     )
 }
 
 const AppointmentFlowIndex = () => {
+    const navigate = useNavigate()
+
+    const handleViewRecord = (appointment) => {
+        navigate(`/patients?id=${appointment.patientId}`, {
+            state: { fromLabel: 'Fluxo de Atendimento' },
+        })
+    }
+
     const [appointments, setAppointments] = useState({
         scheduled: [
-            { id: '1', patientName: 'João Silva', phone: '(11) 98765-4321', time: '10:00', service: 'Consulta', professional: 'Dr. Carlos' },
-            { id: '2', patientName: 'Maria Santos', phone: '(11) 99876-5432', time: '10:30', service: 'Limpeza', professional: 'Dra. Ana' },
-            { id: '3', patientName: 'Pedro Oliveira', phone: '(11) 97654-3210', time: '11:00', service: 'Avaliação', professional: 'Dr. Bruno' },
+            { id: '1', patientId: 1, patientName: 'João Silva',     phone: '(11) 98765-4321', time: '10:00', service: 'Consulta',  professional: 'Dr. Carlos' },
+            { id: '2', patientId: 2, patientName: 'Maria Santos',   phone: '(11) 99876-5432', time: '10:30', service: 'Limpeza',   professional: 'Dra. Ana' },
+            { id: '3', patientId: 3, patientName: 'Pedro Oliveira', phone: '(11) 97654-3210', time: '11:00', service: 'Avaliação', professional: 'Dr. Bruno' },
         ],
         waitingRoom: [
-            { id: '9', patientName: 'Carla Mendes', phone: '(11) 91234-5678', time: '09:45', service: 'Consulta', professional: 'Dr. Carlos', arrivalTime: '09:50', waitingTime: '8 min' },
+            { id: '9', patientId: 4, patientName: 'Carla Mendes',  phone: '(11) 91234-5678', time: '09:45', service: 'Consulta', professional: 'Dr. Carlos', arrivalTime: '09:50', waitingTime: '8 min' },
         ],
         inProgress: [
-            { id: '4', patientName: 'Lucas Costa', phone: '(11) 96543-2109', time: '09:30', service: 'Consulta', professional: 'Dr. Carlos' },
+            { id: '4', patientId: 5, patientName: 'Lucas Costa',   phone: '(11) 96543-2109', time: '09:30', service: 'Consulta', professional: 'Dr. Carlos' },
         ],
         completed: [
-            { id: '5', patientName: 'Ana Lima', phone: '(11) 95432-1098', time: '08:00', service: 'Limpeza', professional: 'Dra. Ana' },
-            { id: '6', patientName: 'Felipe Alves', phone: '(11) 94321-0987', time: '08:45', service: 'Avaliação', professional: 'Dr. Bruno' },
+            { id: '5', patientId: 6, patientName: 'Ana Lima',      phone: '(11) 95432-1098', time: '08:00', service: 'Limpeza',   professional: 'Dra. Ana' },
+            { id: '6', patientId: 1, patientName: 'Felipe Alves',  phone: '(11) 94321-0987', time: '08:45', service: 'Avaliação', professional: 'Dr. Bruno' },
         ],
         cancelled: [
-            { id: '7', patientName: 'Roberto Gomes', phone: '(11) 93210-9876', time: '14:00', service: 'Consulta', professional: 'Dr. Carlos', reason: 'Cancelamento do paciente' },
+            { id: '7', patientId: 2, patientName: 'Roberto Gomes', phone: '(11) 93210-9876', time: '14:00', service: 'Consulta', professional: 'Dr. Carlos', reason: 'Cancelamento do paciente' },
         ],
         pendingDocs: [
-            { id: '8', patientName: 'Juliana Ferreira', phone: '(11) 92109-8765', time: '09:00', service: 'Consulta', professional: 'Dra. Ana', pendingDoc: 'Receituário' },
+            { id: '8', patientId: 3, patientName: 'Juliana Ferreira', phone: '(11) 92109-8765', time: '09:00', service: 'Consulta', professional: 'Dra. Ana', pendingDoc: 'Receituário' },
         ],
     })
 
@@ -379,7 +373,7 @@ const AppointmentFlowIndex = () => {
                 >
                     <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3'>
                         {visibleColumns.map((column) => (
-                            <Column key={column.key} column={column} items={appointments[column.key] || []} />
+                            <Column key={column.key} column={column} items={appointments[column.key] || []} onViewRecord={handleViewRecord} />
                         ))}
                     </div>
 

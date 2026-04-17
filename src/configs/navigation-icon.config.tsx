@@ -7,7 +7,13 @@ import {
     HiOutlineCurrencyDollar,
     HiOutlineCalendar,
     HiOutlineCog,
-    HiOutlineClipboardList
+    HiOutlineClipboardList,
+    HiOutlineClipboard,
+    HiOutlineCash,
+    HiOutlineChartBar,
+    HiOutlineArrowCircleDown,
+    HiOutlineArrowCircleUp,
+    HiOutlineFilter,
 } from 'react-icons/hi'
 import type { JSX } from 'react'
 
@@ -22,7 +28,13 @@ const navigationIcon: NavigationIcons = {
     currencyDolar: <HiOutlineCurrencyDollar />,
     calendar: <HiOutlineCalendar/>,
     gear: <HiOutlineCog/>,
-    clipboarList: <HiOutlineClipboardList/>
+    clipboarList: <HiOutlineClipboardList/>,
+    clipboard:    <HiOutlineClipboard/>,
+    cash:            <HiOutlineCash/>,
+    chartBar:        <HiOutlineChartBar/>,
+    arrowCircleDown: <HiOutlineArrowCircleDown/>,
+    arrowCircleUp:   <HiOutlineArrowCircleUp/>,
+    funnel:          <HiOutlineFilter/>,
 }
 
 export default navigationIcon

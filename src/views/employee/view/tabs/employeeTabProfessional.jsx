@@ -1,67 +1,45 @@
-import { HiOutlineCheckCircle, HiOutlinePencil } from "react-icons/hi"
-import { Button, Card, Input } from "../../../../components/ui"
-import { useState } from "react"
+import { HiOutlineCheckCircle, HiOutlinePencil } from 'react-icons/hi'
+import { Button, Card, Input } from '../../../../components/ui'
+import { useState } from 'react'
 
 const EmployeeTabProfessional = ({ data }) => {
-
     const [isEditing, setIsEditing] = useState(false)
 
-    const toggle = () => {
-        setIsEditing(prev => !prev);
-    }
+    const p = data?.professional || data || {}
 
-    const professional = data?.professional || data || {}
-
-    const getValue = (camelKey, pascalKey) => {
-        return professional?.[camelKey] ?? professional?.[pascalKey]
-    }
+    const get = (camel, pascal) => p?.[camel] ?? p?.[pascal]
 
     const fieldGroups = [
         {
-            title: 'Vinculo Profissional',
+            title: 'Vínculo Profissional',
             fields: [
-                { label: 'UserId', value: getValue('userId', 'UserId'), readOnly: true },
-                { label: 'Data de Contratacao', value: getValue('hireDate', 'HireDate') },
-                { label: 'Matricula', value: getValue('employeeNumber', 'EmployeeNumber') },
-                { label: 'Email', value: getValue('email', 'Email') },
-                { label: 'JobTitleId', value: getValue('jobTitleId', 'JobTitleId') },
+                { label: 'Data de Contratação', value: get('hireDate', 'HireDate') },
+                { label: 'Matrícula',            value: get('employeeNumber', 'EmployeeNumber') },
+                { label: 'Email',                value: get('email', 'Email') },
                 {
                     label: 'Cargo',
                     value:
-                        professional?.jobTitle?.name ??
-                        professional?.JobTitle?.name ??
-                        professional?.jobTitleName ??
-                        professional?.jobTitle,
+                        p?.jobTitle?.name ??
+                        p?.JobTitle?.name ??
+                        p?.jobTitleName ??
+                        p?.jobTitle,
                 },
             ],
         },
         {
-            title: 'Conselho / Federacao Profissional',
+            title: 'Conselho / Federação Profissional',
             fields: [
-                {
-                    label: 'Codigo da Federacao',
-                    value: getValue('professionalFderationCode', 'ProfessionalFderationCode'),
-                },
-                {
-                    label: 'Numero da Federacao',
-                    value: getValue('professionalFderationNumber', 'ProfessionalFderationNumber'),
-                },
-                {
-                    label: 'UF da Federacao',
-                    value: getValue('professionalFderationUF', 'ProfessionalFderationUF'),
-                },
+                { label: 'Código',  value: get('professionalFderationCode',   'ProfessionalFderationCode') },
+                { label: 'Número',  value: get('professionalFderationNumber', 'ProfessionalFderationNumber') },
+                { label: 'UF',      value: get('professionalFderationUF',     'ProfessionalFderationUF') },
             ],
         },
         {
-            title: 'Classificacao Ocupacional',
+            title: 'Classificação Ocupacional',
             fields: [
-                { label: 'CBOId', value: getValue('cboId', 'CBOId') },
                 {
                     label: 'CBO',
-                    value:
-                        professional?.cbo?.name ??
-                        professional?.CBO?.name ??
-                        professional?.cboName,
+                    value: p?.cbo?.name ?? p?.CBO?.name ?? p?.cboName,
                 },
             ],
         },
@@ -69,42 +47,48 @@ const EmployeeTabProfessional = ({ data }) => {
 
     return (
         <Card className='flex flex-col'>
-            <div className='flex items-center gap-2 w-full justify-end'>
+            <div className='flex items-center gap-2 w-full justify-end mb-1'>
+                {isEditing && (
+                    <Button size='sm' onClick={() => setIsEditing(false)}>
+                        Cancelar
+                    </Button>
+                )}
                 <Button
-                    size="sm"
-                    onClick={() => toggle()}
-                >
-                    Cancelar
-                </Button>
-                <Button
-                    size="sm"
-                    variant="solid"
+                    size='sm'
+                    variant='solid'
                     icon={isEditing ? <HiOutlineCheckCircle /> : <HiOutlinePencil />}
-                    onClick={() => toggle()}
+                    onClick={() => setIsEditing((prev) => !prev)}
                 >
                     {isEditing ? 'Salvar' : 'Editar'}
                 </Button>
-
             </div>
 
             <div className='mt-3 space-y-5'>
                 {fieldGroups.map((group) => (
                     <div key={group.title}>
-                        <div className='font-bold text-base text-gray-800 mb-2'>{group.title}</div>
-                        <ul className='border border-indigo-100 rounded-lg overflow-hidden'>
+                        <p className='font-bold text-sm text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide'>
+                            {group.title}
+                        </p>
+                        <ul className='border border-indigo-100 dark:border-indigo-900/40 rounded-xl overflow-hidden'>
                             {group.fields.map((row, index) => (
                                 <li
                                     key={`${group.title}-${row.label}`}
-                                    className={`flex items-center w-full p-4 ${index % 2 === 0 ? 'bg-indigo-50/60' : 'bg-indigo-50/40'}`}
+                                    className={`flex items-center w-full px-4 py-3 ${
+                                        index % 2 === 0
+                                            ? 'bg-indigo-50/50 dark:bg-indigo-900/10'
+                                            : 'bg-white dark:bg-gray-800/20'
+                                    }`}
                                 >
-                                    <div className='w-2/6 font-semibold'>
-                                        {row.label}:
+                                    <div className='w-2/6 text-sm font-semibold text-gray-500 dark:text-gray-400'>
+                                        {row.label}
                                     </div>
-                                    <div className='w-4/6'>
-                                        {isEditing && !row.readOnly ? (
-                                            <Input defaultValue={row.value || ''} />
+                                    <div className='w-4/6 text-sm text-gray-800 dark:text-gray-100'>
+                                        {isEditing ? (
+                                            <Input size='sm' defaultValue={row.value || ''} />
                                         ) : (
-                                            row.value || '-'
+                                            <span className={!row.value ? 'text-gray-300 dark:text-gray-600' : ''}>
+                                                {row.value || '—'}
+                                            </span>
                                         )}
                                     </div>
                                 </li>

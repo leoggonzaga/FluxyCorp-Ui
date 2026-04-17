@@ -1,14 +1,11 @@
-import { HiOutlineCheckCircle, HiOutlinePencil } from "react-icons/hi"
-import { Button, Card, Input } from "../../../../components/ui"
-import { useState } from "react"
+import { HiOutlineCheckCircle, HiOutlinePencil } from 'react-icons/hi'
+import { Button, Card, Input } from '../../../../components/ui'
+import { useState } from 'react'
+import { useLocation } from 'react-router-dom'
 
 const EmployeeTabPersonal = ({ data }) => {
-
-    const [isEditing, setIsEditing] = useState(false)
-
-    const toggle = () => {
-        setIsEditing(prev => !prev);
-    }
+    const { state: routeState } = useLocation()
+    const [isEditing, setIsEditing] = useState(!!routeState?.editMode)
 
     const person = data?.person || {}
 
@@ -16,89 +13,91 @@ const EmployeeTabPersonal = ({ data }) => {
         {
             title: 'Identificação',
             fields: [
-                { label: 'Id', value: person?.id ?? data?.id, readOnly: true },
-                { label: 'PublicId', value: person?.publicId ?? data?.publicId, readOnly: true },
-                { label: 'Nome Completo', value: person?.fullName },
-                { label: 'Nome Social', value: person?.socialName },
-                { label: 'Apelido', value: person?.nickname },
-                { label: 'Sexo Biológico', value: person?.sexyType },
-                { label: 'GenderId', value: person?.genderId },
-                { label: 'Gênero', value: person?.gender?.name },
-                { label: 'RaceId', value: person?.raceId },
-                { label: 'Raça', value: person?.race?.name },
+                { label: 'Nome Completo',    value: person?.fullName },
+                { label: 'Nome Social',      value: person?.socialName },
+                { label: 'Apelido',          value: person?.nickname },
+                { label: 'Sexo Biológico',   value: person?.sexyType },
+                { label: 'Gênero',           value: person?.gender?.name },
+                { label: 'Raça / Etnia',     value: person?.race?.name },
             ],
         },
         {
-            title: 'Filiação E Origem',
+            title: 'Filiação e Origem',
             fields: [
-                { label: 'Nome da Mãe', value: person?.motherName },
-                { label: 'Data de Nascimento', value: person?.birthDate },
-                { label: 'Nacionalidade', value: person?.nationality },
-                { label: 'Cidade Natal', value: person?.hometown },
-                { label: 'País Natal', value: person?.homeCountry },
+                { label: 'Nome da Mãe',          value: person?.motherName },
+                { label: 'Data de Nascimento',    value: person?.birthDate },
+                { label: 'Nacionalidade',         value: person?.nationality },
+                { label: 'Cidade Natal',          value: person?.hometown },
+                { label: 'País Natal',            value: person?.homeCountry },
                 { label: 'Data de Naturalização', value: person?.naturalizationDate },
             ],
         },
         {
             title: 'Documentos Nacionais',
             fields: [
-                { label: 'CPF', value: person?.nationalDocumentNumber },
-                { label: 'RG', value: person?.nationalDocumentNumberSec },
-                { label: 'RG - Órgão Emissor', value: person?.nationalIdDepartment },
-                { label: 'RG - UF', value: person?.nationalIdUF },
-                { label: 'RG - Data de Emissão', value: person?.nationalIdDate },
-                { label: 'CNS', value: person?.cns || person?.CNS },
+                { label: 'CPF',                value: person?.nationalDocumentNumber },
+                { label: 'RG',                 value: person?.nationalDocumentNumberSec },
+                { label: 'RG — Órgão Emissor', value: person?.nationalIdDepartment },
+                { label: 'RG — UF',            value: person?.nationalIdUF },
+                { label: 'RG — Data Emissão',  value: person?.nationalIdDate },
+                { label: 'CNS',                value: person?.cns || person?.CNS },
             ],
         },
         {
             title: 'Passaporte (Estrangeiros)',
             fields: [
-                { label: 'Passaporte', value: person?.passportNumber },
-                { label: 'País Emissor do Passaporte', value: person?.passportIssuingCountry },
-                { label: 'Data de Emissão do Passaporte', value: person?.passportIssueDate },
-                { label: 'Data de Validade do Passaporte', value: person?.passportExpiryDate },
+                { label: 'Número',       value: person?.passportNumber },
+                { label: 'País Emissor', value: person?.passportIssuingCountry },
+                { label: 'Emissão',      value: person?.passportIssueDate },
+                { label: 'Validade',     value: person?.passportExpiryDate },
             ],
         },
     ]
 
     return (
         <Card className='flex flex-col'>
-            <div className='flex items-center gap-2 w-full justify-end'>
+            <div className='flex items-center gap-2 w-full justify-end mb-1'>
+                {isEditing && (
+                    <Button size='sm' onClick={() => setIsEditing(false)}>
+                        Cancelar
+                    </Button>
+                )}
                 <Button
-                    size="sm"
-                    onClick={() => toggle()}
-                >
-                    Cancelar
-                </Button>
-                <Button
-                    size="sm"
-                    variant="solid"
+                    size='sm'
+                    variant='solid'
                     icon={isEditing ? <HiOutlineCheckCircle /> : <HiOutlinePencil />}
-                    onClick={() => toggle()}
+                    onClick={() => setIsEditing((prev) => !prev)}
                 >
                     {isEditing ? 'Salvar' : 'Editar'}
                 </Button>
-
             </div>
 
             <div className='mt-3 space-y-5'>
                 {fieldGroups.map((group) => (
                     <div key={group.title}>
-                        <div className='font-bold text-base text-gray-800 mb-2'>{group.title}</div>
-                        <ul className='border border-indigo-100 rounded-lg overflow-hidden'>
+                        <p className='font-bold text-sm text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide'>
+                            {group.title}
+                        </p>
+                        <ul className='border border-indigo-100 dark:border-indigo-900/40 rounded-xl overflow-hidden'>
                             {group.fields.map((row, index) => (
                                 <li
                                     key={`${group.title}-${row.label}`}
-                                    className={`flex items-center w-full p-4 ${index % 2 === 0 ? 'bg-indigo-50/60' : 'bg-indigo-50/40'}`}
+                                    className={`flex items-center w-full px-4 py-3 ${
+                                        index % 2 === 0
+                                            ? 'bg-indigo-50/50 dark:bg-indigo-900/10'
+                                            : 'bg-white dark:bg-gray-800/20'
+                                    }`}
                                 >
-                                    <div className='w-2/6 font-semibold'>
-                                        {row.label}:
+                                    <div className='w-2/6 text-sm font-semibold text-gray-500 dark:text-gray-400'>
+                                        {row.label}
                                     </div>
-                                    <div className='w-4/6'>
-                                        {isEditing && !row.readOnly ? (
-                                            <Input defaultValue={row.value || ''} />
+                                    <div className='w-4/6 text-sm text-gray-800 dark:text-gray-100'>
+                                        {isEditing ? (
+                                            <Input size='sm' defaultValue={row.value || ''} />
                                         ) : (
-                                            row.value || '-'
+                                            <span className={!row.value ? 'text-gray-300 dark:text-gray-600' : ''}>
+                                                {row.value || '—'}
+                                            </span>
                                         )}
                                     </div>
                                 </li>

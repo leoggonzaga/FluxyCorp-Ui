@@ -33,8 +33,21 @@ const CalendarView = (props) => {
     const { wrapperClass, eventColors = () => defaultColorList, calendarRef, openUpsert, closeUpsert, ...rest } = props
     const [contentHeight, setContentHeight] = useState(0)
 
+    const handleSelect = (selectInfo) => {
+        // Só abre o modal com range em views de tempo (dia/semana), não no mês
+        if (selectInfo.view.type === 'dayGridMonth') return
+
+        openUpsert({
+            start: selectInfo.start,
+            end: selectInfo.end,
+            timeRange: [selectInfo.start, selectInfo.end],
+        })
+
+        selectInfo.view.calendar.unselect()
+    }
+
     const handleDateClick = (arg) => {
-        openUpsert()
+        if (arg.view.type === 'dayGridMonth') openUpsert()
     }
 
     const handleEventClick = (clickInfo) => {
@@ -80,6 +93,9 @@ const CalendarView = (props) => {
             <FullCalendar
                 ref={calendarRef}
                 contentHeight={contentHeight}
+                selectable={true}
+                selectMirror={true}
+                select={handleSelect}
                 dateClick={handleDateClick}
                 eventClick={handleEventClick}
                 dayMaxEvents={true}

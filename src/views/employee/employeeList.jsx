@@ -109,7 +109,7 @@ const EmployeeList = (props) => {
                 onClose={() => setIsUpsertOpen(false)}
                 onRequestClose={() => setIsUpsertOpen(false)}
             >
-                <EmployeeUpsert data={data} onClose={() => setIsUpsertOpen(false)} load={loadEmployees} />
+                <EmployeeUpsert onClose={() => setIsUpsertOpen(false)} />
             </Dialog>
         </div>
     )

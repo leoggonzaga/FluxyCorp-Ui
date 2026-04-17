@@ -5,6 +5,7 @@ import { Notification, toast, Button, Dialog } from '@/components/ui'
 import Odontogram from './components/Odontogram'
 import ToothFaceSelector from './components/ToothFaceSelector'
 import {
+    HiOutlineCamera,
     HiOutlineCheck,
     HiOutlineCheckCircle,
     HiOutlineChevronLeft,
@@ -169,6 +170,195 @@ const formatDate = (dateStr) => {
     return `${d}/${m}/${y}`
 }
 
+// ─── Camera Modal ─────────────────────────────────────────────────────────────
+
+const CameraModal = ({ open, onClose, onSave }) => {
+    const videoRef    = useRef(null)
+    const canvasRef   = useRef(null)
+    const streamRef   = useRef(null)
+    const [flash, setFlash]           = useState(false)
+    const [captures, setCaptures]     = useState([])
+    const [cameraError, setCameraError] = useState(null)
+    const [mirrored, setMirrored]     = useState(true)
+
+    const startCamera = useCallback(async () => {
+        setCameraError(null)
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+            streamRef.current = stream
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream
+                videoRef.current.play()
+            }
+        } catch {
+            setCameraError('Não foi possível acessar a câmera. Verifique as permissões do navegador.')
+        }
+    }, [])
+
+    const stopCamera = useCallback(() => {
+        streamRef.current?.getTracks().forEach((t) => t.stop())
+        streamRef.current = null
+    }, [])
+
+    const capture = useCallback(() => {
+        const video  = videoRef.current
+        const canvas = canvasRef.current
+        if (!video || !canvas) return
+        canvas.width  = video.videoWidth  || 1280
+        canvas.height = video.videoHeight || 720
+        const ctx = canvas.getContext('2d')
+        if (mirrored) {
+            ctx.translate(canvas.width, 0)
+            ctx.scale(-1, 1)
+        }
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.92)
+        const id = `cam_${Date.now()}`
+        const newCapture = { id, dataUrl, name: `Foto ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` }
+        setCaptures((prev) => [...prev, newCapture])
+        setFlash(true)
+        setTimeout(() => setFlash(false), 180)
+    }, [mirrored])
+
+    useEffect(() => {
+        if (open) {
+            setCaptures([])
+            startCamera()
+        } else {
+            stopCamera()
+        }
+        return stopCamera
+    }, [open, startCamera, stopCamera])
+
+    useEffect(() => {
+        if (!open) return
+        const onKey = (e) => {
+            if (e.code === 'Space' && !e.repeat) {
+                e.preventDefault()
+                capture()
+            }
+            if (e.code === 'Escape') onClose()
+        }
+        window.addEventListener('keydown', onKey)
+        return () => window.removeEventListener('keydown', onKey)
+    }, [open, capture, onClose])
+
+    const handleSave = () => {
+        onSave(captures)
+        onClose()
+    }
+
+    if (!open) return null
+
+    return (
+        <div className='fixed inset-0 z-[200] flex items-center justify-center' style={{ background: 'rgba(0,0,0,0.88)' }}>
+            {/* Flash overlay */}
+            <div className={`pointer-events-none fixed inset-0 z-[201] bg-white transition-opacity duration-100 ${flash ? 'opacity-80' : 'opacity-0'}`} />
+
+            <div className='relative w-full max-w-2xl mx-4 flex flex-col gap-3'>
+                {/* Close */}
+                <button
+                    onClick={onClose}
+                    className='absolute -top-10 right-0 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition'
+                >
+                    <HiOutlineX className='w-4 h-4' />
+                </button>
+
+                {/* Viewfinder */}
+                <div className='relative bg-black rounded-2xl overflow-hidden aspect-video border border-white/10 shadow-2xl'>
+                    {cameraError ? (
+                        <div className='absolute inset-0 flex flex-col items-center justify-center gap-3 text-white/60'>
+                            <HiOutlineCamera className='w-10 h-10' />
+                            <p className='text-sm text-center px-8'>{cameraError}</p>
+                        </div>
+                    ) : (
+                        <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            muted
+                            className='w-full h-full object-cover'
+                            style={{ transform: mirrored ? 'scaleX(-1)' : 'none' }}
+                        />
+                    )}
+
+                    {/* Corner guides */}
+                    {['top-2 left-2', 'top-2 right-2 rotate-90', 'bottom-2 right-2 rotate-180', 'bottom-2 left-2 -rotate-90'].map((cls) => (
+                        <div key={cls} className={`absolute ${cls} w-6 h-6 border-t-2 border-l-2 border-white/40 rounded-tl pointer-events-none`} />
+                    ))}
+
+                    {/* Bottom bar inside viewfinder */}
+                    <div className='absolute bottom-0 inset-x-0 flex items-center justify-between px-4 py-2.5 bg-gradient-to-t from-black/70 to-transparent'>
+                        <button
+                            onClick={() => setMirrored((v) => !v)}
+                            title='Espelhar'
+                            className='text-white/60 hover:text-white text-xs flex items-center gap-1 transition'
+                        >
+                            <HiOutlineRefresh className='w-3.5 h-3.5' />
+                            <span>Espelhar</span>
+                        </button>
+                        <p className='text-white/40 text-[11px]'>
+                            Pressione <kbd className='font-mono text-white/60 bg-white/10 px-1.5 py-0.5 rounded'>Espaço</kbd> para capturar
+                        </p>
+                    </div>
+                </div>
+
+                {/* Hidden canvas for capture */}
+                <canvas ref={canvasRef} className='hidden' />
+
+                {/* Shutter + thumbnails row */}
+                <div className='flex items-center gap-3'>
+                    {/* Shutter button */}
+                    <button
+                        onClick={capture}
+                        disabled={!!cameraError}
+                        title='Capturar (Espaço)'
+                        className='w-14 h-14 rounded-full bg-white hover:bg-gray-100 active:scale-90 transition-all shadow-xl flex-shrink-0 flex items-center justify-center disabled:opacity-30'
+                    >
+                        <div className='w-10 h-10 rounded-full border-4 border-gray-300' />
+                    </button>
+
+                    {/* Thumbnails strip */}
+                    <div className='flex-1 flex gap-2 overflow-x-auto pb-0.5' style={{ scrollbarWidth: 'none' }}>
+                        {captures.length === 0 ? (
+                            <p className='text-white/30 text-xs self-center'>Nenhuma foto capturada ainda</p>
+                        ) : (
+                            captures.map((cap, i) => (
+                                <div key={cap.id} className='relative flex-shrink-0'>
+                                    <img
+                                        src={cap.dataUrl}
+                                        alt={cap.name}
+                                        className='w-14 h-14 object-cover rounded-xl border-2 border-white/20 shadow-md'
+                                    />
+                                    <span className='absolute -top-1.5 -right-1.5 w-4 h-4 bg-indigo-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow'>
+                                        {i + 1}
+                                    </span>
+                                    <button
+                                        onClick={() => setCaptures((prev) => prev.filter((c) => c.id !== cap.id))}
+                                        className='absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-rose-500 hover:bg-rose-400 text-white rounded-full flex items-center justify-center transition shadow'
+                                    >
+                                        <HiOutlineX className='w-2.5 h-2.5' />
+                                    </button>
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    {/* Save button */}
+                    <button
+                        onClick={handleSave}
+                        disabled={captures.length === 0}
+                        className='flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 active:scale-95 text-white text-sm font-bold transition shadow-lg shadow-indigo-500/30 disabled:opacity-30 disabled:pointer-events-none flex-shrink-0'
+                    >
+                        <HiOutlineCheck className='w-4 h-4' />
+                        Salvar {captures.length > 0 ? `(${captures.length})` : ''}
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const AttendanceIndex = () => {
@@ -192,6 +382,9 @@ const AttendanceIndex = () => {
     const [showFinish, setShowFinish]         = useState(false)
     const [finished, setFinished]             = useState(false)
     const [rightTab, setRightTab]             = useState('procedures')
+
+    const [cameraOpen, setCameraOpen]     = useState(false)
+    const [sessionPhotos, setSessionPhotos] = useState([])
 
     const saveTimeoutRef = useRef(null)
     const textareaRef    = useRef(null)
@@ -308,6 +501,21 @@ const AttendanceIndex = () => {
         )
     }
 
+    const handleCameraSave = useCallback((captures) => {
+        const newPhotos = captures.map((cap) => ({
+            id: cap.id,
+            name: cap.name,
+            url: cap.dataUrl,
+            createdAt: new Date().toISOString().split('T')[0],
+        }))
+        setSessionPhotos((prev) => [...prev, ...newPhotos])
+        toast.push(
+            <Notification type='success' title='Fotos salvas'>
+                {captures.length} foto{captures.length > 1 ? 's' : ''} adicionada{captures.length > 1 ? 's' : ''} à galeria do paciente.
+            </Notification>,
+        )
+    }, [])
+
     const age = calcAge(patient.birthDate)
 
     return (
@@ -370,6 +578,33 @@ const AttendanceIndex = () => {
                             </button>
                         )}
                     </div>
+
+                    {/* Camera */}
+                    <button
+                        onClick={() => setCameraOpen(true)}
+                        title='Abrir câmera'
+                        className='relative flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all active:scale-95 flex-shrink-0'
+                        style={{
+                            background: sessionPhotos.length > 0 ? 'rgba(99,102,241,0.35)' : 'rgba(255,255,255,0.13)',
+                            border: sessionPhotos.length > 0 ? '1px solid rgba(129,140,248,0.6)' : '1px solid rgba(255,255,255,0.22)',
+                        }}
+                    >
+                        <HiOutlineCamera
+                            className='w-4 h-4 flex-shrink-0'
+                            style={{ color: sessionPhotos.length > 0 ? '#c7d2fe' : 'rgba(255,255,255,0.9)' }}
+                        />
+                        <span
+                            className='hidden sm:inline text-xs font-semibold'
+                            style={{ color: sessionPhotos.length > 0 ? '#c7d2fe' : 'rgba(255,255,255,0.85)' }}
+                        >
+                            {sessionPhotos.length > 0 ? `Câmera (${sessionPhotos.length})` : 'Câmera'}
+                        </span>
+                        {sessionPhotos.length > 0 && (
+                            <span className='absolute -top-1.5 -right-1.5 sm:hidden w-4 h-4 rounded-full bg-indigo-500 text-white text-[10px] font-bold flex items-center justify-center shadow'>
+                                {sessionPhotos.length}
+                            </span>
+                        )}
+                    </button>
 
                     {/* Save + Finalizar */}
                     <div className='flex items-center gap-1.5 sm:gap-3 flex-shrink-0'>
@@ -600,19 +835,20 @@ const AttendanceIndex = () => {
                             {/* ── Aba Mídia ── */}
                             {rightTab === 'media' && (() => {
                                 const media = PATIENT_MEDIA[patient.id]
-                                if (!media) return (
-                                    <p className='text-sm text-gray-400 text-center py-8'>Sem arquivos cadastrados.</p>
-                                )
+                                const allImages = [...(media?.images ?? []), ...sessionPhotos]
                                 return (
                                     <div className='space-y-4 max-h-80 overflow-y-auto pr-0.5'>
                                         {/* Imagens */}
-                                        {media.images.length > 0 && (
+                                        {allImages.length > 0 ? (
                                             <div>
                                                 <p className='text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2'>
-                                                    Imagens ({media.images.length})
+                                                    Imagens ({allImages.length})
+                                                    {sessionPhotos.length > 0 && (
+                                                        <span className='ml-2 normal-case text-indigo-400'>· {sessionPhotos.length} desta sessão</span>
+                                                    )}
                                                 </p>
                                                 <div className='grid grid-cols-3 gap-2'>
-                                                    {media.images.map((img) => (
+                                                    {allImages.map((img) => (
                                                         <div key={img.id} title={img.name} className='group relative rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700/50 aspect-square bg-gray-100 dark:bg-gray-800 cursor-pointer'>
                                                             <img src={img.url} alt={img.name} className='w-full h-full object-cover group-hover:scale-105 transition-transform duration-200' />
                                                             <div className='absolute inset-0 bg-black/0 group-hover:bg-black/20 transition' />
@@ -623,16 +859,18 @@ const AttendanceIndex = () => {
                                                     ))}
                                                 </div>
                                             </div>
+                                        ) : (
+                                            <p className='text-sm text-gray-400 text-center py-4'>Sem imagens cadastradas.</p>
                                         )}
 
                                         {/* Documentos */}
-                                        {media.documents.length > 0 && (
+                                        {(media?.documents?.length ?? 0) > 0 && (
                                             <div>
                                                 <p className='text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2'>
-                                                    Documentos ({media.documents.length})
+                                                    Documentos ({media?.documents?.length ?? 0})
                                                 </p>
                                                 <div className='space-y-1.5'>
-                                                    {media.documents.map((doc) => (
+                                                    {(media?.documents ?? []).map((doc) => (
                                                         <div key={doc.id} className='flex items-center gap-2.5 px-3 py-2 rounded-lg border border-gray-100 dark:border-gray-700/50 bg-white dark:bg-gray-800/40 hover:border-indigo-200 dark:hover:border-indigo-700/40 transition cursor-pointer'>
                                                             <HiOutlineDocumentText className='w-4 h-4 text-indigo-400 flex-shrink-0' />
                                                             <div className='flex-1 min-w-0'>
@@ -909,6 +1147,12 @@ const AttendanceIndex = () => {
                     </div>
                 </div>
             )}
+
+            <CameraModal
+                open={cameraOpen}
+                onClose={() => setCameraOpen(false)}
+                onSave={handleCameraSave}
+            />
         </div>
     )
 }

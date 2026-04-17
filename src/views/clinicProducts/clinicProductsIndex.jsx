@@ -1,65 +1,176 @@
 import { useMemo, useState } from 'react'
-import { Badge, Button, Card, Dialog, Input, Notification, Select, toast } from '@/components/ui'
-import { HiOutlinePlus, HiOutlineSearch, HiOutlinePencil, HiOutlineTrash } from 'react-icons/hi'
+import { Button, Dialog, Input, Notification, Pagination, Select, toast } from '@/components/ui'
+import { ConfirmDialog } from '@/components/shared'
+import { HiOutlinePlus, HiOutlineSearch, HiChevronLeft, HiChevronRight } from 'react-icons/hi'
+import ClinicProductsTableList from './clinicProductsTableList'
 
 const PRODUCT_CATEGORIES = [
-    { value: 'Descartáveis', label: 'Descartáveis' },
-    { value: 'Anestésicos', label: 'Anestésicos' },
+    { value: 'Descartáveis',         label: 'Descartáveis' },
+    { value: 'Anestésicos',          label: 'Anestésicos' },
     { value: 'Materiais Cirúrgicos', label: 'Materiais Cirúrgicos' },
-    { value: 'Equipamentos', label: 'Equipamentos' },
-    { value: 'Medicamentos', label: 'Medicamentos' },
-    { value: 'Kits', label: 'Kits' },
-    { value: 'Suprimentos', label: 'Suprimentos' },
+    { value: 'Equipamentos',         label: 'Equipamentos' },
+    { value: 'Medicamentos',         label: 'Medicamentos' },
+    { value: 'Kits',                 label: 'Kits' },
+    { value: 'Suprimentos',          label: 'Suprimentos' },
 ]
 
-const INITIAL_PRODUCTS = [
-    { id: 1, name: 'Luvas Cirúrgicas', sku: 'LUV-001', category: 'Descartáveis', stock: 320, unit: 'par', description: 'Luvas esterilizadas para procedimentos cirúrgicos.' },
-    { id: 2, name: 'Anestesia Local', sku: 'ANE-002', category: 'Farmácia', stock: 120, unit: 'frasco', description: 'Anestésico local para procedimentos odontológicos.' },
-    { id: 3, name: 'Máscara de Oxigênio', sku: 'OXI-003', category: 'Equipamentos', stock: 45, unit: 'unidade', description: 'Máscara descartável de oxigênio para uso em pacientes.' },
+const EMPTY_FORM = { name: '', sku: '', category: '', stock: '', unit: '', description: '' }
+
+const CATALOG = [
+    { prefix: 'LUV', name: 'Luvas Cirúrgicas',         category: 'Descartáveis',         unit: 'par',     desc: 'Luvas esterilizadas para procedimentos cirúrgicos.' },
+    { prefix: 'ANE', name: 'Anestesia Local',           category: 'Anestésicos',          unit: 'frasco',  desc: 'Anestésico local para procedimentos odontológicos.' },
+    { prefix: 'OXI', name: 'Máscara de Oxigênio',       category: 'Equipamentos',         unit: 'unidade', desc: 'Máscara descartável de oxigênio para uso em pacientes.' },
+    { prefix: 'SER', name: 'Seringa Descartável',       category: 'Descartáveis',         unit: 'unidade', desc: 'Seringa 5ml descartável estéril.' },
+    { prefix: 'GAZ', name: 'Gaze Estéril',              category: 'Descartáveis',         unit: 'pacote',  desc: 'Gaze estéril 7,5x7,5cm para curativos.' },
+    { prefix: 'ALG', name: 'Algodão Hidrófilo',         category: 'Descartáveis',         unit: 'rolo',    desc: 'Algodão hidrófilo para higienização e procedimentos.' },
+    { prefix: 'ESP', name: 'Espátula de Madeira',       category: 'Descartáveis',         unit: 'caixa',   desc: 'Espátulas descartáveis de madeira.' },
+    { prefix: 'AGU', name: 'Agulha Gengival',           category: 'Anestésicos',          unit: 'caixa',   desc: 'Agulhas gengivais curtas para anestesia infiltrativa.' },
+    { prefix: 'LID', name: 'Lidocaína 2%',              category: 'Anestésicos',          unit: 'carpule', desc: 'Carpule de lidocaína 2% com epinefrina.' },
+    { prefix: 'MEB', name: 'Mebocaína Tópica',          category: 'Anestésicos',          unit: 'bisnaga', desc: 'Anestésico tópico em gel para mucosa.' },
+    { prefix: 'CUR', name: 'Curativo Adesivo',          category: 'Materiais Cirúrgicos', unit: 'caixa',   desc: 'Curativo adesivo estéril para feridas superficiais.' },
+    { prefix: 'FIO', name: 'Fio de Sutura 3-0',         category: 'Materiais Cirúrgicos', unit: 'envelope',desc: 'Fio de sutura absorvível 3-0 com agulha.' },
+    { prefix: 'BIS', name: 'Bisturi Descartável',       category: 'Materiais Cirúrgicos', unit: 'unidade', desc: 'Bisturi descartável com lâmina nº 15.' },
+    { prefix: 'PIN', name: 'Pinça Hemostática',         category: 'Materiais Cirúrgicos', unit: 'unidade', desc: 'Pinça hemostática reta de aço inox.' },
+    { prefix: 'DRE', name: 'Dreno de Penrose',          category: 'Materiais Cirúrgicos', unit: 'metro',   desc: 'Dreno de látex para drenagem de feridas.' },
+    { prefix: 'EST', name: 'Estetoscópio',              category: 'Equipamentos',         unit: 'unidade', desc: 'Estetoscópio duplo para ausculta clínica.' },
+    { prefix: 'EFI', name: 'Esfigmomanômetro',          category: 'Equipamentos',         unit: 'unidade', desc: 'Aparelho de pressão aneróide adulto.' },
+    { prefix: 'OTI', name: 'Otoscópio',                 category: 'Equipamentos',         unit: 'unidade', desc: 'Otoscópio com fibra óptica para exame auricular.' },
+    { prefix: 'TER', name: 'Termômetro Digital',        category: 'Equipamentos',         unit: 'unidade', desc: 'Termômetro axilar digital de leitura rápida.' },
+    { prefix: 'PUL', name: 'Oxímetro de Pulso',         category: 'Equipamentos',         unit: 'unidade', desc: 'Oxímetro de pulso portátil com display LED.' },
+    { prefix: 'AMP', name: 'Ampicilina 500mg',          category: 'Medicamentos',         unit: 'frasco',  desc: 'Ampicilina sódica 500mg para injeção IM/IV.' },
+    { prefix: 'IBM', name: 'Ibuprofeno 600mg',          category: 'Medicamentos',         unit: 'caixa',   desc: 'Ibuprofeno comprimido revestido 600mg.' },
+    { prefix: 'DIP', name: 'Dipirona 500mg',            category: 'Medicamentos',         unit: 'caixa',   desc: 'Dipirona monoidratada 500mg comprimido.' },
+    { prefix: 'OME', name: 'Omeprazol 20mg',            category: 'Medicamentos',         unit: 'caixa',   desc: 'Omeprazol 20mg cápsula gastrorresistente.' },
+    { prefix: 'AMO', name: 'Amoxicilina 500mg',         category: 'Medicamentos',         unit: 'caixa',   desc: 'Amoxicilina 500mg cápsula antibiótico.' },
+    { prefix: 'KIT', name: 'Kit Emergência Básico',     category: 'Kits',                 unit: 'kit',     desc: 'Kit com adrenalina, seringa, luvas e torniquete.' },
+    { prefix: 'KSU', name: 'Kit Sutura Completo',       category: 'Kits',                 unit: 'kit',     desc: 'Kit descartável para sutura com pinça, fio e bisturi.' },
+    { prefix: 'KCU', name: 'Kit Curativo Avançado',     category: 'Kits',                 unit: 'kit',     desc: 'Kit para curativos complexos com gaze, soro e dreno.' },
+    { prefix: 'SOA', name: 'Soro Fisiológico 0,9%',     category: 'Suprimentos',          unit: 'bolsa',   desc: 'Solução salina 0,9% 500ml para irrigação e EV.' },
+    { prefix: 'GEL', name: 'Gel Condutor Ultrassom',    category: 'Suprimentos',          unit: 'frasco',  desc: 'Gel condutor para exames de ultrassonografia.' },
 ]
+
+const INITIAL_PRODUCTS = Array.from({ length: 100 }, (_, i) => {
+    const base  = CATALOG[i % CATALOG.length]
+    const seq   = String(Math.floor(i / CATALOG.length) + 1).padStart(2, '0')
+    const stock = Math.floor(Math.random() * 400)
+    return {
+        id:          i + 1,
+        name:        i < CATALOG.length ? base.name : `${base.name} (Lote ${seq})`,
+        sku:         `${base.prefix}-${String(i + 1).padStart(3, '0')}`,
+        category:    base.category,
+        stock,
+        unit:        base.unit,
+        description: base.desc,
+    }
+})
+
+const PAGE_SIZE = 10
+
+const TopPagination = ({ page, pageSize, total, onChange }) => {
+    const from  = total === 0 ? 0 : (page - 1) * pageSize + 1
+    const to    = Math.min(page * pageSize, total)
+    const pages = Math.ceil(total / pageSize)
+
+    return (
+        <div className='flex items-center justify-between'>
+            <p className='text-sm text-gray-400 dark:text-gray-500'>
+                Exibindo{' '}
+                <span className='font-semibold text-gray-600 dark:text-gray-300'>{from}–{to}</span>
+                {' '}de{' '}
+                <span className='font-semibold text-indigo-500'>{total}</span>
+                {' '}produtos
+            </p>
+
+            <div className='flex items-center gap-1'>
+                <button
+                    disabled={page === 1}
+                    onClick={() => onChange(page - 1)}
+                    className='flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150'
+                >
+                    <HiChevronLeft size={14} />
+                    Anterior
+                </button>
+
+                <div className='flex items-center gap-1 px-2'>
+                    {Array.from({ length: Math.min(pages, 5) }, (_, i) => {
+                        const offset = Math.max(0, Math.min(page - 3, pages - 5))
+                        const p = i + 1 + offset
+                        return (
+                            <button
+                                key={p}
+                                onClick={() => onChange(p)}
+                                className={`w-7 h-7 rounded-md text-xs font-semibold transition-colors duration-150 ${
+                                    p === page
+                                        ? 'bg-indigo-500 text-white shadow-sm shadow-indigo-200 dark:shadow-indigo-900'
+                                        : 'text-gray-500 dark:text-gray-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:text-indigo-600'
+                                }`}
+                            >
+                                {p}
+                            </button>
+                        )
+                    })}
+                </div>
+
+                <button
+                    disabled={page === pages}
+                    onClick={() => onChange(page + 1)}
+                    className='flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150'
+                >
+                    Próxima
+                    <HiChevronRight size={14} />
+                </button>
+            </div>
+        </div>
+    )
+}
 
 const ClinicProductsIndex = () => {
-    const [products, setProducts] = useState(INITIAL_PRODUCTS)
-    const [filter, setFilter] = useState('')
-    const [isDialogOpen, setIsDialogOpen] = useState(false)
+    const [products, setProducts]               = useState(INITIAL_PRODUCTS)
+    const [search, setSearch]                   = useState('')
+    const [page, setPage]                       = useState(1)
+    const [isUpsertOpen, setIsUpsertOpen]       = useState(false)
     const [selectedProduct, setSelectedProduct] = useState(null)
-    const [formData, setFormData] = useState({ name: '', sku: '', category: '', stock: '', unit: '', description: '' })
+    const [formData, setFormData]               = useState(EMPTY_FORM)
+    const [productToDelete, setProductToDelete] = useState(null)
 
-    const filteredProducts = useMemo(() => {
-        const term = filter.trim().toLowerCase()
-        if (!term) return products
-        return products.filter((product) =>
-            product.name.toLowerCase().includes(term) ||
-            product.sku.toLowerCase().includes(term) ||
-            product.category.toLowerCase().includes(term)
+    const filtered = useMemo(() => {
+        const q = search.trim().toLowerCase()
+        if (!q) return products
+        return products.filter((p) =>
+            p.name.toLowerCase().includes(q) ||
+            p.sku.toLowerCase().includes(q) ||
+            p.category.toLowerCase().includes(q)
         )
-    }, [filter, products])
+    }, [search, products])
 
-    const openNewProduct = () => {
+    const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+    const openNew = () => {
         setSelectedProduct(null)
-        setFormData({ name: '', sku: '', category: '', stock: '', unit: '', description: '' })
-        setIsDialogOpen(true)
+        setFormData(EMPTY_FORM)
+        setIsUpsertOpen(true)
     }
 
-    const openEditProduct = (product) => {
-        setSelectedProduct(product)
+    const openEdit = (item) => {
+        const raw = item._raw
+        setSelectedProduct(raw)
         setFormData({
-            name: product.name,
-            sku: product.sku,
-            category: product.category,
-            stock: String(product.stock),
-            unit: product.unit,
-            description: product.description,
+            name:        raw.name,
+            sku:         raw.sku,
+            category:    raw.category,
+            stock:       String(raw.stock),
+            unit:        raw.unit,
+            description: raw.description,
         })
-        setIsDialogOpen(true)
+        setIsUpsertOpen(true)
     }
 
     const closeDialog = () => {
         setSelectedProduct(null)
-        setIsDialogOpen(false)
+        setIsUpsertOpen(false)
     }
 
-    const handleSaveProduct = () => {
+    const handleSave = () => {
         const { name, sku, category, stock, unit } = formData
         if (!name || !sku || !category || !stock || !unit) {
             toast.push(
@@ -69,190 +180,164 @@ const ClinicProductsIndex = () => {
             )
             return
         }
-
-        const newProduct = {
-            id: selectedProduct ? selectedProduct.id : Date.now(),
-            name: formData.name,
-            sku: formData.sku,
-            category: formData.category,
-            stock: Number(formData.stock),
-            unit: formData.unit,
+        const saved = {
+            id:          selectedProduct ? selectedProduct.id : Date.now(),
+            name:        formData.name,
+            sku:         formData.sku,
+            category:    formData.category,
+            stock:       Number(formData.stock),
+            unit:        formData.unit,
             description: formData.description,
         }
-
-        setProducts((current) => {
-            if (selectedProduct) {
-                return current.map((item) => (item.id === selectedProduct.id ? newProduct : item))
-            }
-            return [newProduct, ...current]
-        })
-
+        setProducts((curr) =>
+            selectedProduct
+                ? curr.map((p) => (p.id === selectedProduct.id ? saved : p))
+                : [saved, ...curr]
+        )
         toast.push(
             <Notification type='success' title='Produto salvo'>
-                O produto foi cadastrado com sucesso.
+                {selectedProduct ? 'Produto atualizado com sucesso.' : 'Produto cadastrado com sucesso.'}
             </Notification>
         )
         closeDialog()
     }
 
-    const handleDeleteProduct = (productId) => {
-        setProducts((current) => current.filter((item) => item.id !== productId))
+    const handleDelete = () => {
+        setProducts((curr) => curr.filter((p) => p.id !== productToDelete.id))
         toast.push(
             <Notification type='success' title='Produto removido'>
-                O produto foi removido da lista.
+                O produto foi excluído com sucesso.
             </Notification>
         )
+        setProductToDelete(null)
     }
 
-    return (
-        <div className='w-full p-4 space-y-4'>
-            <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
-                <div>
-                    <h2 className='text-2xl font-bold text-gray-900'>Produtos da Clínica</h2>
-                    <p className='mt-1 text-sm text-gray-500'>Cadastre materiais e insumos utilizados em procedimentos, como luvas, anestesia e kits.</p>
-                </div>
+    const bind = (key) => ({
+        value:    formData[key],
+        onChange: (e) => setFormData((prev) => ({ ...prev, [key]: e.target.value })),
+    })
 
-                <div className='flex flex-col gap-3 sm:flex-row sm:items-center'>
-                    <div className='relative w-full sm:w-[260px]'>
-                        <HiOutlineSearch className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-400' />
-                        <Input
-                            value={filter}
-                            onChange={(e) => setFilter(e.target.value)}
-                            placeholder='Buscar por nome, SKU ou categoria'
-                            className='pl-10 pr-4'
-                        />
-                    </div>
-                    <Button onClick={openNewProduct} variant='solid' icon={<HiOutlinePlus />}>
-                        Novo produto
-                    </Button>
+    return (
+        <div className='space-y-5'>
+            {/* Header */}
+            <div className='flex items-center justify-between gap-4'>
+                <div>
+                    <h3 className='text-xl font-bold text-gray-800 dark:text-gray-100 leading-tight'>
+                        Produtos da Clínica
+                    </h3>
+                    <p className='text-sm text-gray-400 dark:text-gray-500 mt-0.5'>
+                        <span className='font-semibold text-indigo-500'>{products.length}</span>
+                        {' '}produtos cadastrados
+                    </p>
                 </div>
+                <Button icon={<HiOutlinePlus />} variant='solid' size='sm' onClick={openNew}>
+                    Novo Produto
+                </Button>
             </div>
 
-            <Card>
-                <div className='overflow-x-auto'>
-                    <table className='min-w-full text-left text-sm text-gray-700'>
-                        <thead>
-                            <tr className='border-b border-gray-200 text-xs uppercase tracking-wide text-gray-500'>
-                                <th className='px-4 py-3'>Nome</th>
-                                <th className='px-4 py-3'>SKU</th>
-                                <th className='px-4 py-3'>Categoria</th>
-                                <th className='px-4 py-3'>Estoque</th>
-                                <th className='px-4 py-3'>Unidade</th>
-                                <th className='px-4 py-3'>Descrição</th>
-                                <th className='px-4 py-3 text-right'>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredProducts.length === 0 ? (
-                                <tr>
-                                    <td colSpan={7} className='px-4 py-8 text-center text-gray-500'>Nenhum produto encontrado.</td>
-                                </tr>
-                            ) : (
-                                filteredProducts.map((product) => (
-                                    <tr key={product.id} className='border-b border-gray-100 hover:bg-gray-50'>
-                                        <td className='px-4 py-4 font-semibold text-gray-800'>{product.name}</td>
-                                        <td className='px-4 py-4 text-gray-600'>{product.sku}</td>
-                                        <td className='px-4 py-4 text-gray-600'>{product.category}</td>
-                                        <td className='px-4 py-4'>
-                                            <Badge color={product.stock > 50 ? 'green' : product.stock > 10 ? 'amber' : 'red'}>
-                                                {product.stock}
-                                            </Badge>
-                                        </td>
-                                        <td className='px-4 py-4 text-gray-600'>{product.unit}</td>
-                                        <td className='px-4 py-4 text-gray-500 truncate max-w-[220px]'>{product.description}</td>
-                                        <td className='px-4 py-4 text-right space-x-2'>
-                                            <Button size='sm' variant='ghost' icon={<HiOutlinePencil />} onClick={() => openEditProduct(product)}>
-                                                Editar
-                                            </Button>
-                                            <Button size='sm' variant='ghost' className='text-rose-600 hover:bg-rose-50' icon={<HiOutlineTrash />} onClick={() => handleDeleteProduct(product.id)}>
-                                                Excluir
-                                            </Button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </Card>
+            {/* Busca */}
+            <Input
+                placeholder='Buscar por nome, SKU ou categoria…'
+                size='sm'
+                prefix={<HiOutlineSearch className='text-gray-400' />}
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+            />
 
-            <Dialog isOpen={isDialogOpen} onClose={closeDialog} onRequestClose={closeDialog} width={720}>
-                <Card className='space-y-6 p-6'>
-                    <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
-                        <div>
-                            <h3 className='text-xl font-semibold text-gray-900'>{selectedProduct ? 'Editar produto' : 'Novo produto'}</h3>
-                            <p className='text-sm text-gray-500'>Preencha os dados do insumo utilizado em procedimentos.</p>
-                        </div>
-                        <Button size='sm' variant='outline' onClick={closeDialog}>
-                            Fechar
-                        </Button>
+            {/* Paginação superior */}
+            {filtered.length > PAGE_SIZE && (
+                <TopPagination
+                    page={page}
+                    pageSize={PAGE_SIZE}
+                    total={filtered.length}
+                    onChange={setPage}
+                />
+            )}
+
+            {/* Lista Pattern1 */}
+            <ClinicProductsTableList
+                data={paginated}
+                onItemClick={openEdit}
+                onDelete={setProductToDelete}
+            />
+
+            {/* Paginação */}
+            {filtered.length > PAGE_SIZE && (
+                <div className='flex justify-center pt-1'>
+                    <Pagination
+                        pageSize={PAGE_SIZE}
+                        total={filtered.length}
+                        currentPage={page}
+                        onChange={setPage}
+                    />
+                </div>
+            )}
+
+            {/* Dialog Upsert */}
+            <Dialog isOpen={isUpsertOpen} onClose={closeDialog} onRequestClose={closeDialog} width={600}>
+                <div className='p-2 space-y-5'>
+                    <div>
+                        <h4 className='text-lg font-bold text-gray-800 dark:text-gray-100'>
+                            {selectedProduct ? 'Editar produto' : 'Novo produto'}
+                        </h4>
+                        <p className='text-sm text-gray-400 mt-0.5'>
+                            Preencha os dados do insumo utilizado nos procedimentos.
+                        </p>
                     </div>
 
-                    <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-                        <div>
-                            <label className='block text-xs font-semibold text-gray-600 mb-2'>Nome</label>
-                            <Input
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                placeholder='Nome do produto'
-                            />
+                    <div className='grid grid-cols-2 gap-4'>
+                        <div className='col-span-2'>
+                            <label className='block text-xs font-semibold text-gray-500 mb-1.5'>Nome</label>
+                            <Input placeholder='Nome do produto' {...bind('name')} />
                         </div>
                         <div>
-                            <label className='block text-xs font-semibold text-gray-600 mb-2'>SKU</label>
-                            <Input
-                                value={formData.sku}
-                                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                                placeholder='Código de identificação'
-                            />
+                            <label className='block text-xs font-semibold text-gray-500 mb-1.5'>SKU</label>
+                            <Input placeholder='Código de identificação' {...bind('sku')} />
                         </div>
                         <div>
-                            <label className='block text-xs font-semibold text-gray-600 mb-2'>Categoria</label>
+                            <label className='block text-xs font-semibold text-gray-500 mb-1.5'>Categoria</label>
                             <Select
                                 options={PRODUCT_CATEGORIES}
-                                value={PRODUCT_CATEGORIES.find((item) => item.value === formData.category) || null}
-                                onChange={(option) => setFormData({ ...formData, category: option ? option.value : '' })}
-                                placeholder='Selecione a categoria'
+                                value={PRODUCT_CATEGORIES.find((o) => o.value === formData.category) || null}
+                                onChange={(opt) => setFormData((prev) => ({ ...prev, category: opt?.value || '' }))}
+                                placeholder='Selecione'
                             />
                         </div>
                         <div>
-                            <label className='block text-xs font-semibold text-gray-600 mb-2'>Estoque</label>
-                            <Input
-                                type='number'
-                                value={formData.stock}
-                                onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                                placeholder='Quantidade disponível'
-                            />
+                            <label className='block text-xs font-semibold text-gray-500 mb-1.5'>Estoque</label>
+                            <Input type='number' placeholder='Quantidade disponível' {...bind('stock')} />
                         </div>
                         <div>
-                            <label className='block text-xs font-semibold text-gray-600 mb-2'>Unidade</label>
-                            <Input
-                                value={formData.unit}
-                                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                                placeholder='Ex: par, frasco, unidade'
-                            />
+                            <label className='block text-xs font-semibold text-gray-500 mb-1.5'>Unidade</label>
+                            <Input placeholder='Ex: par, frasco, unidade' {...bind('unit')} />
                         </div>
-                    </div>
-                    <div>
-                        <label className='block text-xs font-semibold text-gray-600 mb-2'>Descrição</label>
-                        <Input
-                            value={formData.description}
-                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                            textArea
-                            rows={4}
-                            placeholder='Descrição do produto e uso em procedimentos'
-                        />
+                        <div className='col-span-2'>
+                            <label className='block text-xs font-semibold text-gray-500 mb-1.5'>Descrição</label>
+                            <Input textArea rows={3} placeholder='Descrição e uso em procedimentos' {...bind('description')} />
+                        </div>
                     </div>
 
-                    <div className='flex flex-col gap-3 sm:flex-row sm:justify-end'>
-                        <Button variant='outline' onClick={closeDialog} className='w-full sm:w-auto'>
-                            Cancelar
-                        </Button>
-                        <Button variant='solid' onClick={handleSaveProduct} className='w-full sm:w-auto'>
-                            {selectedProduct ? 'Salvar alterações' : 'Cadastrar produto'}
+                    <div className='flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-gray-700'>
+                        <Button variant='plain' onClick={closeDialog}>Cancelar</Button>
+                        <Button variant='solid' onClick={handleSave}>
+                            {selectedProduct ? 'Salvar alterações' : 'Cadastrar'}
                         </Button>
                     </div>
-                </Card>
+                </div>
             </Dialog>
+
+            <ConfirmDialog
+                isOpen={!!productToDelete}
+                onClose={() => setProductToDelete(null)}
+                onRequestClose={() => setProductToDelete(null)}
+                onCancel={() => setProductToDelete(null)}
+                onConfirm={handleDelete}
+                type='danger'
+                confirmText='Excluir'
+                cancelText='Cancelar'
+            >
+                Tem certeza que deseja excluir <strong>{productToDelete?.name}</strong>? Esta ação não poderá ser desfeita.
+            </ConfirmDialog>
         </div>
     )
 }

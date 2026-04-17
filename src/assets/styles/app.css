@@ -4,3 +4,15 @@
 @import './template/index.css';
 @import './vendors/index.css';
 @import './docs/index.css';
+
+@media print {
+    body * { visibility: hidden; }
+    #print-contract,
+    #print-contract * { visibility: visible; }
+    #print-contract {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+    }
+}
