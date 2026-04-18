@@ -27,7 +27,7 @@ function createApi({ baseURL, defaultHeaders = {} }) {
       toast.push(
         <Notification type="danger" title="Error">
             {
-                error?.status == 422 && error.response?.data?.erros?.length > 0 
+                error?.status == 422 && error.response?.data?.erros?.length > 0
                 ?
                 <>
                     {error.response?.data?.erros?.[0]?.descricao || "Error"}
@@ -50,10 +50,7 @@ function createApi({ baseURL, defaultHeaders = {} }) {
 }
 
 export const loginAuthenticationApi = createApi({
-  baseURL: import.meta.env.VITE_AUTHENTICATION_URL,
-  defaultHeaders: {
-    Authorization: `Bearer ${import.meta.env.VITE_AUTHENTICATION_URL}`
-  }
+  baseURL: import.meta.env.VITE_AUTHENTICATION_URL
 });
 
 export const enterpriseApi = createApi({
@@ -70,4 +67,8 @@ export const appointmentApi = createApi({
 
 export const consultationTypeApi = createApi({
   baseURL: import.meta.env.VITE_CONSULTATION_TYPE_URL
+});
+
+export const prosthesisApi = createApi({
+  baseURL: import.meta.env.VITE_PROSTHESIS_URL
 });

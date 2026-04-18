@@ -14,6 +14,7 @@ import {
     HiOutlineArrowCircleDown,
     HiOutlineArrowCircleUp,
     HiOutlineFilter,
+    HiOutlineBeaker,
 } from 'react-icons/hi'
 import type { JSX } from 'react'
 
@@ -35,6 +36,7 @@ const navigationIcon: NavigationIcons = {
     arrowCircleDown: <HiOutlineArrowCircleDown/>,
     arrowCircleUp:   <HiOutlineArrowCircleUp/>,
     funnel:          <HiOutlineFilter/>,
+    beaker:          <HiOutlineBeaker/>,
 }
 
 export default navigationIcon

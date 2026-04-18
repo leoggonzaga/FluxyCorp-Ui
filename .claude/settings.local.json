@@ -3,7 +3,20 @@
     "allow": [
       "Bash(npm run *)",
       "Bash(xargs grep *)",
-      "Bash(dotnet ef *)"
+      "Bash(dotnet ef *)",
+      "Bash(xargs wc *)",
+      "Bash(mkdir -p \"C:/Git/FluxyCorp/FluxyCorp/FluxyCorp.Prosthesis/FluxyCorp.Prosthesis.Domain/Entities\")",
+      "Bash(mkdir -p \"C:/Git/FluxyCorp/FluxyCorp/FluxyCorp.Prosthesis/FluxyCorp.Prosthesis.Infrastructure\")",
+      "Bash(mkdir -p \"C:/Git/FluxyCorp/FluxyCorp/FluxyCorp.Prosthesis/FluxyCorp.Prosthesis.Application/ProsthesisRequests/DTOs\")",
+      "Bash(mkdir -p \"C:/Git/FluxyCorp/FluxyCorp/FluxyCorp.Prosthesis/FluxyCorp.Prosthesis.Application/ProsthesisRequests/Commands\")",
+      "Bash(mkdir -p \"C:/Git/FluxyCorp/FluxyCorp/FluxyCorp.Prosthesis/FluxyCorp.Prosthesis.Application/ProsthesisRequests/Queries\")",
+      "Bash(mkdir -p \"C:/Git/FluxyCorp/FluxyCorp/FluxyCorp.Prosthesis/FluxyCorp.Prosthesis.Application/ProsthesisRequests/Handlers\")",
+      "Bash(mkdir -p \"C:/Git/FluxyCorp/FluxyCorp/FluxyCorp.Prosthesis/FluxyCorp.Prosthesis.Application/ProsthesisTypes/DTOs\")",
+      "Bash(PGPASSWORD=\"Senha@321\" psql -U postgres -h localhost -c \"\\\\l\")",
+      "Bash(where psql *)",
+      "Bash(where pg_isready)",
+      "Bash(PGPASSWORD=\"Senha@321\" \"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -h localhost -c \"\\\\l\")",
+      "Bash(PGPASSWORD=\"Senha@321\" C:/Program Files/PostgreSQL/16/bin/psql.exe *)"
     ]
   }
 }

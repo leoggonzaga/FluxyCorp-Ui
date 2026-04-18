@@ -137,6 +137,30 @@ export const protectedRoutes = [
         component: lazy(() => import('@/views/cashFlow/accountsPayableIndex')),
         authority: [],
     },
+    {
+        key: 'prosthesis',
+        path: '/prosthesis',
+        component: lazy(() => import('@/views/prosthesis/prosthesisDashboard')),
+        authority: [],
+    },
+    {
+        key: 'prosthesisRequestDetail',
+        path: '/prosthesis/requests/:id',
+        component: lazy(() => import('@/views/prosthesis/prosthesisRequestDetail')),
+        authority: [],
+    },
+    {
+        key: 'prosthesisTypes',
+        path: '/prosthesis/types',
+        component: lazy(() => import('@/views/prosthesis/prosthesisTypesIndex')),
+        authority: [],
+    },
+    {
+        key: 'prosthesisLaboratories',
+        path: '/prosthesis/laboratories',
+        component: lazy(() => import('@/views/prosthesis/laboratoriesIndex')),
+        authority: [],
+    },
     // {
     //     key: 'singleMenuItem',
     //     path: '/single-menu-view',
