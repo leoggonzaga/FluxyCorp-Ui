@@ -1,11 +1,23 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { HiOutlinePlus, HiOutlineBeaker, HiOutlineClipboardList, HiOutlineTruck, HiOutlineCurrencyDollar } from 'react-icons/hi'
+import { HiOutlinePlus, HiOutlineBeaker, HiOutlineClipboardList, HiOutlineTruck, HiOutlineCurrencyDollar, HiOutlineCalendar } from 'react-icons/hi'
 import { Button, Card, Dialog, Notification, toast } from '@/components/ui'
 import { Loading } from '@/components/shared'
 import { getProsthesisRequestsPaged } from '@/api/prosthesis/prosthesisService'
 import ProsthesisRequestUpsert from './components/ProsthesisRequestUpsert'
 import ProsthesisStatusBadge from './components/ProsthesisStatusBadge'
+
+const DATE_PRESETS = [
+    { label: '7 dias', days: 7 },
+    { label: '1 mês', days: 30 },
+    { label: '2 meses', days: 60 },
+    { label: '3 meses', days: 90 },
+    { label: '6 meses', days: 180 },
+]
+
+const toInputDate = (date) => date.toISOString().split('T')[0]
+const today = () => new Date()
+const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d }
 
 const KpiCard = ({ icon, label, value, color, sub }) => (
     <Card className={`border-l-4 ${color} backdrop-blur-sm bg-white/80`}>
@@ -29,6 +41,9 @@ const ProsthesisDashboard = () => {
     const [isUpsertOpen, setIsUpsertOpen] = useState(false)
     const [paging, setPaging] = useState({ pageNumber: 1, pageSize: 20, total: 0 })
     const [filterStatus, setFilterStatus] = useState('')
+    const [activePreset, setActivePreset] = useState(60)
+    const [dateFrom, setDateFrom] = useState(toInputDate(daysAgo(60)))
+    const [dateTo, setDateTo] = useState(toInputDate(today()))
 
     const statuses = [
         'Solicitado',
@@ -42,12 +57,28 @@ const ProsthesisDashboard = () => {
         'Garantia / manutenção',
     ]
 
+    const applyPreset = (days) => {
+        setActivePreset(days)
+        setDateFrom(toInputDate(daysAgo(days)))
+        setDateTo(toInputDate(today()))
+        setPaging(prev => ({ ...prev, pageNumber: 1 }))
+    }
+
+    const handleDateChange = (field, value) => {
+        setActivePreset(null)
+        if (field === 'from') setDateFrom(value)
+        else setDateTo(value)
+        setPaging(prev => ({ ...prev, pageNumber: 1 }))
+    }
+
     const load = async () => {
         setLoading(true)
         const result = await getProsthesisRequestsPaged({
             pageNumber: paging.pageNumber,
             pageSize: paging.pageSize,
             status: filterStatus || undefined,
+            dateFrom: dateFrom || undefined,
+            dateTo: dateTo || undefined,
         })
         if (result?.items) {
             setRequests(result.items)
@@ -58,7 +89,7 @@ const ProsthesisDashboard = () => {
 
     useEffect(() => {
         load()
-    }, [paging.pageNumber, filterStatus])
+    }, [paging.pageNumber, filterStatus, dateFrom, dateTo])
 
     const kpis = {
         total: paging.total,
@@ -94,6 +125,46 @@ const ProsthesisDashboard = () => {
                     </Button>
                 </div>
             </div>
+
+            {/* Date Filter */}
+            <Card className="bg-white/70 backdrop-blur-sm border border-gray-100">
+                <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-1.5 text-gray-500">
+                        <HiOutlineCalendar className="w-4 h-4" />
+                        <span className="text-xs font-medium">Período</span>
+                    </div>
+                    <div className="flex gap-1.5 flex-wrap">
+                        {DATE_PRESETS.map(p => (
+                            <button
+                                key={p.days}
+                                onClick={() => applyPreset(p.days)}
+                                className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                                    activePreset === p.days
+                                        ? 'bg-indigo-600 text-white shadow-sm'
+                                        : 'bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
+                                }`}
+                            >
+                                {p.label}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="flex items-center gap-2 ml-auto">
+                        <input
+                            type="date"
+                            value={dateFrom}
+                            onChange={e => handleDateChange('from', e.target.value)}
+                            className="border border-gray-200 rounded-lg px-2.5 py-1 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-200 bg-white"
+                        />
+                        <span className="text-xs text-gray-400">até</span>
+                        <input
+                            type="date"
+                            value={dateTo}
+                            onChange={e => handleDateChange('to', e.target.value)}
+                            className="border border-gray-200 rounded-lg px-2.5 py-1 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-200 bg-white"
+                        />
+                    </div>
+                </div>
+            </Card>
 
             {/* KPI Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

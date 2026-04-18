@@ -72,3 +72,7 @@ export const consultationTypeApi = createApi({
 export const prosthesisApi = createApi({
   baseURL: import.meta.env.VITE_PROSTHESIS_URL
 });
+
+export const inventoryApi = createApi({
+  baseURL: import.meta.env.VITE_INVENTORY_URL
+});

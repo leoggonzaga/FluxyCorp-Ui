@@ -35,7 +35,7 @@ const ProsthesisTypesIndex = () => {
     const load = async () => {
         setLoading(true)
         const result = await getProsthesisTypes()
-        setTypes(Array.isArray(result) ? result : [])
+        setTypes(Array.isArray(result) ? result : (result?.items ?? []))
         setLoading(false)
     }
 

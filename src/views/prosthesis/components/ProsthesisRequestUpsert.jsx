@@ -59,9 +59,8 @@ const ProsthesisRequestUpsert = ({ data, onClose, load }) => {
 
     useEffect(() => {
         getProsthesisTypes().then(res => {
-            if (Array.isArray(res)) {
-                setTypes(res.map(t => ({ value: t.publicId, label: t.name })))
-            }
+            const list = Array.isArray(res) ? res : (res?.items ?? [])
+            setTypes(list.map(t => ({ value: t.publicId, label: t.name })))
         })
     }, [])
 

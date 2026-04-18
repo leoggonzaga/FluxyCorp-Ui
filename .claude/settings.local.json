@@ -16,7 +16,23 @@
       "Bash(where psql *)",
       "Bash(where pg_isready)",
       "Bash(PGPASSWORD=\"Senha@321\" \"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -h localhost -c \"\\\\l\")",
-      "Bash(PGPASSWORD=\"Senha@321\" C:/Program Files/PostgreSQL/16/bin/psql.exe *)"
+      "Bash(PGPASSWORD=\"Senha@321\" C:/Program Files/PostgreSQL/16/bin/psql.exe *)",
+      "Bash(dotnet build *)",
+      "Bash(psql -U postgres -c \"CREATE DATABASE \\\\\"FluxyCorpInventory\\\\\";\")",
+      "Bash(PGPASSWORD=\"Senha@321\" psql -U postgres -c \"CREATE DATABASE \\\\\"FluxyCorpInventory\\\\\";\")",
+      "Bash(PGPASSWORD=\"Senha@321\" C:/Program Files/PostgreSQL/16/bin/psql *)",
+      "Bash(dotnet run *)",
+      "Bash(curl -sk https://localhost:7400/swagger/v1/swagger.json)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('API paths:', list\\(d['paths'].keys\\(\\)\\)[:8]\\)\")",
+      "Bash(ASPNETCORE_ENVIRONMENT=Development dotnet run --no-build)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Endpoints:', list\\(d.get\\('paths',{}\\).keys\\(\\)\\)\\)\")",
+      "Bash(powershell *)",
+      "Bash(dotnet sln *)",
+      "Bash(netstat -ano)",
+      "Bash(psql *)",
+      "Bash(PGPASSWORD=\"Senha@321\" /c/Program Files/PostgreSQL/16/bin/psql.exe *)",
+      "Bash(grep -E \"\\\\.\\(js|jsx\\)$\")",
+      "WebFetch(domain:elements-resized.envatousercontent.com)"
     ]
   }
 }

@@ -29,19 +29,21 @@ function useAuth() {
         culture: 'pt-BR'
       });
       debugger;
-      if (resp) {      
+      if (resp) {
         const { token } = resp;
         dispatch(signInSuccess(token));
         const decoded = JSON.parse(atob(resp.token.split('.')[1]));
-        dispatch(setUser(resp.user || {
-          avatar: '',
-          userName: decoded?.["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"],
-          authenticationId: decoded?.["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"],
-          authority: ['USER'],
-          email: '',
-          employeePublicId: decoded?.employeePublicId,
-          companyTypeId: decoded?.companyTypeId,
-          companyPublicId: decoded?.companyPublicId
+        const decodedName = decoded?.["name"];
+        const u = resp.user || {};
+        dispatch(setUser({
+          avatar: u.avatar || '',
+          userName: u.userName || decodedName || '',
+          authenticationId: u.authenticationId || decoded?.["nameIdentifier"],
+          authority: u.authority || ['USER'],
+          email: u.email || '',
+          employeePublicId: u.employeePublicId || decoded?.employeePublicId,
+          companyTypeId: u.companyTypeId || decoded?.companyTypeId,
+          companyPublicId: u.companyPublicId || decoded?.companyPublicId,
         }));
         dispatch(setLang(decoded.culture || 'pt-BR'))
         const redirectUrl = query.get(REDIRECT_URL_KEY);

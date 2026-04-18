@@ -8,6 +8,7 @@ import {
     HiOutlineCalendar,
     HiOutlineCog,
     HiOutlineClipboardList,
+    HiOutlineClipboardCheck,
     HiOutlineClipboard,
     HiOutlineCash,
     HiOutlineChartBar,
@@ -15,6 +16,9 @@ import {
     HiOutlineArrowCircleUp,
     HiOutlineFilter,
     HiOutlineBeaker,
+    HiOutlineCube,
+    HiOutlineTruck,
+    HiOutlineTag,
 } from 'react-icons/hi'
 import type { JSX } from 'react'
 
@@ -37,6 +41,10 @@ const navigationIcon: NavigationIcons = {
     arrowCircleUp:   <HiOutlineArrowCircleUp/>,
     funnel:          <HiOutlineFilter/>,
     beaker:          <HiOutlineBeaker/>,
+    cube:            <HiOutlineCube/>,
+    truck:           <HiOutlineTruck/>,
+    tag:             <HiOutlineTag/>,
+    clipboardCheck:  <HiOutlineClipboardCheck/>,
 }
 
 export default navigationIcon

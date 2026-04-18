@@ -72,6 +72,36 @@ export const protectedRoutes = [
         authority: [],
     },
     {
+        key: 'inventory',
+        path: '/inventory',
+        component: lazy(() => import('@/views/inventory/inventoryDashboard')),
+        authority: [],
+    },
+    {
+        key: 'inventoryCategories',
+        path: '/inventory/categories',
+        component: lazy(() => import('@/views/inventory/categoriesIndex')),
+        authority: [],
+    },
+    {
+        key: 'inventorySuppliers',
+        path: '/inventory/suppliers',
+        component: lazy(() => import('@/views/inventory/suppliersIndex')),
+        authority: [],
+    },
+    {
+        key: 'inventoryRequest',
+        path: '/inventory/request',
+        component: lazy(() => import('@/views/inventory/inventoryRequestView')),
+        authority: [],
+    },
+    {
+        key: 'inventoryMovements',
+        path: '/inventory/movements',
+        component: lazy(() => import('@/views/inventory/stockOperationsView')),
+        authority: [],
+    },
+    {
         key: 'settings',
         path: '/settings',
         component: lazy(() => import('@/views/settings')),

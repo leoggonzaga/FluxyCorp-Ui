@@ -1,0 +1,5 @@
+export const inventoryAPI_Products = '/products'
+export const inventoryAPI_Categories = '/categories'
+export const inventoryAPI_Suppliers = '/suppliers'
+export const inventoryAPI_StockMovements = '/stock-movements'
+export const inventoryAPI_StockRequests = '/stock-requests'

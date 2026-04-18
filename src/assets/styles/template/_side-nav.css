@@ -16,6 +16,28 @@
       height: calc(100vh - theme("spacing.16"));
       @apply overflow-y-auto;
     }
+
+    .side-nav-content::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .side-nav-content::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .side-nav-content::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      transition: background 0.2s ease;
+    }
+
+    .side-nav-content:hover::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    .side-nav-content::-webkit-scrollbar-thumb:active {
+      background: rgba(139, 92, 246, 0.6);
+    }
     
     .side-nav-light {
       @apply border-r border-violet-900/40;

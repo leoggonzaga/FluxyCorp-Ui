@@ -1,5 +1,4 @@
 import classNames from 'classnames'
-import ScrollBar from '@/components/ui/ScrollBar'
 import {
     SIDE_NAV_WIDTH,
     SIDE_NAV_COLLAPSED_WIDTH,
@@ -86,6 +85,10 @@ const SideNav = () => {
                         margin: '18px 8px',
                         padding: sideNavCollapse ? '8px' : '18px 8px',
                         minHeight: 'calc(100vh - 36px)',
+                        height: 'fit-content',
+                        alignSelf: 'flex-start',
+                        position: 'sticky',
+                        top: '18px',
                         transition: 'all 0.3s',
                     }}
                     className={classNames(
@@ -108,12 +111,10 @@ const SideNav = () => {
                     {sideNavCollapse ? (
                         menuContent
                     ) : (
-                        <div className="side-nav-content">
-                            <ScrollBar autoHide direction={direction}>
-                                <div className="space-y-1">
-                                    {menuContent}
-                                </div>
-                            </ScrollBar>
+                        <div className="side-nav-content flex flex-col flex-1 min-h-0 overflow-y-auto">
+                            <div className="space-y-1">
+                                {menuContent}
+                            </div>
                         </div>
                     )}
                 </div>
