@@ -80,3 +80,7 @@ export const inventoryApi = createApi({
 export const consumerApi = createApi({
   baseURL: import.meta.env.VITE_CONSUMER_URL
 });
+
+export const billingApi = createApi({
+  baseURL: import.meta.env.VITE_BILLING_URL
+});

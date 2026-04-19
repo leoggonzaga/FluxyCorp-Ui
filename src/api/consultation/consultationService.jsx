@@ -30,3 +30,29 @@ export const consultationCategoryApiUpdate = (id, data) =>
 
 export const consultationCategoryApiDelete = (id) =>
     consultationTypeApi.delete(endpoints.consultationCategoryAPI_delete(id))
+
+// ── Sessions ─────────────────────────────────────────────────────────────────
+
+export const sessionCreate = (data) =>
+    consultationTypeApi.post(endpoints.sessionAPI_create, data)
+
+export const sessionGetById = (id) =>
+    consultationTypeApi.get(endpoints.sessionAPI_getById(id)).then(unwrap)
+
+export const sessionGetByPatient = (patientId) =>
+    consultationTypeApi.get(endpoints.sessionAPI_getByPatient(patientId)).then(unwrap)
+
+export const sessionUpdate = (id, data) =>
+    consultationTypeApi.put(endpoints.sessionAPI_update(id), data)
+
+export const sessionUpdateEvolution = (id, mainComplaint) =>
+    consultationTypeApi.patch(endpoints.sessionAPI_updateEvolution(id), { mainComplaint })
+
+export const sessionStart = (id) =>
+    consultationTypeApi.post(endpoints.sessionAPI_start(id))
+
+export const sessionFinish = (id, data) =>
+    consultationTypeApi.post(endpoints.sessionAPI_finish(id), data)
+
+export const sessionCancel = (id) =>
+    consultationTypeApi.post(endpoints.sessionAPI_cancel(id))

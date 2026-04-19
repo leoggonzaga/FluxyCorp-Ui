@@ -12,6 +12,7 @@ import {
     HiOutlineClipboardList,
     HiOutlineClock,
     HiOutlineDocumentText,
+    HiOutlineExclamation,
     HiOutlineLightningBolt,
     HiOutlineMinus,
     HiOutlinePause,
@@ -23,17 +24,18 @@ import {
     HiOutlineTrash,
     HiOutlineX,
 } from 'react-icons/hi'
+import { getConsumerById } from '@/api/consumer/consumerService'
+import {
+    sessionCreate,
+    sessionUpdate,
+    sessionUpdateEvolution,
+    sessionGetByPatient,
+    sessionStart,
+    sessionFinish,
+    sessionCancel,
+} from '@/api/consultation/consultationService'
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
-
-const MOCK_PATIENTS = [
-    { id: 1, name: 'João Silva',     birthDate: '1985-03-15', insurance: 'Unimed',          bloodType: 'A+',  allergies: ['Penicilina'] },
-    { id: 2, name: 'Maria Santos',   birthDate: '1992-07-22', insurance: 'Bradesco Saúde',  bloodType: 'O-',  allergies: [] },
-    { id: 3, name: 'Pedro Oliveira', birthDate: '1978-11-08', insurance: 'SulAmérica',      bloodType: 'B+',  allergies: ['Dipirona'] },
-    { id: 4, name: 'Ana Costa',      birthDate: '1995-01-12', insurance: 'SulAmérica',      bloodType: 'AB-', allergies: [] },
-    { id: 5, name: 'Carlos Mendes',  birthDate: '1980-09-30', insurance: 'Unimed',          bloodType: 'O+',  allergies: ['Penicilina'] },
-    { id: 6, name: 'Fernanda Lima',  birthDate: '1988-05-18', insurance: 'Bradesco Saúde',  bloodType: 'A-',  allergies: ['Ibuprofeno'] },
-]
+// ─── Catalog ──────────────────────────────────────────────────────────────────
 
 const PROCEDURE_CATALOG = [
     { category: 'Consulta', items: [
@@ -106,50 +108,10 @@ const QUICK_PHRASES = [
     'Exames solicitados para diagnóstico complementar. ',
 ]
 
-const PATIENT_HISTORY = {
-    1: [
-        { id: 1, date: '2026-04-01', service: 'Consulta Geral',   professional: 'Dr. Carlos', notes: 'Paciente relatou dores nas costas. Eletrocardiograma solicitado.', proceduresCount: 3 },
-        { id: 2, date: '2026-03-15', service: 'Limpeza Dental',   professional: 'Dra. Ana',   notes: 'Procedimento sem intercorrências. Flúor aplicado.', proceduresCount: 3 },
-        { id: 3, date: '2026-02-10', service: 'Avaliação Inicial', professional: 'Dr. Bruno', notes: 'Exame de sangue solicitado para acompanhamento.', proceduresCount: 1 },
-    ],
-    2: [
-        { id: 1, date: '2026-03-20', service: 'Consulta',         professional: 'Dr. Carlos', notes: 'Sem queixas relevantes. Paciente em bom estado geral.', proceduresCount: 1 },
-    ],
-    3: [
-        { id: 1, date: '2026-04-05', service: 'Avaliação',        professional: 'Dr. Bruno',  notes: 'Tratamento iniciado. Curativo realizado.', proceduresCount: 2 },
-    ],
-    5: [
-        { id: 1, date: '2026-02-20', service: 'Cirurgia',         professional: 'Dr. Bruno',  notes: 'Extração de dente do siso. Pós-operatório tranquilo.', proceduresCount: 1 },
-    ],
-    6: [
-        { id: 1, date: '2026-03-01', service: 'Consulta Geral',   professional: 'Dr. Carlos', notes: 'Paciente com dores de dente. Canal indicado para dente 14.', proceduresCount: 1 },
-    ],
-}
-
-const PATIENT_MEDIA = {
-    1: {
-        images: [
-            { id: 'i1', name: 'Raio-X Panorâmico',    url: '/img/thumbs/layouts/modern.jpg',     createdAt: '2026-03-15' },
-            { id: 'i2', name: 'Foto Intraoral',        url: '/img/thumbs/layouts/classic.jpg',    createdAt: '2026-04-01' },
-            { id: 'i3', name: 'Foto Frontal',          url: '/img/thumbs/layouts/simple.jpg',     createdAt: '2026-04-01' },
-            { id: 'i4', name: 'Raio-X Periapical',     url: '/img/thumbs/layouts/decked.jpg',     createdAt: '2026-02-10' },
-        ],
-        documents: [
-            { id: 'd1', name: 'Anamnese Inicial.pdf',       createdAt: '2026-01-10' },
-            { id: 'd2', name: 'Exame de Sangue.pdf',         createdAt: '2026-02-10' },
-            { id: 'd3', name: 'Receita Amoxicilina.pdf',     createdAt: '2026-04-01' },
-            { id: 'd4', name: 'Contrato de Tratamento.pdf',  createdAt: '2026-01-10' },
-        ],
-    },
-    2: {
-        images: [{ id: 'i1', name: 'Foto Clínica', url: '/img/thumbs/layouts/simple.jpg', createdAt: '2026-03-20' }],
-        documents: [{ id: 'd1', name: 'Comprovante Atendimento.pdf', createdAt: '2026-03-20' }],
-    },
-}
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const calcAge = (birthDate) => {
+    if (!birthDate) return '—'
     const today = new Date()
     const birth = new Date(birthDate)
     let age = today.getFullYear() - birth.getFullYear()
@@ -166,8 +128,14 @@ const formatTimer = (s) =>
 const fmt = (v) => `R$ ${v.toFixed(2).replace('.', ',')}`
 
 const formatDate = (dateStr) => {
-    const [y, m, d] = dateStr.split('-')
-    return `${d}/${m}/${y}`
+    if (!dateStr) return '—'
+    const d = new Date(dateStr)
+    return d.toLocaleDateString('pt-BR')
+}
+
+const statusLabel = (s) => {
+    const map = { Registered: 'Agendado', InProgress: 'Em andamento', Completed: 'Concluído', Cancelled: 'Cancelado' }
+    return map[s] ?? s
 }
 
 // ─── Camera Modal ─────────────────────────────────────────────────────────────
@@ -252,11 +220,9 @@ const CameraModal = ({ open, onClose, onSave }) => {
 
     return (
         <div className='fixed inset-0 z-[200] flex items-center justify-center' style={{ background: 'rgba(0,0,0,0.88)' }}>
-            {/* Flash overlay */}
             <div className={`pointer-events-none fixed inset-0 z-[201] bg-white transition-opacity duration-100 ${flash ? 'opacity-80' : 'opacity-0'}`} />
 
             <div className='relative w-full max-w-2xl mx-4 flex flex-col gap-3'>
-                {/* Close */}
                 <button
                     onClick={onClose}
                     className='absolute -top-10 right-0 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition'
@@ -264,7 +230,6 @@ const CameraModal = ({ open, onClose, onSave }) => {
                     <HiOutlineX className='w-4 h-4' />
                 </button>
 
-                {/* Viewfinder */}
                 <div className='relative bg-black rounded-2xl overflow-hidden aspect-video border border-white/10 shadow-2xl'>
                     {cameraError ? (
                         <div className='absolute inset-0 flex flex-col items-center justify-center gap-3 text-white/60'>
@@ -282,12 +247,10 @@ const CameraModal = ({ open, onClose, onSave }) => {
                         />
                     )}
 
-                    {/* Corner guides */}
                     {['top-2 left-2', 'top-2 right-2 rotate-90', 'bottom-2 right-2 rotate-180', 'bottom-2 left-2 -rotate-90'].map((cls) => (
                         <div key={cls} className={`absolute ${cls} w-6 h-6 border-t-2 border-l-2 border-white/40 rounded-tl pointer-events-none`} />
                     ))}
 
-                    {/* Bottom bar inside viewfinder */}
                     <div className='absolute bottom-0 inset-x-0 flex items-center justify-between px-4 py-2.5 bg-gradient-to-t from-black/70 to-transparent'>
                         <button
                             onClick={() => setMirrored((v) => !v)}
@@ -303,12 +266,9 @@ const CameraModal = ({ open, onClose, onSave }) => {
                     </div>
                 </div>
 
-                {/* Hidden canvas for capture */}
                 <canvas ref={canvasRef} className='hidden' />
 
-                {/* Shutter + thumbnails row */}
                 <div className='flex items-center gap-3'>
-                    {/* Shutter button */}
                     <button
                         onClick={capture}
                         disabled={!!cameraError}
@@ -318,7 +278,6 @@ const CameraModal = ({ open, onClose, onSave }) => {
                         <div className='w-10 h-10 rounded-full border-4 border-gray-300' />
                     </button>
 
-                    {/* Thumbnails strip */}
                     <div className='flex-1 flex gap-2 overflow-x-auto pb-0.5' style={{ scrollbarWidth: 'none' }}>
                         {captures.length === 0 ? (
                             <p className='text-white/30 text-xs self-center'>Nenhuma foto capturada ainda</p>
@@ -344,7 +303,6 @@ const CameraModal = ({ open, onClose, onSave }) => {
                         )}
                     </div>
 
-                    {/* Save button */}
                     <button
                         onClick={handleSave}
                         disabled={captures.length === 0}
@@ -364,9 +322,19 @@ const CameraModal = ({ open, onClose, onSave }) => {
 const AttendanceIndex = () => {
     const navigate               = useNavigate()
     const [searchParams]         = useSearchParams()
-    const patientId              = Number(searchParams.get('patientId'))
-    const patient                = MOCK_PATIENTS.find((p) => p.id === patientId) ?? MOCK_PATIENTS[0]
+    const patientPublicId        = searchParams.get('patientPublicId')
 
+    // Patient + session state
+    const [patient, setPatient]           = useState(null)
+    const [loadingPatient, setLoadingPatient] = useState(true)
+    const [sessionId, setSessionId]       = useState(null)
+    const [sessionStarted, setSessionStarted] = useState(false)
+
+    // History
+    const [history, setHistory]           = useState([])
+    const [loadingHistory, setLoadingHistory] = useState(false)
+
+    // Editor state
     const [elapsed, setElapsed]               = useState(0)
     const [timerPaused, setTimerPaused]       = useState(false)
     const [evolutionText, setEvolutionText]   = useState('')
@@ -382,21 +350,77 @@ const AttendanceIndex = () => {
     const [showFinish, setShowFinish]         = useState(false)
     const [finished, setFinished]             = useState(false)
     const [rightTab, setRightTab]             = useState('procedures')
-
-    const [cameraOpen, setCameraOpen]     = useState(false)
-    const [sessionPhotos, setSessionPhotos] = useState([])
+    const [cameraOpen, setCameraOpen]         = useState(false)
+    const [sessionPhotos, setSessionPhotos]   = useState([])
+    const [finishing, setFinishing]           = useState(false)
+    const [showStartDialog, setShowStartDialog] = useState(false)
 
     const saveTimeoutRef = useRef(null)
     const textareaRef    = useRef(null)
+    const autosaveRef    = useRef(null)
 
-    // Timer
+    // ── Load patient + create session on mount ─────────────────────────────────
     useEffect(() => {
-        if (timerPaused || finished) return
+        if (!patientPublicId) {
+            setLoadingPatient(false)
+            return
+        }
+
+        const init = async () => {
+            setLoadingPatient(true)
+            const consumer = await getConsumerById(patientPublicId)
+            if (consumer?.data) {
+                setPatient(consumer.data)
+            } else if (consumer && !consumer.data) {
+                setPatient(consumer)
+            }
+            setLoadingPatient(false)
+
+            const sessionRes = await sessionCreate({
+                patientId: patientPublicId,
+                patientName: consumer?.data?.fullName ?? consumer?.fullName ?? '',
+                professionalName: '',
+            })
+            if (sessionRes?.data?.id) {
+                setSessionId(sessionRes.data.id)
+            } else if (sessionRes?.id) {
+                setSessionId(sessionRes.id)
+            }
+        }
+
+        init()
+    }, [patientPublicId])
+
+    // ── Load history when history tab is opened ────────────────────────────────
+    useEffect(() => {
+        if (rightTab !== 'history' || !patientPublicId || history.length > 0) return
+        setLoadingHistory(true)
+        sessionGetByPatient(patientPublicId)
+            .then((data) => setHistory(Array.isArray(data) ? data : (data?.data ?? [])))
+            .finally(() => setLoadingHistory(false))
+    }, [rightTab, patientPublicId, history.length])
+
+    // ── Timer ─────────────────────────────────────────────────────────────────
+    useEffect(() => {
+        if (timerPaused || finished || !sessionStarted) return
         const id = setInterval(() => setElapsed((e) => e + 1), 1000)
         return () => clearInterval(id)
-    }, [timerPaused, finished])
+    }, [timerPaused, finished, sessionStarted])
 
-    useEffect(() => () => clearTimeout(saveTimeoutRef.current), [])
+    useEffect(() => () => {
+        clearTimeout(saveTimeoutRef.current)
+        clearTimeout(autosaveRef.current)
+    }, [])
+
+    // ── Autosave clinical evolution ───────────────────────────────────────────
+    const scheduleAutosave = useCallback((text, procedures) => {
+        if (!sessionId) return
+        clearTimeout(autosaveRef.current)
+        autosaveRef.current = setTimeout(async () => {
+            // Salva apenas a evolução clínica sem alterar tempo ou outros campos
+            await sessionUpdateEvolution(sessionId, text)
+        }, 1500)
+    }, [sessionId])
 
     const triggerSave = useCallback(() => {
         setSaveStatus('saving')
@@ -404,7 +428,25 @@ const AttendanceIndex = () => {
         saveTimeoutRef.current = setTimeout(() => setSaveStatus('saved'), 1200)
     }, [])
 
-    // Catalog filter
+    // ── Start session ─────────────────────────────────────────────────────────
+    const handleStartSession = async () => {
+        if (!sessionId) return
+        await sessionStart(sessionId)
+        setSessionStarted(true)
+        triggerSave()
+    }
+
+    // Handle start from dialog
+    const handleStartFromDialog = async () => {
+        await handleStartSession()
+        setShowStartDialog(false)
+        // Focar no textarea após iniciar
+        setTimeout(() => {
+            textareaRef.current?.focus()
+        }, 100)
+    }
+
+    // ── Catalog filter ────────────────────────────────────────────────────────
     const filteredCatalog = useMemo(() => {
         const q = searchQuery.toLowerCase().trim()
         if (!q) return PROCEDURE_CATALOG
@@ -421,15 +463,14 @@ const AttendanceIndex = () => {
     const addedIds = useMemo(() => new Set(addedProcedures.map((p) => p.id)), [addedProcedures])
     const total    = useMemo(() => addedProcedures.reduce((s, p) => s + p.value * p.qty, 0), [addedProcedures])
 
-    // Handlers
+    // ── Procedure handlers ────────────────────────────────────────────────────
     const handleAddProcedure = (proc) => {
-        setAddedProcedures((prev) => {
-            const existing = prev.find((p) => p.id === proc.id)
-            return existing
-                ? prev.map((p) => (p.id === proc.id ? { ...p, qty: p.qty + 1 } : p))
-                : [...prev, { ...proc, qty: 1 }]
-        })
+        const updated = addedProcedures.find((p) => p.id === proc.id)
+            ? addedProcedures.map((p) => (p.id === proc.id ? { ...p, qty: p.qty + 1 } : p))
+            : [...addedProcedures, { ...proc, qty: 1 }]
+        setAddedProcedures(updated)
         triggerSave()
+        scheduleAutosave(evolutionText, updated)
     }
 
     const handleToggleTooth = (tooth) => {
@@ -461,15 +502,17 @@ const AttendanceIndex = () => {
     }
 
     const handleRemoveProcedure = (id) => {
-        setAddedProcedures((prev) => prev.filter((p) => p.id !== id))
+        const updated = addedProcedures.filter((p) => p.id !== id)
+        setAddedProcedures(updated)
         triggerSave()
+        scheduleAutosave(evolutionText, updated)
     }
 
     const handleQty = (id, delta) => {
-        setAddedProcedures((prev) =>
-            prev.map((p) => (p.id === id ? { ...p, qty: Math.max(1, p.qty + delta) } : p)),
-        )
+        const updated = addedProcedures.map((p) => (p.id === id ? { ...p, qty: Math.max(1, p.qty + delta) } : p))
+        setAddedProcedures(updated)
         triggerSave()
+        scheduleAutosave(evolutionText, updated)
     }
 
     const appendPhrase = (phrase) => {
@@ -477,8 +520,10 @@ const AttendanceIndex = () => {
         if (!ta) return
         const start = ta.selectionStart
         const end   = ta.selectionEnd
-        setEvolutionText((prev) => prev.slice(0, start) + phrase + prev.slice(end))
+        const newText = evolutionText.slice(0, start) + phrase + evolutionText.slice(end)
+        setEvolutionText(newText)
         triggerSave()
+        scheduleAutosave(newText, addedProcedures)
         setTimeout(() => {
             ta.focus()
             ta.setSelectionRange(start + phrase.length, start + phrase.length)
@@ -486,19 +531,48 @@ const AttendanceIndex = () => {
     }
 
     const handleEvolutionChange = (e) => {
+        // Se o atendimento não foi iniciado e o usuário começou a digitar, mostrar diálogo
+        if (!sessionStarted && !finished && e.target.value.trim().length > 0 && evolutionText.trim().length === 0) {
+            setShowStartDialog(true)
+            return
+        }
+        
+        // Se o diálogo foi fechado sem iniciar atendimento, não permitir digitação
+        if (!sessionStarted && !finished && evolutionText.trim().length === 0) {
+            return
+        }
+        
         setEvolutionText(e.target.value)
         triggerSave()
+        scheduleAutosave(e.target.value, addedProcedures)
     }
 
-    const handleFinishConfirm = () => {
-        setTimerPaused(true)
-        setFinished(true)
-        setShowFinish(false)
-        toast.push(
-            <Notification type='success' title='Atendimento Finalizado'>
-                Registrado com sucesso · Duração: {formatTimer(elapsed)}
-            </Notification>,
-        )
+    // ── Finish session ────────────────────────────────────────────────────────
+    const handleFinishConfirm = async () => {
+        if (!sessionId) {
+            setTimerPaused(true)
+            setFinished(true)
+            setShowFinish(false)
+            return
+        }
+
+        setFinishing(true)
+        const result = await sessionFinish(sessionId, {
+            mainComplaint: evolutionText,
+            procedures: JSON.stringify(addedProcedures),
+        })
+        setFinishing(false)
+
+        if (result !== null) {
+            setTimerPaused(true)
+            setFinished(true)
+            setShowFinish(false)
+            toast.push(
+                <Notification type='success' title='Atendimento Finalizado'>
+                    Registrado com sucesso · Duração: {formatTimer(elapsed)}
+                </Notification>,
+            )
+        }
     }
 
     const handleCameraSave = useCallback((captures) => {
@@ -516,7 +590,23 @@ const AttendanceIndex = () => {
         )
     }, [])
 
-    const age = calcAge(patient.birthDate)
+    const patientName = patient?.fullName ?? patient?.name ?? '...'
+    const age = calcAge(patient?.birthDate ?? patient?.dateOfBirth)
+    const insurance = patient?.convenios?.[0]?.name ?? patient?.insurance ?? '—'
+    const allergies = patient?.allergies ?? []
+
+    const goBack = () => navigate(-1)
+
+    if (loadingPatient) {
+        return (
+            <div className='min-h-screen bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center'>
+                <div className='flex flex-col items-center gap-3 text-gray-400'>
+                    <HiOutlineRefresh className='w-8 h-8 animate-spin' />
+                    <p className='text-sm'>Carregando dados do paciente...</p>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className='min-h-screen bg-gray-50 dark:bg-gray-900/50 flex flex-col'>
@@ -529,7 +619,7 @@ const AttendanceIndex = () => {
                     {/* Voltar + paciente */}
                     <div className='flex items-center gap-2 sm:gap-3 flex-1 min-w-0'>
                         <button
-                            onClick={() => navigate(`/patients?id=${patient.id}`)}
+                            onClick={goBack}
                             className='w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center text-white/60 hover:text-white hover:bg-white/15 transition flex-shrink-0'
                             title='Voltar ao prontuário'
                         >
@@ -537,17 +627,38 @@ const AttendanceIndex = () => {
                         </button>
 
                         <div className='w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center font-bold text-white text-base sm:text-lg flex-shrink-0 border border-white/30'>
-                            {patient.name.charAt(0)}
+                            {patientName.charAt(0)}
                         </div>
 
                         <div className='min-w-0'>
-                            <p className='font-bold text-white text-xs sm:text-sm leading-tight truncate'>{patient.name}</p>
-                            <p className='hidden sm:block text-indigo-200 text-xs mt-0.5'>{age} anos · {patient.insurance}</p>
+                            <p className='font-bold text-white text-xs sm:text-sm leading-tight truncate'>{patientName}</p>
+                            <p className='hidden sm:block text-indigo-200 text-xs mt-0.5'>
+                                {age !== '—' ? `${age} anos · ` : ''}{insurance}
+                            </p>
                         </div>
 
-                        {patient.allergies.length > 0 && (
+                        {allergies.length > 0 && (
                             <span className='hidden lg:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-rose-500/25 text-rose-100 border border-rose-300/30 flex-shrink-0'>
-                                ⚠ {patient.allergies.join(', ')}
+                                <HiOutlineExclamation className='w-3 h-3' />
+                                {Array.isArray(allergies) ? allergies.join(', ') : allergies}
+                            </span>
+                        )}
+
+                        {/* Iniciar Atendimento */}
+                        {!sessionStarted && !finished && sessionId && (
+                            <button
+                                onClick={handleStartSession}
+                                className='flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 border border-emerald-400/50 text-white text-sm font-bold transition-all duration-200 active:scale-95 flex-shrink-0 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40'
+                            >
+                                <HiOutlinePlay className='w-4 h-4' />
+                                <span className='hidden xs:inline'>Iniciar Atendimento</span>
+                                <span className='xs:hidden'>Iniciar</span>
+                            </button>
+                        )}
+                        {sessionStarted && !finished && (
+                            <span className='hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-400/20 border border-emerald-400/30 text-emerald-200 text-[10px] font-semibold flex-shrink-0'>
+                                <span className='w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse' />
+                                Em Andamento
                             </span>
                         )}
                     </div>
@@ -557,16 +668,17 @@ const AttendanceIndex = () => {
                         <div className='flex items-center gap-1.5 sm:gap-2.5 bg-black/15 border border-white/20 rounded-lg sm:rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2'>
                             <div className={classNames(
                                 'w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full flex-shrink-0',
-                                finished    ? 'bg-white/40' :
-                                timerPaused ? 'bg-amber-300' :
-                                              'bg-emerald-300 animate-pulse',
+                                finished        ? 'bg-white/40' :
+                                timerPaused     ? 'bg-amber-300' :
+                                sessionStarted  ? 'bg-emerald-300 animate-pulse' :
+                                                  'bg-white/30',
                             )} />
                             <span className='font-mono font-bold text-white text-sm sm:text-lg tracking-widest leading-none tabular-nums'>
                                 {formatTimer(elapsed)}
                             </span>
                         </div>
 
-                        {!finished && (
+                        {!finished && sessionStarted && (
                             <button
                                 onClick={() => setTimerPaused((v) => !v)}
                                 title={timerPaused ? 'Retomar' : 'Pausar'}
@@ -800,52 +912,66 @@ const AttendanceIndex = () => {
                             )}
 
                             {/* ── Aba Histórico ── */}
-                            {rightTab === 'history' && (() => {
-                                const history = (PATIENT_HISTORY[patient.id] || []).slice(0, 3)
-                                return history.length === 0 ? (
+                            {rightTab === 'history' && (
+                                loadingHistory ? (
+                                    <div className='flex items-center justify-center py-10 gap-2 text-gray-400'>
+                                        <HiOutlineRefresh className='w-4 h-4 animate-spin' />
+                                        <span className='text-sm'>Carregando histórico...</span>
+                                    </div>
+                                ) : history.length === 0 ? (
                                     <p className='text-sm text-gray-400 text-center py-8'>Sem histórico de atendimentos.</p>
                                 ) : (
-                                    <div className='space-y-3'>
-                                        {history.map((apt, idx) => (
+                                    <div className='space-y-3 max-h-80 overflow-y-auto pr-0.5'>
+                                        {history.slice(0, 10).map((apt, idx) => (
                                             <div key={apt.id} className='relative pl-4'>
-                                                {/* Linha do timeline */}
-                                                {idx < history.length - 1 && (
+                                                {idx < Math.min(history.length, 10) - 1 && (
                                                     <div className='absolute left-[7px] top-6 bottom-0 w-px bg-gray-200 dark:bg-gray-700' />
                                                 )}
                                                 <div className='absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-teal-400 bg-white dark:bg-gray-900' />
 
                                                 <div className='bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/50 rounded-xl p-3 ml-2'>
                                                     <div className='flex items-start justify-between gap-2 mb-1'>
-                                                        <p className='text-sm font-bold text-gray-800 dark:text-gray-200 leading-tight'>{apt.service}</p>
-                                                        <span className='text-[10px] text-gray-400 flex-shrink-0 tabular-nums'>{formatDate(apt.date)}</span>
+                                                        <p className='text-sm font-bold text-gray-800 dark:text-gray-200 leading-tight'>
+                                                            {apt.status ? statusLabel(apt.status) : 'Atendimento'}
+                                                        </p>
+                                                        <span className='text-[10px] text-gray-400 flex-shrink-0 tabular-nums'>
+                                                            {formatDate(apt.scheduledAt ?? apt.startedAt)}
+                                                        </span>
                                                     </div>
                                                     <p className='text-[11px] text-teal-600 dark:text-teal-400 font-medium mb-1.5'>
-                                                        {apt.professional} · {apt.proceduresCount} procedimento(s)
+                                                        {apt.professionalName}
+                                                        {apt.status && (
+                                                            <span className={classNames(
+                                                                'ml-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase',
+                                                                apt.status === 'Completed' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                                                                apt.status === 'Cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                                                                'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+                                                            )}>
+                                                                {statusLabel(apt.status)}
+                                                            </span>
+                                                        )}
                                                     </p>
-                                                    <p className='text-xs text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-2 italic'>
-                                                        "{apt.notes}"
-                                                    </p>
+                                                    {apt.mainComplaint && (
+                                                        <p className='text-xs text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-2 italic'>
+                                                            "{apt.mainComplaint}"
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 )
-                            })()}
+                            )}
 
                             {/* ── Aba Mídia ── */}
                             {rightTab === 'media' && (() => {
-                                const media = PATIENT_MEDIA[patient.id]
-                                const allImages = [...(media?.images ?? []), ...sessionPhotos]
+                                const allImages = [...sessionPhotos]
                                 return (
                                     <div className='space-y-4 max-h-80 overflow-y-auto pr-0.5'>
-                                        {/* Imagens */}
                                         {allImages.length > 0 ? (
                                             <div>
                                                 <p className='text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2'>
-                                                    Imagens ({allImages.length})
-                                                    {sessionPhotos.length > 0 && (
-                                                        <span className='ml-2 normal-case text-indigo-400'>· {sessionPhotos.length} desta sessão</span>
-                                                    )}
+                                                    Imagens desta sessão ({allImages.length})
                                                 </p>
                                                 <div className='grid grid-cols-3 gap-2'>
                                                     {allImages.map((img) => (
@@ -860,26 +986,10 @@ const AttendanceIndex = () => {
                                                 </div>
                                             </div>
                                         ) : (
-                                            <p className='text-sm text-gray-400 text-center py-4'>Sem imagens cadastradas.</p>
-                                        )}
-
-                                        {/* Documentos */}
-                                        {(media?.documents?.length ?? 0) > 0 && (
-                                            <div>
-                                                <p className='text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2'>
-                                                    Documentos ({media?.documents?.length ?? 0})
-                                                </p>
-                                                <div className='space-y-1.5'>
-                                                    {(media?.documents ?? []).map((doc) => (
-                                                        <div key={doc.id} className='flex items-center gap-2.5 px-3 py-2 rounded-lg border border-gray-100 dark:border-gray-700/50 bg-white dark:bg-gray-800/40 hover:border-indigo-200 dark:hover:border-indigo-700/40 transition cursor-pointer'>
-                                                            <HiOutlineDocumentText className='w-4 h-4 text-indigo-400 flex-shrink-0' />
-                                                            <div className='flex-1 min-w-0'>
-                                                                <p className='text-xs font-medium text-gray-800 dark:text-gray-200 truncate'>{doc.name}</p>
-                                                                <p className='text-[10px] text-gray-400'>{formatDate(doc.createdAt)}</p>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
+                                            <div className='flex flex-col items-center gap-2 py-8 text-gray-400'>
+                                                <HiOutlineCamera className='w-8 h-8' />
+                                                <p className='text-sm'>Nenhuma foto capturada.</p>
+                                                <p className='text-xs text-center'>Use o botão Câmera no cabeçalho para registrar imagens.</p>
                                             </div>
                                         )}
                                     </div>
@@ -956,7 +1066,6 @@ const AttendanceIndex = () => {
                                                     </p>
                                                 </div>
 
-                                                {/* Controle de quantidade */}
                                                 <div className='flex items-center gap-1 flex-shrink-0'>
                                                     <button
                                                         onClick={() => handleQty(proc.id, -1)}
@@ -973,7 +1082,7 @@ const AttendanceIndex = () => {
                                                         disabled={finished}
                                                         className='w-8 h-8 rounded-lg flex items-center justify-center bg-gray-100 dark:bg-gray-700/60 text-gray-500 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 hover:text-emerald-600 transition active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed'
                                                     >
-                                                        <HiOutlinePlus className='w-3.5 h-3.5' />
+                                                        <HiOutlinePlus className='w-4 h-4' />
                                                     </button>
                                                 </div>
 
@@ -988,7 +1097,6 @@ const AttendanceIndex = () => {
                                         ))}
                                     </div>
 
-                                    {/* Total */}
                                     <div className='flex items-center justify-between px-3 py-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-800/40'>
                                         <p className='text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
                                             Total do Atendimento
@@ -1004,6 +1112,7 @@ const AttendanceIndex = () => {
                 </div>
             </div>
 
+            {/* ── Dialog dente ── */}
             <Dialog
                 isOpen={toothModalOpen}
                 onRequestClose={() => setToothModalOpen(false)}
@@ -1055,7 +1164,6 @@ const AttendanceIndex = () => {
                         className='w-full max-w-lg bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden'
                         onClick={(e) => e.stopPropagation()}
                     >
-                        {/* Topo do modal */}
                         <div className='bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-4 flex items-center justify-between'>
                             <div className='flex items-center gap-3'>
                                 <HiOutlineCheckCircle className='w-6 h-6 text-white' />
@@ -1070,10 +1178,9 @@ const AttendanceIndex = () => {
                         </div>
 
                         <div className='p-6 space-y-4'>
-                            {/* Grid de resumo */}
                             <div className='grid grid-cols-2 gap-3'>
                                 {[
-                                    { label: 'Paciente',      value: patient.name },
+                                    { label: 'Paciente',      value: patientName },
                                     { label: 'Duração',       value: formatTimer(elapsed) },
                                     { label: 'Data',          value: new Date().toLocaleDateString('pt-BR') },
                                     { label: 'Procedimentos', value: `${addedProcedures.length} item(s)` },
@@ -1085,7 +1192,6 @@ const AttendanceIndex = () => {
                                 ))}
                             </div>
 
-                            {/* Tabela de procedimentos */}
                             {addedProcedures.length > 0 && (
                                 <div className='rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden'>
                                     <div className='bg-gray-50 dark:bg-gray-700/40 px-4 py-2'>
@@ -1117,7 +1223,6 @@ const AttendanceIndex = () => {
                                 </div>
                             )}
 
-                            {/* Preview da evolução */}
                             <div className='bg-blue-50 dark:bg-blue-900/20 rounded-xl px-4 py-3 border border-blue-100 dark:border-blue-800/40'>
                                 <p className='text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1'>
                                     Evolução clínica · {evolutionText.length} caracteres
@@ -1127,20 +1232,23 @@ const AttendanceIndex = () => {
                                 </p>
                             </div>
 
-                            {/* Botões */}
                             <div className='flex gap-3 pt-1'>
                                 <button
                                     onClick={() => setShowFinish(false)}
-                                    className='flex-1 py-3 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition'
+                                    disabled={finishing}
+                                    className='flex-1 py-3 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition disabled:opacity-50'
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     onClick={handleFinishConfirm}
-                                    className='flex-1 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-white font-bold text-sm transition shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2'
+                                    disabled={finishing}
+                                    className='flex-1 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-white font-bold text-sm transition shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 disabled:opacity-60'
                                 >
-                                    <HiOutlineCheckCircle className='w-5 h-5' />
-                                    Confirmar Finalização
+                                    {finishing
+                                        ? <><HiOutlineRefresh className='w-4 h-4 animate-spin' /> Finalizando...</>
+                                        : <><HiOutlineCheckCircle className='w-5 h-5' /> Confirmar Finalização</>
+                                    }
                                 </button>
                             </div>
                         </div>
@@ -1153,6 +1261,44 @@ const AttendanceIndex = () => {
                 onClose={() => setCameraOpen(false)}
                 onSave={handleCameraSave}
             />
+
+            {/* Dialog para iniciar atendimento */}
+            <Dialog
+                isOpen={showStartDialog}
+                onClose={() => setShowStartDialog(false)}
+            >
+                <div className="p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                            <HiOutlinePlay className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">
+                            Iniciar Atendimento
+                        </h3>
+                    </div>
+                    
+                    <p className="text-gray-600 dark:text-gray-400 mb-6">
+                        Você começou a digitar a evolução clínica, mas o atendimento ainda não foi iniciado. 
+                        Deseja iniciar o atendimento agora para registrar o tempo e habilitar todas as funcionalidades?
+                    </p>
+
+                    <div className="flex gap-3">
+                        <button
+                            onClick={() => setShowStartDialog(false)}
+                            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={handleStartFromDialog}
+                            className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-white font-bold text-sm transition shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2"
+                        >
+                            <HiOutlinePlay className="w-4 h-4" />
+                            Iniciar Atendimento
+                        </button>
+                    </div>
+                </div>
+            </Dialog>
         </div>
     )
 }

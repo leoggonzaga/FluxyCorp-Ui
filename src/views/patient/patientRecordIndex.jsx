@@ -6,6 +6,8 @@ import { Pattern1 } from '@/components/shared/listPatterns'
 import {
     HiOutlineCalendar,
     HiOutlineChevronLeft,
+    HiOutlineChevronDown,
+    HiOutlineChevronRight,
     HiOutlineClipboardList,
     HiOutlineClock,
     HiOutlineCollection,
@@ -27,6 +29,11 @@ import {
     HiOutlineCheckCircle,
     HiOutlineShieldCheck,
     HiOutlineHashtag,
+    HiOutlineX,
+    HiOutlineBan,
+    HiOutlineCash,
+    HiOutlineCreditCard,
+    HiOutlineReceiptRefund,
 } from 'react-icons/hi'
 import SectionCard from './components/SectionCard'
 import AppointmentCard from './components/AppointmentCard'
@@ -40,9 +47,436 @@ import {
     createConsumerNote,
     deleteConsumerNote,
 } from '@/api/consumer/consumerService'
+import { sessionGetByPatient } from '@/api/consultation/consultationService'
+import { getAppointmentsByPatient } from '@/api/appointment/appointmentService'
 import { operadorasGetByCompany } from '@/api/enterprise/EnterpriseService'
 import { mergeConsumerConvenioForUi } from '@/views/patient/mergeConsumerConvenio'
 import ConsumerSearchInput from '@/components/shared/ConsumerSearchInput'
+import {
+    getChargesByConsumer,
+    createCharge,
+    recordSettlement,
+    cancelCharge as cancelChargeApi,
+} from '@/api/billing/billingService'
+
+// ─── Billing helpers ──────────────────────────────────────────────────────────
+
+const PAYMENT_METHOD_MAP = { Pix: 0, Boleto: 1, Card: 2, Cash: 3 }
+const ALL_PAYMENT_METHODS = ['Pix', 'Boleto', 'Card', 'Cash']
+const PM_LABELS = { Pix: 'PIX', Boleto: 'Boleto', Card: 'Cartão', Cash: 'Dinheiro' }
+
+const CHARGE_STATUS_CFG = {
+    0: { label: 'Rascunho',    barColor: 'bg-gray-300',     badgeClass: 'bg-gray-100 text-gray-500 border border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700' },
+    1: { label: 'Pendente',    barColor: 'bg-gray-400',     badgeClass: 'bg-gray-100 text-gray-600 border border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700' },
+    2: { label: 'Em aberto',   barColor: 'bg-blue-400',     badgeClass: 'bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800' },
+    3: { label: 'Parc. pago',  barColor: 'bg-amber-400',    badgeClass: 'bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800' },
+    4: { label: 'Pago',        barColor: 'bg-emerald-500',  badgeClass: 'bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800' },
+    5: { label: 'Vencida',     barColor: 'bg-red-500',      badgeClass: 'bg-red-50 text-red-600 border border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800' },
+    6: { label: 'Cancelada',   barColor: 'bg-gray-300',     badgeClass: 'bg-gray-100 text-gray-400 border border-gray-200 dark:bg-gray-800 dark:text-gray-500 dark:border-gray-700' },
+    7: { label: 'Renegociada', barColor: 'bg-purple-400',   badgeClass: 'bg-purple-50 text-purple-600 border border-purple-200 dark:bg-purple-950/40 dark:text-purple-400 dark:border-purple-800' },
+    8: { label: 'Estornada',   barColor: 'bg-gray-400',     badgeClass: 'bg-gray-100 text-gray-500 border border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700' },
+    9: { label: 'Falhou',      barColor: 'bg-red-300',      badgeClass: 'bg-red-50 text-red-400 border border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800' },
+}
+
+const INSTALLMENT_STATUS_CFG = {
+    0: { label: 'Agendada',   dotClass: 'bg-gray-400' },
+    1: { label: 'Parc. pago', dotClass: 'bg-amber-400' },
+    2: { label: 'Pago',       dotClass: 'bg-emerald-500' },
+    3: { label: 'Vencida',    dotClass: 'bg-red-500' },
+    4: { label: 'Dispensada', dotClass: 'bg-gray-300' },
+}
+
+const fmtBrl = (v) => {
+    const n = Math.abs(v ?? 0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+    return `R$ ${n}`
+}
+const fmtDateUtc = (iso) => {
+    if (!iso) return '—'
+    const d = new Date(iso)
+    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`
+}
+const chargeKindLabel = (kind) => [3, 4].includes(kind) ? 'Parcelada' : 'Avulsa'
+
+const EMPTY_CHARGE_FORM = {
+    description: '', amount: '', tipo: 'avulsa', vencimento: '',
+    nParcelas: 2, periodicidade: 1, temEntrada: false, entrada: '',
+    paymentMethods: ['Pix', 'Cash'], temDesconto: false, tipoDesconto: 0, desconto: '',
+}
+
+const inputClsBilling = (accent) =>
+    `w-full border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 ${accent} focus:border-transparent outline-none`
+
+// ─── NewChargeDialog ──────────────────────────────────────────────────────────
+
+const NewChargeDialog = ({ open, onClose, onSaved, consumerPublicId, companyPublicId }) => {
+    const [step, setStep] = useState(1)
+    const [form, setForm] = useState(EMPTY_CHARGE_FORM)
+    const [saving, setSaving] = useState(false)
+    const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
+
+    useEffect(() => {
+        if (!open) { setStep(1); setForm(EMPTY_CHARGE_FORM) }
+    }, [open])
+
+    const togglePm = (pm) => set('paymentMethods',
+        form.paymentMethods.includes(pm)
+            ? form.paymentMethods.filter(x => x !== pm)
+            : [...form.paymentMethods, pm]
+    )
+
+    const canNext = form.amount && parseFloat(form.amount) > 0 && form.vencimento
+
+    const submit = async () => {
+        setSaving(true)
+        const isParc = form.tipo === 'parcelada'
+        const result = await createCharge({
+            companyPublicId,
+            consumerPublicId,
+            kind: isParc ? 3 : 0,
+            initialStatus: 2,
+            principalAmount: parseFloat(form.amount),
+            currency: 'BRL',
+            paymentSelectionMode: 1,
+            allowedPaymentMethods: form.paymentMethods.map(m => PAYMENT_METHOD_MAP[m]),
+            entryProfile: isParc && form.temEntrada ? 1 : 0,
+            installmentCount: isParc ? Number(form.nParcelas) : 1,
+            installmentPeriodicity: isParc ? Number(form.periodicidade) : undefined,
+            firstDueDateUtc: form.vencimento ? new Date(form.vencimento).toISOString() : undefined,
+            downPaymentOrSignalAmount: isParc && form.temEntrada && form.entrada ? parseFloat(form.entrada) : undefined,
+            applyInterestAfterDue: false,
+            gracePeriodDaysAfterDue: 0,
+            description: form.description || undefined,
+            discounts: form.temDesconto && form.desconto ? [{
+                kind: Number(form.tipoDesconto),
+                amount: form.tipoDesconto == 0 ? parseFloat(form.desconto) : undefined,
+                percent: form.tipoDesconto == 1 ? parseFloat(form.desconto) : undefined,
+                reason: '',
+            }] : [],
+        })
+        setSaving(false)
+        if (result) { onSaved(result); onClose() }
+    }
+
+    if (!open) return null
+    const ic = inputClsBilling('focus:ring-violet-400')
+
+    return (
+        <div className='fixed inset-0 z-50 flex items-center justify-center p-4'>
+            <div className='absolute inset-0 bg-black/40 backdrop-blur-sm' onClick={() => !saving && onClose()} />
+            <div className='relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden'>
+                {/* Header */}
+                <div className='flex items-center gap-3 px-6 pt-5 pb-4 border-b border-gray-100 dark:border-gray-800'>
+                    <div className='w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center'>
+                        <HiOutlineCurrencyDollar className='w-5 h-5 text-violet-600 dark:text-violet-400' />
+                    </div>
+                    <div className='flex-1'>
+                        <h3 className='font-bold text-gray-800 dark:text-gray-100 text-base'>Nova Cobrança</h3>
+                        <p className='text-xs text-gray-400 mt-0.5'>Etapa {step} de 2 — {step === 1 ? 'Dados da cobrança' : 'Pagamento'}</p>
+                    </div>
+                    <button onClick={() => !saving && onClose()} className='p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 transition'>
+                        <HiOutlineX className='w-4 h-4' />
+                    </button>
+                </div>
+                {/* Progress */}
+                <div className='flex gap-1 px-6 pt-4'>
+                    {[1,2].map(s => (
+                        <div key={s} className={`h-1 flex-1 rounded-full transition-colors ${s <= step ? 'bg-violet-500' : 'bg-gray-100 dark:bg-gray-700'}`} />
+                    ))}
+                </div>
+                {/* Body */}
+                <div className='px-6 py-5 space-y-4 overflow-y-auto max-h-[60vh]'>
+                    {step === 1 && <>
+                        <div>
+                            <label className='block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5'>Descrição</label>
+                            <input className={ic} placeholder='Ex: Consulta, Tratamento, Procedimento...'
+                                value={form.description} onChange={e => set('description', e.target.value)} />
+                        </div>
+                        <div>
+                            <label className='block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5'>Valor (R$) *</label>
+                            <input type='number' min='0' step='0.01' className={ic} placeholder='0,00'
+                                value={form.amount} onChange={e => set('amount', e.target.value)} />
+                        </div>
+                        <div>
+                            <label className='block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5'>Tipo</label>
+                            <div className='flex gap-2'>
+                                {[{v:'avulsa',l:'Avulsa'},{v:'parcelada',l:'Parcelada'}].map(({v,l}) => (
+                                    <button key={v} onClick={() => set('tipo', v)}
+                                        className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition-all ${form.tipo === v ? 'bg-violet-600 text-white border-violet-600' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-violet-400'}`}>
+                                        {l}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        {form.tipo === 'avulsa' && (
+                            <div>
+                                <label className='block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5'>Vencimento *</label>
+                                <input type='date' className={ic} value={form.vencimento} onChange={e => set('vencimento', e.target.value)} />
+                            </div>
+                        )}
+                        {form.tipo === 'parcelada' && (
+                            <div className='space-y-3 p-3.5 bg-violet-50/60 dark:bg-violet-950/20 rounded-xl border border-violet-100 dark:border-violet-900/40'>
+                                <div className='grid grid-cols-2 gap-3'>
+                                    <div>
+                                        <label className='block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5'>Parcelas</label>
+                                        <select className={ic.replace('focus:ring-violet-400', '')} value={form.nParcelas} onChange={e => set('nParcelas', e.target.value)}>
+                                            {Array.from({length:23},(_,i)=>i+2).map(n=>(
+                                                <option key={n} value={n}>{n}x</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className='block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5'>Periodicidade</label>
+                                        <select className={ic.replace('focus:ring-violet-400', '')} value={form.periodicidade} onChange={e => set('periodicidade', e.target.value)}>
+                                            <option value={1}>Mensal</option>
+                                            <option value={0}>Semanal</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className='block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5'>Vencimento da 1ª parcela *</label>
+                                    <input type='date' className={ic} value={form.vencimento} onChange={e => set('vencimento', e.target.value)} />
+                                </div>
+                                <div className='flex items-center justify-between pt-1'>
+                                    <span className='text-xs font-semibold text-gray-500 dark:text-gray-400'>Cobrar entrada</span>
+                                    <button onClick={() => set('temEntrada', !form.temEntrada)}
+                                        className={`w-10 h-5 rounded-full transition-colors relative ${form.temEntrada ? 'bg-violet-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                                        <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${form.temEntrada ? 'left-5' : 'left-0.5'}`} />
+                                    </button>
+                                </div>
+                                {form.temEntrada && (
+                                    <div>
+                                        <label className='block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5'>Valor da entrada (R$)</label>
+                                        <input type='number' min='0' step='0.01' className={ic} placeholder='0,00'
+                                            value={form.entrada} onChange={e => set('entrada', e.target.value)} />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </>}
+
+                    {step === 2 && <>
+                        <div>
+                            <p className='text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2'>Formas de pagamento aceitas *</p>
+                            <div className='grid grid-cols-2 gap-2'>
+                                {ALL_PAYMENT_METHODS.map(pm => {
+                                    const active = form.paymentMethods.includes(pm)
+                                    return (
+                                        <button key={pm} onClick={() => togglePm(pm)}
+                                            className={`flex items-center gap-2.5 p-3 rounded-xl border-2 transition-all text-left ${active ? 'border-violet-400 bg-violet-50 dark:bg-violet-950/30' : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800/40 hover:border-violet-200'}`}>
+                                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${active ? 'border-violet-500 bg-violet-500' : 'border-gray-300'}`}>
+                                                {active && <span className='w-2 h-2 bg-white rounded-full' />}
+                                            </div>
+                                            <span className={`text-sm font-semibold ${active ? 'text-violet-700 dark:text-violet-300' : 'text-gray-600 dark:text-gray-300'}`}>{PM_LABELS[pm]}</span>
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                        <div>
+                            <div className='flex items-center justify-between mb-2'>
+                                <p className='text-xs font-semibold text-gray-500 dark:text-gray-400'>Aplicar desconto</p>
+                                <button onClick={() => set('temDesconto', !form.temDesconto)}
+                                    className={`w-10 h-5 rounded-full transition-colors relative ${form.temDesconto ? 'bg-violet-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${form.temDesconto ? 'left-5' : 'left-0.5'}`} />
+                                </button>
+                            </div>
+                            {form.temDesconto && (
+                                <div className='grid grid-cols-2 gap-3 p-3 bg-gray-50 dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700'>
+                                    <div>
+                                        <label className='block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5'>Tipo</label>
+                                        <select className={inputClsBilling('focus:ring-violet-400')} value={form.tipoDesconto} onChange={e => set('tipoDesconto', e.target.value)}>
+                                            <option value={0}>Valor fixo (R$)</option>
+                                            <option value={1}>Percentual (%)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className='block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5'>{form.tipoDesconto == 0 ? 'Valor (R$)' : 'Percentual (%)'}</label>
+                                        <input type='number' min='0' step='0.01' className={ic} placeholder='0'
+                                            value={form.desconto} onChange={e => set('desconto', e.target.value)} />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </>}
+                </div>
+                {/* Footer */}
+                <div className='flex justify-between px-6 py-4 border-t border-gray-100 dark:border-gray-800'>
+                    <button onClick={() => step === 1 ? onClose() : setStep(1)}
+                        className='px-4 py-2 rounded-xl text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition'>
+                        {step === 1 ? 'Cancelar' : 'Voltar'}
+                    </button>
+                    {step === 1 ? (
+                        <button onClick={() => setStep(2)} disabled={!canNext}
+                            className='px-5 py-2 rounded-xl text-sm font-semibold bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition'>
+                            Continuar
+                        </button>
+                    ) : (
+                        <button onClick={submit} disabled={saving || form.paymentMethods.length === 0}
+                            className='px-5 py-2 rounded-xl text-sm font-semibold bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 transition'>
+                            {saving && <span className='w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin' />}
+                            Criar Cobrança
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    )
+}
+
+// ─── RecordPaymentDialog ──────────────────────────────────────────────────────
+
+const RecordPaymentDialog = ({ charge, onClose, onSaved }) => {
+    const allowedMethods = charge?.allowedPaymentMethods ?? ALL_PAYMENT_METHODS
+    const [form, setForm] = useState({ amount: '', method: '', settledAt: new Date().toISOString().slice(0,10), externalReference: '' })
+    const [saving, setSaving] = useState(false)
+    const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
+
+    useEffect(() => {
+        if (charge) {
+            const rem = Math.max(0, charge.netPayableAmount - charge.amountPaid).toFixed(2)
+            const methods = charge.allowedPaymentMethods?.length ? charge.allowedPaymentMethods : ALL_PAYMENT_METHODS
+            setForm({ amount: rem, method: methods[0], settledAt: new Date().toISOString().slice(0,10), externalReference: '' })
+        }
+    }, [charge])
+
+    if (!charge) return null
+
+    const remaining = Math.max(0, charge.netPayableAmount - charge.amountPaid)
+
+    const submit = async () => {
+        setSaving(true)
+        const result = await recordSettlement(charge.publicId, {
+            chargePublicId: charge.publicId,
+            amount: parseFloat(form.amount),
+            method: PAYMENT_METHOD_MAP[form.method] ?? 3,
+            source: 0,
+            externalReference: form.externalReference || undefined,
+            settledAtUtc: new Date(form.settledAt).toISOString(),
+        })
+        setSaving(false)
+        if (result !== null) { onSaved(); onClose() }
+    }
+
+    const ic = inputClsBilling('focus:ring-amber-400')
+
+    return (
+        <div className='fixed inset-0 z-50 flex items-center justify-center p-4'>
+            <div className='absolute inset-0 bg-black/40 backdrop-blur-sm' onClick={() => !saving && onClose()} />
+            <div className='relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm flex flex-col overflow-hidden'>
+                <div className='flex items-center gap-3 px-6 pt-5 pb-4 border-b border-gray-100 dark:border-gray-800'>
+                    <div className='w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center'>
+                        <HiOutlineCash className='w-5 h-5 text-amber-600 dark:text-amber-400' />
+                    </div>
+                    <div className='flex-1 min-w-0'>
+                        <h3 className='font-bold text-gray-800 dark:text-gray-100 text-base'>Registrar Pagamento</h3>
+                        <p className='text-xs text-gray-400 mt-0.5 truncate'>{charge.description || chargeKindLabel(charge.kind)} · {fmtBrl(charge.principalAmount)}</p>
+                    </div>
+                    <button onClick={() => !saving && onClose()} className='p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 transition'>
+                        <HiOutlineX className='w-4 h-4' />
+                    </button>
+                </div>
+                <div className='px-6 py-5 space-y-4'>
+                    <div className='p-3 bg-amber-50 dark:bg-amber-950/20 rounded-xl border border-amber-100 dark:border-amber-900/40 flex justify-between items-center'>
+                        <span className='text-xs font-semibold text-amber-700 dark:text-amber-400'>Saldo devedor</span>
+                        <span className='font-bold text-amber-700 dark:text-amber-300'>{fmtBrl(remaining)}</span>
+                    </div>
+                    <div>
+                        <label className='block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5'>Valor a liquidar (R$)</label>
+                        <input type='number' min='0.01' step='0.01' className={ic} placeholder='0,00'
+                            value={form.amount} onChange={e => set('amount', e.target.value)} />
+                    </div>
+                    <div>
+                        <label className='block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2'>Forma de pagamento</label>
+                        <div className='grid grid-cols-2 gap-2'>
+                            {allowedMethods.map(pm => {
+                                const active = form.method === pm
+                                return (
+                                    <button key={pm} onClick={() => set('method', pm)}
+                                        className={`flex items-center gap-2 p-2.5 rounded-xl border-2 transition-all ${active ? 'border-amber-400 bg-amber-50 dark:bg-amber-950/30' : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800/40 hover:border-amber-200'}`}>
+                                        <div className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 ${active ? 'border-amber-500 bg-amber-500' : 'border-gray-300'}`} />
+                                        <span className={`text-sm font-semibold ${active ? 'text-amber-700 dark:text-amber-300' : 'text-gray-600 dark:text-gray-300'}`}>{PM_LABELS[pm]}</span>
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+                    <div>
+                        <label className='block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5'>Data do pagamento</label>
+                        <input type='date' className={ic} value={form.settledAt} onChange={e => set('settledAt', e.target.value)} />
+                    </div>
+                    <div>
+                        <label className='block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5'>Referência <span className='font-normal text-gray-300'>(opcional)</span></label>
+                        <input className={ic} placeholder='Código de transação, comprovante...'
+                            value={form.externalReference} onChange={e => set('externalReference', e.target.value)} />
+                    </div>
+                </div>
+                <div className='flex justify-end gap-3 px-6 py-4 border-t border-gray-100 dark:border-gray-800'>
+                    <button onClick={onClose} className='px-4 py-2 rounded-xl text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition'>Cancelar</button>
+                    <button onClick={submit} disabled={saving || !form.amount || parseFloat(form.amount) <= 0}
+                        className='px-5 py-2 rounded-xl text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 transition'>
+                        {saving && <span className='w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin' />}
+                        Confirmar Pagamento
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+// ─── CancelChargeDialog ───────────────────────────────────────────────────────
+
+const CancelChargeDialog = ({ charge, onClose, onSaved }) => {
+    const [motivo, setMotivo] = useState('')
+    const [saving, setSaving] = useState(false)
+
+    useEffect(() => { if (!charge) setMotivo('') }, [charge])
+
+    if (!charge) return null
+
+    const submit = async () => {
+        if (!motivo.trim()) return
+        setSaving(true)
+        const result = await cancelChargeApi(charge.publicId, { chargePublicId: charge.publicId, reason: motivo.trim() })
+        setSaving(false)
+        if (result !== null) { onSaved(); onClose() }
+    }
+
+    return (
+        <div className='fixed inset-0 z-50 flex items-center justify-center p-4'>
+            <div className='absolute inset-0 bg-black/40 backdrop-blur-sm' onClick={() => !saving && onClose()} />
+            <div className='relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm flex flex-col overflow-hidden'>
+                <div className='flex items-center gap-3 px-6 pt-5 pb-4 border-b border-gray-100 dark:border-gray-800'>
+                    <div className='w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center'>
+                        <HiOutlineBan className='w-5 h-5 text-red-600 dark:text-red-400' />
+                    </div>
+                    <div className='flex-1 min-w-0'>
+                        <h3 className='font-bold text-gray-800 dark:text-gray-100 text-base'>Cancelar Cobrança</h3>
+                        <p className='text-xs text-gray-400 mt-0.5 truncate'>{charge.description || chargeKindLabel(charge.kind)} · {fmtBrl(charge.principalAmount)}</p>
+                    </div>
+                    <button onClick={() => !saving && onClose()} className='p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 transition'>
+                        <HiOutlineX className='w-4 h-4' />
+                    </button>
+                </div>
+                <div className='px-6 py-5'>
+                    <label className='block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5'>Motivo do cancelamento</label>
+                    <textarea
+                        className='w-full border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-red-400 focus:border-transparent outline-none resize-none'
+                        rows={3} placeholder='Descreva o motivo...'
+                        value={motivo} onChange={e => setMotivo(e.target.value)}
+                    />
+                </div>
+                <div className='flex justify-end gap-3 px-6 py-4 border-t border-gray-100 dark:border-gray-800'>
+                    <button onClick={onClose} className='px-4 py-2 rounded-xl text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition'>Voltar</button>
+                    <button onClick={submit} disabled={saving || !motivo.trim()}
+                        className='px-5 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 transition'>
+                        {saving && <span className='w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin' />}
+                        Cancelar Cobrança
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
+}
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
@@ -353,13 +787,59 @@ const PatientRecordIndex = () => {
 
     const enrichPatientFromApis = useCallback(async (publicId) => {
         if (!publicId) return null
-        const [full, convenios, ops] = await Promise.all([
+        const [full, convenios, ops, sessions, appointmentsResponse] = await Promise.all([
             getConsumerById(publicId),
             getConsumerConvenios(publicId).catch(() => []),
             companyPublicId ? operadorasGetByCompany(companyPublicId).catch(() => []) : Promise.resolve([]),
+            sessionGetByPatient(publicId).catch(() => []),
+            getAppointmentsByPatient(publicId).catch(() => ({ data: [] })),
         ])
         if (!full) return null
-        return mergeConsumerConvenioForUi(full, convenios, Array.isArray(ops) ? ops : [])
+        const patientData = mergeConsumerConvenioForUi(full, convenios, Array.isArray(ops) ? ops : [])
+        
+        // Converter sessões para o formato esperado pelo componente (atendimentos passados)
+        const pastAppointments = Array.isArray(sessions) ? sessions
+            .filter(s => s.status === 'Completed' || s.status === 'Cancelled')
+            .map(s => ({
+                id: s.id,
+                date: s.endedAt ? s.endedAt.split('T')[0] : (s.startedAt?.split('T')[0] || ''),
+                time: s.startedAt ? new Date(s.startedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '',
+                service: s.consultationTypeName || 'Atendimento',
+                professional: s.professionalName || '',
+                status: s.status.toLowerCase() === 'completed' ? 'completed' : 'cancelled',
+                notes: s.mainComplaint || '',
+                procedures: s.procedures ? JSON.parse(s.procedures) : [],
+                evolution: s.mainComplaint || '',
+            }))
+            .sort((a, b) => new Date(b.date) - new Date(a.date)) : []
+            
+        // Converter agendamentos reais da API para o formato esperado
+        const appointments = appointmentsResponse.data || []
+        const nextAppointments = Array.isArray(appointments) ? appointments
+            .filter(apt => {
+                // Filtrar apenas agendamentos futuros ou de hoje
+                const aptDate = new Date(apt.scheduledAt)
+                const today = new Date()
+                today.setHours(0, 0, 0, 0)
+                aptDate.setHours(0, 0, 0, 0)
+                return aptDate >= today
+            })
+            .map(apt => ({
+                id: apt.publicId,
+                date: apt.scheduledAt.split('T')[0],
+                time: new Date(apt.scheduledAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                service: apt.consultationTypeName || apt.appointmentType || 'Agendamento',
+                professional: apt.employeeName || '',
+                status: 'scheduled',
+                notes: apt.note || '',
+            }))
+            .sort((a, b) => new Date(a.date) - new Date(b.date)) : []
+            
+        return {
+            ...patientData,
+            pastAppointments,
+            nextAppointments,
+        }
     }, [companyPublicId])
 
     const refreshPatientList = useCallback(() => {
@@ -391,6 +871,13 @@ const PatientRecordIndex = () => {
     const [noteForm, setNoteForm] = useState({ content: '', noteType: 'note', alertSeverity: '', showOnAttendance: true })
     const [savingNote, setSavingNote] = useState(false)
     const [operadorasForBadges, setOperadorasForBadges] = useState([])
+
+    const [charges, setCharges] = useState([])
+    const [loadingCharges, setLoadingCharges] = useState(false)
+    const [newChargeOpen, setNewChargeOpen] = useState(false)
+    const [recordPaymentCharge, setRecordPaymentCharge] = useState(null)
+    const [cancelingCharge, setCancelingCharge] = useState(null)
+    const [expandedChargeId, setExpandedChargeId] = useState(null)
 
     const operadoraNameByPublicId = useMemo(() => {
         const m = new Map()
@@ -459,6 +946,7 @@ const PatientRecordIndex = () => {
             setPatientImages([])
             setPatientDocuments([])
             setNotes([])
+            setCharges([])
             return
         }
         const base = INITIAL_PATIENT_FILES[selectedPatient.id] || { images: [], documents: [] }
@@ -472,6 +960,17 @@ const PatientRecordIndex = () => {
             .then((data) => setNotes(Array.isArray(data) ? data : []))
             .catch(() => {})
             .finally(() => setLoadingNotes(false))
+
+        const isRealId = pid && typeof pid === 'string' && pid.includes('-')
+        if (isRealId) {
+            setLoadingCharges(true)
+            getChargesByConsumer(pid)
+                .then(data => setCharges(Array.isArray(data) ? data : []))
+                .catch(() => setCharges([]))
+                .finally(() => setLoadingCharges(false))
+        } else {
+            setCharges([])
+        }
     }, [selectedPatient])
 
     const filteredPatients = patients.filter((p) => {
@@ -486,7 +985,7 @@ const PatientRecordIndex = () => {
     // ─── Handlers ─────────────────────────────────────────────────────────────
 
     const handleStartAppointment = () =>
-        navigate(`/attendance?patientId=${selectedPatient.id}`)
+        navigate(`/attendance?patientPublicId=${selectedPatient.publicId}`)
 
     const handleUploadImages = (e) => {
         const files = Array.from(e.target.files || [])
@@ -721,6 +1220,36 @@ const PatientRecordIndex = () => {
                 }}
             />
 
+            <NewChargeDialog
+                open={newChargeOpen}
+                onClose={() => setNewChargeOpen(false)}
+                consumerPublicId={selectedPatient?.publicId ?? selectedPatient?.id}
+                companyPublicId={companyPublicId}
+                onSaved={(newCharge) => setCharges(prev => [newCharge, ...prev])}
+            />
+
+            <RecordPaymentDialog
+                charge={recordPaymentCharge}
+                onClose={() => setRecordPaymentCharge(null)}
+                onSaved={() => {
+                    const pid = selectedPatient?.publicId ?? selectedPatient?.id
+                    if (pid && typeof pid === 'string' && pid.includes('-')) {
+                        getChargesByConsumer(pid).then(data => setCharges(Array.isArray(data) ? data : [])).catch(() => {})
+                    }
+                }}
+            />
+
+            <CancelChargeDialog
+                charge={cancelingCharge}
+                onClose={() => setCancelingCharge(null)}
+                onSaved={() => {
+                    const pid = selectedPatient?.publicId ?? selectedPatient?.id
+                    if (pid && typeof pid === 'string' && pid.includes('-')) {
+                        getChargesByConsumer(pid).then(data => setCharges(Array.isArray(data) ? data : [])).catch(() => {})
+                    }
+                }}
+            />
+
             {/* ── Patient Content ── */}
             {selectedPatient && (
                 <>
@@ -883,34 +1412,36 @@ const PatientRecordIndex = () => {
                                 {/* ── Dashboard ── */}
                                 <TabContent value='dashboard'>
                                     <div className='grid grid-cols-1 lg:grid-cols-2 gap-5'>
-                                        <SectionCard icon={<HiOutlineCurrencyDollar />} title='Últimos Financeiros' subtitle='Extrato recente da conta' color='emerald'>
-                                            <div className={`p-3 mb-4 rounded-xl font-bold text-lg flex items-center justify-between ${
-                                                (selectedPatient.financial?.balance ?? 0) >= 0
-                                                    ? 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-950/40 dark:border-green-800 dark:text-green-400'
-                                                    : 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:border-red-800 dark:text-red-400'
-                                            }`}>
-                                                <span className='text-sm font-semibold'>Saldo Atual</span>
-                                                {(selectedPatient.financial?.balance ?? 0) >= 0 ? '+' : ''}R$ {(selectedPatient.financial?.balance ?? 0).toFixed(2).replace('.', ',')}
-                                            </div>
-                                            <div className='space-y-2'>
-                                                {sortByDateDesc(selectedPatient.financial?.history ?? []).slice(0, 4).map((item) => (
-                                                    <div key={item.id} className='flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/50'>
-                                                        <div>
-                                                            <p className='text-sm font-semibold text-gray-800 dark:text-gray-200'>{item.description}</p>
-                                                            <p className='text-xs text-gray-500'>{formatDate(item.date)}</p>
-                                                        </div>
-                                                        <div className='text-right'>
-                                                            <p className={`font-bold text-sm ${item.value >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                                {item.value >= 0 ? '+' : ''}R$ {Math.abs(item.value).toFixed(2).replace('.', ',')}
-                                                            </p>
-                                                            <Badge color={statusFinancialMap[item.status].color}>{statusFinancialMap[item.status].label}</Badge>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
+                                        <SectionCard icon={<HiOutlineCurrencyDollar />} title='Últimos Financeiros' subtitle='Cobranças recentes do paciente' color='emerald'>
+                                            {loadingCharges ? (
+                                                <div className='flex justify-center py-6'>
+                                                    <span className='w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin' />
+                                                </div>
+                                            ) : charges.length === 0 ? (
+                                                <p className='text-gray-400 text-sm py-4 text-center'>Nenhuma cobrança registrada</p>
+                                            ) : (
+                                                <div className='space-y-2'>
+                                                    {charges.slice(0, 4).map((charge) => {
+                                                        const cfg = CHARGE_STATUS_CFG[charge.status] ?? CHARGE_STATUS_CFG[1]
+                                                        return (
+                                                            <div key={charge.publicId} className='flex items-center gap-3 p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/50'>
+                                                                <div className={`w-1.5 h-8 rounded-full flex-shrink-0 ${cfg.barColor}`} />
+                                                                <div className='flex-1 min-w-0'>
+                                                                    <p className='text-sm font-semibold text-gray-800 dark:text-gray-200 truncate'>{charge.description || chargeKindLabel(charge.kind)}</p>
+                                                                    <p className='text-[11px] text-gray-400'>{fmtDateUtc(charge.firstDueDateUtc)}</p>
+                                                                </div>
+                                                                <div className='text-right flex-shrink-0'>
+                                                                    <p className='font-bold text-sm text-gray-800 dark:text-gray-100'>{fmtBrl(charge.principalAmount)}</p>
+                                                                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${cfg.badgeClass}`}>{cfg.label}</span>
+                                                                </div>
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+                                            )}
                                         </SectionCard>
 
-                                        <SectionCard icon={<HiOutlineClock />} title='Próximos Atendimentos' subtitle='Agenda futura do paciente' color='blue'>
+                                        <SectionCard icon={<HiOutlineClock />} title='Próximos Agendamentos' subtitle='Agenda futura do paciente' color='blue'>
                                             <div className='space-y-3'>
                                                 {sortByDateAsc(selectedPatient.nextAppointments ?? []).length === 0 ? (
                                                     <p className='text-gray-500 text-sm'>Nenhum agendamento futuro</p>
@@ -1007,43 +1538,168 @@ const PatientRecordIndex = () => {
 
                                 {/* ── Financeiro ── */}
                                 <TabContent value='financial'>
-                                    <div className='grid grid-cols-1 lg:grid-cols-3 gap-5'>
-                                        <SectionCard icon={<HiOutlineCurrencyDollar />} title='Resumo' subtitle='Posição financeira atual' color='emerald' className='lg:col-span-1'>
-                                            <div className={`p-4 rounded-xl font-bold text-xl ${
-                                                (selectedPatient.financial?.balance ?? 0) >= 0
-                                                    ? 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-950/40 dark:border-green-800 dark:text-green-400'
-                                                    : 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:border-red-800 dark:text-red-400'
-                                            }`}>
-                                                <p className='text-sm font-semibold mb-1'>Saldo Atual</p>
-                                                <p>{(selectedPatient.financial?.balance ?? 0) >= 0 ? '+' : ''}R$ {(selectedPatient.financial?.balance ?? 0).toFixed(2).replace('.', ',')}</p>
-                                            </div>
-                                        </SectionCard>
+                                    {(() => {
+                                        const totalPendente = charges.filter(c => [1,2,3,5].includes(c.status)).reduce((s,c) => s + Math.max(0, c.netPayableAmount - c.amountPaid), 0)
+                                        const totalPago     = charges.reduce((s,c) => s + (c.amountPaid ?? 0), 0)
+                                        const abertas       = charges.filter(c => [1,2,3,5].includes(c.status)).length
+                                        return (
+                                            <>
+                                                {/* Cards de resumo */}
+                                                <div className='grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5'>
+                                                    {[
+                                                        { label: 'A Receber', value: fmtBrl(totalPendente), sub: `${abertas} em aberto`, accent: 'border-blue-200 dark:border-blue-800', textColor: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50/60 dark:bg-blue-950/20' },
+                                                        { label: 'Total Recebido', value: fmtBrl(totalPago), sub: 'Pagamentos confirmados', accent: 'border-emerald-200 dark:border-emerald-800', textColor: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50/60 dark:bg-emerald-950/20' },
+                                                        { label: 'Total Cobranças', value: charges.length, sub: 'Registradas no sistema', accent: 'border-gray-200 dark:border-gray-700', textColor: 'text-gray-700 dark:text-gray-200', bg: 'bg-gray-50/60 dark:bg-gray-800/40' },
+                                                    ].map(card => (
+                                                        <div key={card.label} className={`flex flex-col gap-1 p-4 rounded-2xl border ${card.accent} ${card.bg}`}>
+                                                            <p className='text-[11px] font-semibold text-gray-400 uppercase tracking-wide'>{card.label}</p>
+                                                            <p className={`text-2xl font-bold leading-tight ${card.textColor}`}>{card.value}</p>
+                                                            <p className='text-[11px] text-gray-400'>{card.sub}</p>
+                                                        </div>
+                                                    ))}
+                                                </div>
 
-                                        <SectionCard icon={<HiOutlineCollection />} title='Todo Financeiro' subtitle='Histórico completo de movimentos' color='teal' className='lg:col-span-2'>
-                                            <div className='space-y-2 max-h-[520px] overflow-y-auto pr-1'>
-                                                {sortByDateDesc(selectedPatient.financial?.history ?? []).map((item) => (
-                                                    <div key={item.id} className='flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/50'>
-                                                        <div>
-                                                            <p className='text-sm font-semibold text-gray-800 dark:text-gray-200'>{item.description}</p>
-                                                            <p className='text-xs text-gray-500'>{formatDate(item.date)}</p>
+                                                {/* Lista de cobranças */}
+                                                <SectionCard
+                                                    icon={<HiOutlineCollection />}
+                                                    title='Cobranças'
+                                                    subtitle='Histórico de cobranças do paciente'
+                                                    color='violet'
+                                                    headerAction={
+                                                        <button
+                                                            onClick={() => setNewChargeOpen(true)}
+                                                            className='flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 transition shadow-sm'
+                                                        >
+                                                            <HiOutlinePlus className='w-3.5 h-3.5' />
+                                                            Nova Cobrança
+                                                        </button>
+                                                    }
+                                                >
+                                                    {loadingCharges ? (
+                                                        <div className='flex justify-center py-8'>
+                                                            <span className='w-6 h-6 border-2 border-violet-400 border-t-transparent rounded-full animate-spin' />
                                                         </div>
-                                                        <div className='text-right'>
-                                                            <p className={`font-bold text-sm ${item.value >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                                {item.value >= 0 ? '+' : ''}R$ {Math.abs(item.value).toFixed(2).replace('.', ',')}
-                                                            </p>
-                                                            <Badge color={statusFinancialMap[item.status].color}>{statusFinancialMap[item.status].label}</Badge>
+                                                    ) : charges.length === 0 ? (
+                                                        <div className='flex flex-col items-center gap-3 py-10 text-gray-400'>
+                                                            <HiOutlineCurrencyDollar className='w-10 h-10 opacity-30' />
+                                                            <p className='text-sm'>Nenhuma cobrança registrada</p>
+                                                            <button onClick={() => setNewChargeOpen(true)}
+                                                                className='mt-1 px-4 py-2 rounded-xl text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 transition'>
+                                                                Criar primeira cobrança
+                                                            </button>
                                                         </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </SectionCard>
-                                    </div>
+                                                    ) : (
+                                                        <div className='space-y-2 max-h-[560px] overflow-y-auto pr-1'>
+                                                            {charges.map(charge => {
+                                                                const cfg = CHARGE_STATUS_CFG[charge.status] ?? CHARGE_STATUS_CFG[1]
+                                                                const expanded = expandedChargeId === charge.publicId
+                                                                const hasInstallments = (charge.installments?.length ?? 0) > 1
+                                                                const canPay = [1,2,3,5].includes(charge.status)
+                                                                const canCancel = [1,2,3].includes(charge.status)
+                                                                return (
+                                                                    <div key={charge.publicId}>
+                                                                        <div className='flex items-stretch gap-0 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/40 rounded-xl overflow-hidden hover:border-violet-200 dark:hover:border-violet-700/50 hover:shadow-sm transition-all'>
+                                                                            <div className={`w-1 flex-shrink-0 ${cfg.barColor}`} />
+                                                                            <div className='flex items-center gap-3 px-4 py-3 flex-1 min-w-0'>
+                                                                                <div className='w-9 h-9 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-500 flex-shrink-0'>
+                                                                                    <HiOutlineCurrencyDollar className='w-4 h-4' />
+                                                                                </div>
+                                                                                <div className='flex-1 min-w-0'>
+                                                                                    <p className='text-sm font-semibold text-gray-800 dark:text-gray-100 truncate'>
+                                                                                        {charge.description || chargeKindLabel(charge.kind)}
+                                                                                    </p>
+                                                                                    <div className='flex items-center gap-2.5 mt-0.5 flex-wrap'>
+                                                                                        {charge.firstDueDateUtc && (
+                                                                                            <span className='text-[11px] text-gray-400 flex items-center gap-1'>
+                                                                                                <HiOutlineCalendar className='w-3 h-3' />
+                                                                                                {fmtDateUtc(charge.firstDueDateUtc)}
+                                                                                            </span>
+                                                                                        )}
+                                                                                        {hasInstallments && (
+                                                                                            <span className='text-[11px] text-gray-400'>{charge.installments.length}x</span>
+                                                                                        )}
+                                                                                        {charge.allowedPaymentMethods?.length > 0 && (
+                                                                                            <span className='text-[11px] text-gray-400 hidden sm:inline'>{charge.allowedPaymentMethods.map(m => PM_LABELS[m] ?? m).join(' · ')}</span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div className={`hidden sm:flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold flex-shrink-0 ${cfg.badgeClass}`}>
+                                                                                    {cfg.label}
+                                                                                </div>
+                                                                                <div className='text-right flex-shrink-0 min-w-[72px]'>
+                                                                                    <p className='text-base font-bold text-gray-800 dark:text-gray-100 leading-tight'>{fmtBrl(charge.principalAmount)}</p>
+                                                                                    {charge.amountPaid > 0 && (
+                                                                                        <p className='text-[11px] text-emerald-500 mt-0.5'>+{fmtBrl(charge.amountPaid)}</p>
+                                                                                    )}
+                                                                                </div>
+                                                                                <div className='flex items-center gap-1.5 flex-shrink-0' onClick={e => e.stopPropagation()}>
+                                                                                    {canPay && (
+                                                                                        <button onClick={() => setRecordPaymentCharge(charge)}
+                                                                                            className='px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition shadow-sm whitespace-nowrap'>
+                                                                                            Pagar
+                                                                                        </button>
+                                                                                    )}
+                                                                                    {canCancel && (
+                                                                                        <button onClick={() => setCancelingCharge(charge)}
+                                                                                            className='p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition'>
+                                                                                            <HiOutlineBan className='w-4 h-4' />
+                                                                                        </button>
+                                                                                    )}
+                                                                                    {hasInstallments && (
+                                                                                        <button onClick={() => setExpandedChargeId(expanded ? null : charge.publicId)}
+                                                                                            className='p-1.5 rounded-lg text-gray-400 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-950/30 transition'>
+                                                                                            {expanded ? <HiOutlineChevronDown className='w-4 h-4' /> : <HiOutlineChevronRight className='w-4 h-4' />}
+                                                                                        </button>
+                                                                                    )}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                        {expanded && hasInstallments && (
+                                                                            <div className='ml-5 mt-1 space-y-1 pl-3 border-l-2 border-violet-100 dark:border-violet-900/40'>
+                                                                                {charge.installments.map(inst => {
+                                                                                    const icfg = INSTALLMENT_STATUS_CFG[inst.status] ?? INSTALLMENT_STATUS_CFG[0]
+                                                                                    return (
+                                                                                        <div key={inst.publicId} className='flex items-center justify-between px-3 py-2 rounded-xl bg-gray-50/80 dark:bg-gray-800/30 border border-gray-100 dark:border-gray-700/40'>
+                                                                                            <div className='flex items-center gap-2.5'>
+                                                                                                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${icfg.dotClass}`} />
+                                                                                                <span className='text-xs font-semibold text-gray-600 dark:text-gray-300'>Parcela {inst.sequenceNumber}</span>
+                                                                                                <span className='text-[11px] text-gray-400'>{fmtDateUtc(inst.dueDateUtc)}</span>
+                                                                                            </div>
+                                                                                            <div className='flex items-center gap-3'>
+                                                                                                <span className='text-[11px] font-medium text-gray-400'>{icfg.label}</span>
+                                                                                                {inst.status === 1 ? (
+                                                                                                    <div className='text-right'>
+                                                                                                        <span className='text-xs font-bold text-gray-700 dark:text-gray-200'>{fmtBrl(inst.amount)}</span>
+                                                                                                        <div className='flex items-center gap-1.5 mt-0.5 justify-end'>
+                                                                                                            <span className='text-[10px] text-emerald-500 font-medium'>+{fmtBrl(inst.amountPaid)} pago</span>
+                                                                                                            <span className='text-[10px] text-gray-300'>·</span>
+                                                                                                            <span className='text-[10px] text-amber-500 font-medium'>{fmtBrl(inst.amount - inst.amountPaid)} falta</span>
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                ) : (
+                                                                                                    <span className='text-xs font-bold text-gray-700 dark:text-gray-200'>{fmtBrl(inst.amount)}</span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    )
+                                                                                })}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                </SectionCard>
+                                            </>
+                                        )
+                                    })()}
                                 </TabContent>
 
                                 {/* ── Atendimentos ── */}
                                 <TabContent value='appointments'>
                                     <div className='space-y-5'>
-                                        <SectionCard icon={<HiOutlineClock />} title='Próximos Atendimentos' subtitle='Agenda futura do paciente' color='blue'>
+                                        <SectionCard icon={<HiOutlineClock />} title='Próximos Agendamentos' subtitle='Agenda futura do paciente' color='blue'>
                                             <div className='space-y-3'>
                                                 {sortByDateAsc(selectedPatient.nextAppointments ?? []).length === 0 ? (
                                                     <p className='text-gray-500 text-sm'>Nenhum agendamento futuro</p>

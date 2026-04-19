@@ -38,7 +38,9 @@
       "Bash(grep -n \"^const PATIENTS\\\\|^]$\\\\|RECENTES_KEY\\\\|INITIAL_PATIENT\" \"C:/Git/FluxyCorp-Ui/src/views/patient/patientRecordIndex.jsx\")",
       "Bash(findstr :5176)",
       "Bash(taskkill *)",
-      "Bash(cmd *)"
+      "Bash(cmd *)",
+      "Bash(dotnet add *)",
+      "Bash(cmd.exe /c \"netstat -ano | findstr :7109\")"
     ]
   }
 }
