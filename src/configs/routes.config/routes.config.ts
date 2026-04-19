@@ -114,6 +114,12 @@ export const protectedRoutes = [
         authority: [],
     },
     {
+        key: 'operadoras',
+        path: '/settings/operadoras',
+        component: lazy(() => import('@/views/settings/operadorasIndex')),
+        authority: [],
+    },
+    {
         key: 'appointmentFlow',
         path: '/appointment-flow',
         component: lazy(() => import('@/views/appointmentFlow/appointmentFlowIndex')),

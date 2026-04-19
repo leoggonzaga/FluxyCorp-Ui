@@ -12,6 +12,7 @@
  * Props extras:
  *   actions: Array<{ key, icon, label?, onClick(item), className?, tooltip?, visible?(item) }>
  *     visible(item): função opcional — se retornar false, o botão não é renderizado para aquela linha
+ *   alwaysShowBadge: se true, exibe a coluna do badge também em telas pequenas (padrão: só a partir de sm)
  */
 import Loading from '@/components/shared/Loading'
 import { HiOutlineBriefcase, HiOutlineIdentification, HiOutlineMail } from 'react-icons/hi'
@@ -20,7 +21,7 @@ import { getInitials, getAvatarColor, StatusDot, EmptyState } from './patternUti
 const DEFAULT_BADGE = 'bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-700/40 text-indigo-600 dark:text-indigo-400'
 const DEFAULT_BADGE_ICON_CLS = 'text-indigo-400'
 
-const Pattern1 = ({ items = [], loading, onItemClick, emptyMessage, actions = [] }) => (
+const Pattern1 = ({ items = [], loading, onItemClick, emptyMessage, actions = [], alwaysShowBadge = false }) => (
     <Loading loading={loading}>
         {!loading && items.length === 0 ? (
             <EmptyState message={emptyMessage} />
@@ -63,7 +64,7 @@ const Pattern1 = ({ items = [], loading, onItemClick, emptyMessage, actions = []
                             </div>
 
                             {item.badge && (
-                                <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full flex-shrink-0 ${badgeCls}`}>
+                                <div className={`${alwaysShowBadge ? 'flex' : 'hidden sm:flex'} items-center gap-1.5 px-2.5 py-1 rounded-full flex-shrink-0 ${badgeCls}`}>
                                     {item.badgeIcon
                                         ? <item.badgeIcon size={11} className={badgeIconCls} />
                                         : <HiOutlineBriefcase size={11} className={badgeIconCls} />

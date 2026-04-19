@@ -50,6 +50,9 @@ VITE_APPOINTMENT_URL=https://localhost:7207
 VITE_CONSULTATION_TYPE_URL=https://localhost:7109/
 ```
 
+O código das apis estão no caminho C:\Git\FluxyCorp\FluxyCorp
+
+
 O interceptor de requisição lê o JWT do localStorage do Redux Persist pela chave `admin` e injeta `Authorization: Bearer {token}`. O interceptor de resposta extrai `response.data` e exibe toasts de erro (erros 422 são tratados separadamente para validação por campo).
 
 Os serviços de domínio são wrappers simples:
@@ -76,11 +79,20 @@ As rotas são definidas em `src/configs/routes.config/routes.config.ts` usando R
 Formik + Yup para todos os formulários. React Input Mask / React IMask para campos mascarados, React Number Format para campos numéricos, React Select para dropdowns.
 para campos dadronizados crie com máscaras: cpf, data , cnpj,
 
+### INTERNACIONALIZAÇÃO 
+
+Pesnse que para tudo que eu vou construir, precisa pensar em como vai ficar nas culturas pt portugal , pt brasil , ingles e espanhol
+
+
+
 ### Grid / Listagem — padrão obrigatório
 
 **Para qualquer lista de entidades use o componente `Pattern1`** (slim row com avatar, info e badge).
 Arquivo: `src/components/shared/listPatterns/Pattern1.jsx`  
 Import: `import { Pattern1 } from '@/components/shared/listPatterns'`
+
+
+grids ja disponiveis:`src/components/shared/listPatterns/Pattern2.jsx`,`src/components/shared/listPatterns/Pattern3.jsx`,`src/components/shared/listPatterns/Pattern1.jsx`,`src/components/shared/listPatterns/Pattern4.jsx`,`src/components/shared/listPatterns/Pattern5.jsx`
 
 #### Estrutura de cada item
 
@@ -135,6 +147,7 @@ const actions = [
 - Filtros e busca ficam em um `<Card>` separado acima do Card da lista
 - Paginação manual abaixo do Pattern (ou usar componente `Pagination` do UI)
 - **Nunca** construa rows/cards de lista manualmente — sempre use um dos Patterns
+- **Clique na linha sempre abre edição** — `onItemClick` deve chamar a função de editar o item (`openEdit(item._raw)`). Nunca use clique na linha para navegar ou para outra ação que não seja editar.
 
 #### Qual pattern usar?
 
@@ -170,6 +183,13 @@ Todas as strings visíveis ao usuário passam pelo i18next (hook `useTranslation
 
 ### personalidade de desing 
 seja  profissional muito exigente com o layout das pagina. gosto de resultados elegantes , com transparencia , detalhes que podem fazer toda a diferença na usabilidade das telas 
+
+### Convenção de cores em modais de ação
+
+- **Criar** → roxo/violet (`bg-violet-600`, `text-violet-*`) — ação nova, tom primário do sistema
+- **Editar** → âmbar (`bg-amber-500`, `text-amber-*`) — modificação de algo existente, sinaliza atenção
+
+Manter essa distinção em todos os dialogs/modais de CRUD para dar feedback visual imediato ao usuário sobre o contexto da ação.
 
 ## CORS nos microserviços ASP.NET Core (padrão obrigatório)
 
@@ -278,6 +298,9 @@ Os repositórios devem:
 - Implementar interfaces específicas (ex.: `IConsumerRepository`).
 - Utilizar métodos como `AddAuditableAsync` e `UpdateAuditableAsync` para manipular dados.
 
+### Backend Migrations
+
+- execute sempre que precisar (criacao e alteracao de coluna, criacao de tabela , entidades )
 ### BACkend Métodos Padrão
 
 - **AddAuditableAsync**: Adiciona uma nova entidade ao banco de dados e preenche os campos de auditoria (ex.: `CreatedAt`, `CreatedBy`).
@@ -320,3 +343,5 @@ public class ConsumerRepository : IConsumerRepository
 - Sempre crie um migration para as as entidades que criar ou se o serviço for novo precisa criar o migration 
 
 Este guia deve ser seguido para garantir consistência e qualidade no desenvolvimento do projeto `FluxyCorp.Consumer`. Caso tenha dúvidas, consulte a equipe de arquitetura.
+
+os tipos de licenças Vet, PEt m odonto , piscicolo , pedico sao sempre  1 por usuario/assinatura então um prontuario de um usuario que a licença é de odonto os campos serao de odonto 

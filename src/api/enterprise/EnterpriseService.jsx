@@ -32,3 +32,18 @@ export const enterpriseApiGetGender = async () => {
 export const enterpriseApiGetCatalog = async (param) => {
     return await enterpriseApi.get(endpoints.enterpriseAPI_Catalog, { params: param });
 }
+
+export const operadorasTipos = () =>
+    enterpriseApi.get(endpoints.operadorasAPI_tipos)
+
+export const operadorasGetByCompany = (companyPublicId) =>
+    enterpriseApi.get(endpoints.operadorasAPI_getByCompany(companyPublicId))
+
+export const operadorasCreate = (data) =>
+    enterpriseApi.post(endpoints.operadorasAPI_create, data)
+
+export const operadorasUpdate = (publicId, data) =>
+    enterpriseApi.put(endpoints.operadorasAPI_update(publicId), data)
+
+export const operadorasDelete = (publicId) =>
+    enterpriseApi.delete(endpoints.operadorasAPI_delete(publicId))

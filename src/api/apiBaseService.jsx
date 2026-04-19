@@ -27,7 +27,7 @@ function createApi({ baseURL, defaultHeaders = {} }) {
       toast.push(
         <Notification type="danger" title="Error">
             {
-                error?.status == 422 && error.response?.data?.erros?.length > 0
+                error.response?.status === 422 && error.response?.data?.erros?.length > 0
                 ?
                 <>
                     {error.response?.data?.erros?.[0]?.descricao || "Error"}
@@ -75,4 +75,8 @@ export const prosthesisApi = createApi({
 
 export const inventoryApi = createApi({
   baseURL: import.meta.env.VITE_INVENTORY_URL
+});
+
+export const consumerApi = createApi({
+  baseURL: import.meta.env.VITE_CONSUMER_URL
 });

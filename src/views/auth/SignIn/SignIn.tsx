@@ -1,104 +1,190 @@
 import SignInForm from './SignInForm'
 
-/* ── Linhas topográficas em SVG (decoração painel esquerdo) ─── */
-const TopoLines = () => (
+/* ── Topographic decoration ─────────────────────────────────── */
+const Topo = () => (
     <svg
-        className="absolute inset-0 w-full h-full"
-        viewBox="0 0 400 480"
+        aria-hidden="true"
+        className="absolute inset-0 w-full h-full opacity-100"
+        viewBox="0 0 480 640"
         preserveAspectRatio="xMidYMid slice"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
     >
-        {/* Blob grande inferior esquerdo */}
-        <ellipse cx="60" cy="420" rx="200" ry="160" stroke="white" strokeOpacity="0.10" strokeWidth="1.2" />
-        <ellipse cx="60" cy="420" rx="160" ry="120" stroke="white" strokeOpacity="0.10" strokeWidth="1.2" />
-        <ellipse cx="60" cy="420" rx="120" ry="85"  stroke="white" strokeOpacity="0.10" strokeWidth="1.2" />
-        <ellipse cx="60" cy="420" rx="85"  ry="58"  stroke="white" strokeOpacity="0.10" strokeWidth="1.2" />
-        <ellipse cx="60" cy="420" rx="54"  ry="36"  stroke="white" strokeOpacity="0.10" strokeWidth="1.2" />
-        {/* Blob médio superior direito */}
-        <ellipse cx="340" cy="80"  rx="170" ry="130" stroke="white" strokeOpacity="0.10" strokeWidth="1.2" />
-        <ellipse cx="340" cy="80"  rx="130" ry="96"  stroke="white" strokeOpacity="0.10" strokeWidth="1.2" />
-        <ellipse cx="340" cy="80"  rx="95"  ry="68"  stroke="white" strokeOpacity="0.10" strokeWidth="1.2" />
-        <ellipse cx="340" cy="80"  rx="64"  ry="44"  stroke="white" strokeOpacity="0.10" strokeWidth="1.2" />
-        {/* Blob pequeno centro */}
-        <ellipse cx="180" cy="250" rx="110" ry="80"  stroke="white" strokeOpacity="0.07" strokeWidth="1" />
-        <ellipse cx="180" cy="250" rx="75"  ry="52"  stroke="white" strokeOpacity="0.07" strokeWidth="1" />
-        <ellipse cx="180" cy="250" rx="44"  ry="30"  stroke="white" strokeOpacity="0.07" strokeWidth="1" />
+        <ellipse cx="80"  cy="560" rx="260" ry="200" stroke="white" strokeOpacity="0.08" strokeWidth="1.5" />
+        <ellipse cx="80"  cy="560" rx="200" ry="150" stroke="white" strokeOpacity="0.09" strokeWidth="1.2" />
+        <ellipse cx="80"  cy="560" rx="145" ry="106" stroke="white" strokeOpacity="0.10" strokeWidth="1.2" />
+        <ellipse cx="80"  cy="560" rx="96"  ry="68"  stroke="white" strokeOpacity="0.11" strokeWidth="1.2" />
+        <ellipse cx="80"  cy="560" rx="56"  ry="38"  stroke="white" strokeOpacity="0.12" strokeWidth="1.2" />
+
+        <ellipse cx="400" cy="90"  rx="210" ry="165" stroke="white" strokeOpacity="0.07" strokeWidth="1.5" />
+        <ellipse cx="400" cy="90"  rx="160" ry="120" stroke="white" strokeOpacity="0.08" strokeWidth="1.2" />
+        <ellipse cx="400" cy="90"  rx="114" ry="82"  stroke="white" strokeOpacity="0.09" strokeWidth="1.2" />
+        <ellipse cx="400" cy="90"  rx="72"  ry="50"  stroke="white" strokeOpacity="0.10" strokeWidth="1.2" />
+
+        <ellipse cx="220" cy="320" rx="120" ry="88"  stroke="white" strokeOpacity="0.05" strokeWidth="1" />
+        <ellipse cx="220" cy="320" rx="80"  ry="56"  stroke="white" strokeOpacity="0.06" strokeWidth="1" />
+        <ellipse cx="220" cy="320" rx="46"  ry="30"  stroke="white" strokeOpacity="0.07" strokeWidth="1" />
     </svg>
 )
 
-/* ── Elementos geométricos flutuantes ────────────────────────── */
-const DecorPlus = ({ x, y, size = 14, opacity = 0.35 }: { x: string; y: string; size?: number; opacity?: number }) => (
-    <div className="absolute pointer-events-none" style={{ left: x, top: y, opacity }}>
+/* ── Floating geometric decorations ─────────────────────────── */
+const PlusIcon = ({ x, y, size = 14, op = 0.35 }: { x: string; y: string; size?: number; op?: number }) => (
+    <div className="absolute pointer-events-none select-none" style={{ left: x, top: y, opacity: op }}>
         <svg width={size} height={size} viewBox="0 0 14 14" fill="none">
-            <path d="M7 1v12M1 7h12" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+            <path d="M7 1v12M1 7h12" stroke="white" strokeWidth="2" strokeLinecap="round" />
         </svg>
     </div>
 )
 
-const DecorCircle = ({ x, y, size = 12, opacity = 0.25 }: { x: string; y: string; size?: number; opacity?: number }) => (
-    <div className="absolute pointer-events-none" style={{ left: x, top: y, opacity }}>
+const RingIcon = ({ x, y, size = 12, op = 0.22 }: { x: string; y: string; size?: number; op?: number }) => (
+    <div className="absolute pointer-events-none select-none" style={{ left: x, top: y, opacity: op }}>
         <svg width={size} height={size} viewBox="0 0 12 12" fill="none">
             <circle cx="6" cy="6" r="5" stroke="white" strokeWidth="1.5" />
         </svg>
     </div>
 )
 
-const DecorDots = ({ x, y, opacity = 0.25 }: { x: string; y: string; opacity?: number }) => (
-    <div className="absolute pointer-events-none grid grid-cols-4 gap-[5px]" style={{ left: x, top: y, opacity }}>
+const Dots = ({ x, y, op = 0.22 }: { x: string; y: string; op?: number }) => (
+    <div
+        className="absolute pointer-events-none select-none"
+        style={{ left: x, top: y, opacity: op, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '5px' }}
+    >
         {Array.from({ length: 16 }).map((_, i) => (
-            <div key={i} className="w-[3px] h-[3px] rounded-full bg-white" />
+            <div key={i} style={{ width: 3, height: 3, borderRadius: '50%', background: 'white' }} />
         ))}
     </div>
 )
 
+/* ── Main component ──────────────────────────────────────────── */
 const SignIn = () => {
     return (
         <div
-            className="min-h-screen w-full flex items-center justify-center p-4 sm:p-8"
-            style={{ background: 'linear-gradient(135deg, #ede9f8 0%, #e4dff5 50%, #ddd6f3 100%)' }}
+            style={{
+                minHeight: '100vh',
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '24px',
+                background: 'linear-gradient(135deg, #ede9f8 0%, #e4dff5 55%, #ddd6f3 100%)',
+            }}
         >
-            {/* Card */}
+            {/* ── Card ── */}
             <div
-                className="w-full flex overflow-hidden rounded-3xl shadow-2xl shadow-purple-900/20 max-w-4xl"
-                style={{ minHeight: 500 }}
+                style={{
+                    width: '100%',
+                    maxWidth: 880,
+                    minHeight: 520,
+                    display: 'flex',
+                    borderRadius: 28,
+                    overflow: 'hidden',
+                    boxShadow: '0 32px 80px -12px rgba(109,40,217,0.25), 0 8px 20px -8px rgba(0,0,0,0.10)',
+                }}
             >
-                {/* ── Painel esquerdo — decorativo ── */}
+                {/* ── Left panel ── */}
                 <div
-                    className="hidden lg:flex flex-col justify-between relative overflow-hidden flex-1 p-10"
-                    style={{ background: 'linear-gradient(145deg, #8b5cf6 0%, #7c3aed 45%, #6d28d9 100%)' }}
+                    className="hidden lg:flex"
+                    style={{
+                        flex: 1,
+                        position: 'relative',
+                        overflow: 'hidden',
+                        background: 'linear-gradient(148deg, #9333ea 0%, #7c3aed 40%, #6d28d9 80%, #5b21b6 100%)',
+                        padding: '48px 44px',
+                        flexDirection: 'column',
+                        justifyContent: 'flex-end',
+                    }}
                 >
-                    <TopoLines />
-                    <DecorPlus   x="14%"  y="8%"  size={16} opacity={0.45} />
-                    <DecorPlus   x="72%"  y="14%" size={12} opacity={0.30} />
-                    <DecorPlus   x="20%"  y="58%" size={11} opacity={0.25} />
-                    <DecorCircle x="62%"  y="52%" size={14} opacity={0.30} />
-                    <DecorCircle x="10%"  y="38%" size={10} opacity={0.20} />
-                    <DecorDots   x="66%"  y="7%"  opacity={0.30} />
+                    <Topo />
 
-                    <div className="relative z-10 mt-auto">
-                        <h2 className="text-3xl font-black text-white leading-tight mb-3">
-                            Bem-vindo de volta!
+                    <PlusIcon  x="12%"  y="7%"   size={18} op={0.50} />
+                    <PlusIcon  x="74%"  y="12%"  size={13} op={0.32} />
+                    <PlusIcon  x="18%"  y="55%"  size={11} op={0.24} />
+                    <PlusIcon  x="58%"  y="68%"  size={10} op={0.20} />
+                    <RingIcon  x="64%"  y="48%"  size={16} op={0.28} />
+                    <RingIcon  x="8%"   y="36%"  size={11} op={0.20} />
+                    <RingIcon  x="82%"  y="32%"  size={9}  op={0.18} />
+                    <Dots      x="68%"  y="6%"   op={0.28} />
+                    <Dots      x="6%"   y="72%"  op={0.18} />
+
+                    {/* ── Brand mark ── */}
+                    <div style={{ position: 'relative', zIndex: 10 }}>
+                        <div
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: 44,
+                                height: 44,
+                                borderRadius: 12,
+                                background: 'rgba(255,255,255,0.15)',
+                                backdropFilter: 'blur(8px)',
+                                marginBottom: 24,
+                                border: '1px solid rgba(255,255,255,0.20)',
+                            }}
+                        >
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+                                    stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                        </div>
+
+                        <h2
+                            style={{
+                                color: 'white',
+                                fontSize: 30,
+                                fontWeight: 900,
+                                lineHeight: 1.2,
+                                marginBottom: 10,
+                                letterSpacing: '-0.5px',
+                            }}
+                        >
+                            Bem-vindo<br />de volta!
                         </h2>
-                        <p className="text-white/60 text-[15px] leading-relaxed max-w-[220px]">
+                        <p
+                            style={{
+                                color: 'rgba(255,255,255,0.60)',
+                                fontSize: 14,
+                                lineHeight: 1.7,
+                                maxWidth: 220,
+                            }}
+                        >
                             Acesse a plataforma com as suas credenciais.
                         </p>
                     </div>
                 </div>
 
-                {/* ── Painel direito — Formulário ── */}
-                <div className="flex flex-col justify-center w-full lg:w-[400px] flex-shrink-0 bg-white px-10 sm:px-12 py-12 lg:py-0">
-
-                    {/* Título */}
-                    <div className="mb-7 text-center lg:text-left">
-                        <h3 className="text-2xl font-black text-gray-900 leading-tight mb-1">
-                            Sign In
+                {/* ── Right panel (form) ── */}
+                <div
+                    style={{
+                        width: '100%',
+                        maxWidth: 420,
+                        flexShrink: 0,
+                        background: 'white',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        padding: '52px 44px',
+                    }}
+                    className="w-full lg:max-w-[420px]"
+                >
+                    <div style={{ marginBottom: 32 }}>
+                        <h3
+                            style={{
+                                fontSize: 24,
+                                fontWeight: 900,
+                                color: '#111827',
+                                marginBottom: 6,
+                                letterSpacing: '-0.3px',
+                            }}
+                        >
+                            Entrar
                         </h3>
-                        <p className="text-sm text-gray-400">Entre na sua conta para continuar.</p>
+                        <p style={{ fontSize: 13, color: '#9ca3af' }}>
+                            Entre na sua conta para continuar.
+                        </p>
                     </div>
 
                     <SignInForm disableSubmit={false} />
-
                 </div>
             </div>
         </div>

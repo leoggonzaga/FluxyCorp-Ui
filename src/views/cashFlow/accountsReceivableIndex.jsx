@@ -32,6 +32,19 @@ const diffDays = (iso) => {
     return Math.ceil((today - target) / 86400000)
 }
 
+const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+
+const fmtMonth = (yyyymm) => {
+    const [y, m] = yyyymm.split('-')
+    return `${MONTH_NAMES[parseInt(m, 10) - 1]} ${y}`
+}
+
+const shiftMonth = (yyyymm, delta) => {
+    const [y, m] = yyyymm.split('-').map(Number)
+    const d = new Date(y, m - 1 + delta, 1)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
 // ─── mock data ─────────────────────────────────────────────────────────────
 const INITIAL_RECEIVABLES = [
     { id: 1, paciente: 'Maria Aparecida Silva', procedimento: 'Tratamento de Canal - 36', valor: 1800.00, venc: '2026-04-10', recebido: null, status: 'vencido', tipo: 'Particular', forma: null, parcelas: '1/1' },
@@ -161,17 +174,21 @@ export default function AccountsReceivableIndex() {
     const [search, setSearch] = useState('')
     const [statusFilter, setStatusFilter] = useState('todos')
     const [tipoFilter, setTipoFilter] = useState('todos')
+    const [mesFilter, setMesFilter] = useState('2026-04')
     const [page, setPage] = useState(1)
     const [receberItem, setReceberItem] = useState(null)
+
+    const handleMes = (yyyymm) => { setMesFilter(yyyymm); setPage(1) }
 
     const filtered = useMemo(() => {
         return data.filter(r => {
             const matchSearch = !search || r.paciente.toLowerCase().includes(search.toLowerCase()) || r.procedimento.toLowerCase().includes(search.toLowerCase())
             const matchStatus = statusFilter === 'todos' || r.status === statusFilter
             const matchTipo = tipoFilter === 'todos' || r.tipo === tipoFilter
-            return matchSearch && matchStatus && matchTipo
+            const matchMes = r.venc.slice(0, 7) === mesFilter
+            return matchSearch && matchStatus && matchTipo && matchMes
         })
-    }, [data, search, statusFilter, tipoFilter])
+    }, [data, search, statusFilter, tipoFilter, mesFilter])
 
     const paginated = useMemo(() => {
         const start = (page - 1) * PAGE_SIZE
@@ -180,11 +197,14 @@ export default function AccountsReceivableIndex() {
 
     const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
 
-    const summary = useMemo(() => ({
-        pendente: { total: data.filter(r => r.status === 'pendente').reduce((a, r) => a + r.valor, 0), count: data.filter(r => r.status === 'pendente').length },
-        vencido: { total: data.filter(r => r.status === 'vencido').reduce((a, r) => a + r.valor, 0), count: data.filter(r => r.status === 'vencido').length },
-        recebido: { total: data.filter(r => r.status === 'recebido').reduce((a, r) => a + r.valor, 0), count: data.filter(r => r.status === 'recebido').length },
-    }), [data])
+    const summary = useMemo(() => {
+        const monthData = data.filter(r => r.venc.slice(0, 7) === mesFilter)
+        const calc = (s) => ({
+            total: monthData.filter(r => r.status === s).reduce((a, r) => a + r.valor, 0),
+            count: monthData.filter(r => r.status === s).length,
+        })
+        return { pendente: calc('pendente'), vencido: calc('vencido'), recebido: calc('recebido') }
+    }, [data, mesFilter])
 
     const handleReceber = (id, form) => {
         setData(prev => prev.map(r => r.id === id ? { ...r, status: 'recebido', recebido: form.data, forma: form.forma } : r))
@@ -228,7 +248,7 @@ export default function AccountsReceivableIndex() {
                     </div>
                     <p className="text-2xl font-bold text-gray-800 dark:text-gray-100 tabular-nums">{fmt(summary.pendente.total)}</p>
                     <div className="h-[1.5px] bg-gradient-to-r from-amber-400 via-amber-200 to-transparent mt-3" />
-                    <p className="text-[11px] text-gray-400 mt-2">Aguardando pagamento</p>
+                    <p className="text-[11px] text-gray-400 mt-2">Em {fmtMonth(mesFilter)}</p>
                 </button>
 
                 {/* Vencido */}
@@ -258,7 +278,33 @@ export default function AccountsReceivableIndex() {
                     </div>
                     <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{fmt(summary.recebido.total)}</p>
                     <div className="h-[1.5px] bg-gradient-to-r from-emerald-400 via-emerald-200 to-transparent mt-3" />
-                    <p className="text-[11px] text-gray-400 mt-2">Recebido neste mês</p>
+                    <p className="text-[11px] text-gray-400 mt-2">Recebido em {fmtMonth(mesFilter)}</p>
+                </button>
+            </div>
+
+            {/* Month navigator */}
+            <div className="flex items-center justify-between bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 px-4 py-3 shadow-sm">
+                <button
+                    onClick={() => handleMes(shiftMonth(mesFilter, -1))}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 transition-all font-medium"
+                >
+                    <HiOutlineChevronLeft className="w-4 h-4" />
+                    {fmtMonth(shiftMonth(mesFilter, -1))}
+                </button>
+
+                <div className="flex flex-col items-center">
+                    <span className="text-base font-bold text-gray-800 dark:text-gray-100 tracking-tight">
+                        {fmtMonth(mesFilter)}
+                    </span>
+                    <span className="text-[10px] text-gray-400 mt-0.5">período selecionado</span>
+                </div>
+
+                <button
+                    onClick={() => handleMes(shiftMonth(mesFilter, +1))}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 transition-all font-medium"
+                >
+                    {fmtMonth(shiftMonth(mesFilter, +1))}
+                    <HiOutlineChevronRight className="w-4 h-4" />
                 </button>
             </div>
 

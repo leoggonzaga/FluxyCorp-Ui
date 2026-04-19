@@ -32,7 +32,13 @@
       "Bash(psql *)",
       "Bash(PGPASSWORD=\"Senha@321\" /c/Program Files/PostgreSQL/16/bin/psql.exe *)",
       "Bash(grep -E \"\\\\.\\(js|jsx\\)$\")",
-      "WebFetch(domain:elements-resized.envatousercontent.com)"
+      "WebFetch(domain:elements-resized.envatousercontent.com)",
+      "Bash(xargs cat *)",
+      "Bash(xargs ls *)",
+      "Bash(grep -n \"^const PATIENTS\\\\|^]$\\\\|RECENTES_KEY\\\\|INITIAL_PATIENT\" \"C:/Git/FluxyCorp-Ui/src/views/patient/patientRecordIndex.jsx\")",
+      "Bash(findstr :5176)",
+      "Bash(taskkill *)",
+      "Bash(cmd *)"
     ]
   }
 }

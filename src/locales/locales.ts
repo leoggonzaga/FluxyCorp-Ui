@@ -12,6 +12,12 @@ const resources = {
     'pt-BR': {
         translation: ptBR,
     },
+    'pt-PT': {
+        translation: ptBR,
+    },
+    es: {
+        translation: en,
+    },
 }
 
 i18n.use(initReactI18next).init({
@@ -26,8 +32,12 @@ i18n.use(initReactI18next).init({
 export const dateLocales: {
     [key: string]: () => Promise<ILocale>
 } = {
-    en: () => import('dayjs/locale/en'),
+    en:      () => import('dayjs/locale/en'),
     'pt-BR': () => import('dayjs/locale/pt-br'),
+    ptBR:    () => import('dayjs/locale/pt-br'),
+    'pt-PT': () => import('dayjs/locale/pt'),
+    ptPT:    () => import('dayjs/locale/pt'),
+    es:      () => import('dayjs/locale/es'),
 }
 
 export default i18n

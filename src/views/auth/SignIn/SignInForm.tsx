@@ -121,9 +121,9 @@ const SignInForm = (props: SignInFormProps) => {
                                     loading={isSubmitting}
                                     variant="solid"
                                     type="submit"
-                                    className="!bg-violet-600 hover:!bg-violet-700 !rounded-xl !h-12 !text-sm !font-bold !shadow-lg !shadow-violet-200"
+                                    className="!bg-violet-600 hover:!bg-violet-700 !rounded-xl !h-12 !text-sm !font-bold !shadow-lg !shadow-violet-200 !text-white"
                                 >
-                                    {isSubmitting ? 'Entrando…' : 'Sign In'}
+                                    {isSubmitting ? 'Entrando…' : 'Entrar'}
                                 </Button>
                             </div>
 

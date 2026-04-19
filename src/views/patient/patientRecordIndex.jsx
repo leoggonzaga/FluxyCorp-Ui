@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
-import { Badge, Card, Input, Notification, Tabs, toast } from '@/components/ui'
+import { useSelector } from 'react-redux'
+import { Badge, Card, Notification, Tabs, toast } from '@/components/ui'
 import { Pattern1 } from '@/components/shared/listPatterns'
 import {
     HiOutlineCalendar,
@@ -16,14 +17,32 @@ import {
     HiOutlineMail,
     HiOutlinePhone,
     HiOutlinePhotograph,
+    HiOutlinePencil,
     HiOutlinePlay,
     HiOutlinePlus,
     HiOutlinePrinter,
-    HiOutlineSearch,
+    HiOutlineAnnotation,
+    HiOutlineTrash,
+    HiOutlineBell,
+    HiOutlineCheckCircle,
+    HiOutlineShieldCheck,
+    HiOutlineHashtag,
 } from 'react-icons/hi'
 import SectionCard from './components/SectionCard'
 import AppointmentCard from './components/AppointmentCard'
 import FilePermissionPopover from './components/FilePermissionPopover'
+import ConsumerUpsertDialog from './components/ConsumerUpsertDialog'
+import {
+    getConsumersByCompany,
+    getConsumerById,
+    getConsumerConvenios,
+    getConsumerNotes,
+    createConsumerNote,
+    deleteConsumerNote,
+} from '@/api/consumer/consumerService'
+import { operadorasGetByCompany } from '@/api/enterprise/EnterpriseService'
+import { mergeConsumerConvenioForUi } from '@/views/patient/mergeConsumerConvenio'
+import ConsumerSearchInput from '@/components/shared/ConsumerSearchInput'
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
@@ -246,6 +265,7 @@ const statusFinancialMap = {
 }
 
 const formatDate = (dateStr) => {
+    if (!dateStr) return '—'
     const [y, m, d] = dateStr.split('-')
     return `${d}/${m}/${y}`
 }
@@ -262,6 +282,7 @@ const formatFileSize = (bytes) => {
 }
 
 const calcAge = (birthDate) => {
+    if (!birthDate) return null
     const today = new Date()
     const birth = new Date(birthDate)
     let age = today.getFullYear() - birth.getFullYear()
@@ -275,16 +296,32 @@ const sortByDateAsc  = (items) => [...items].sort((a, b) => new Date(a.date) - n
 
 const RECENTES_KEY = 'prontuario_recentes'
 
-const toPatternItem = (patient) => ({
-    id:         patient.id,
-    name:       patient.name,
-    email:      patient.email,
-    meta:       patient.cpf,
-    badge:      patient.insurance,
-    status:     'ativo',
-    avatarName: patient.name,
-    _raw:       patient,
-})
+const displayName = (patient) => patient.socialName || patient.name
+
+const toPatternItem = (patient, operadoraNameByPublicId = new Map()) => {
+    const opPub = patient.convenioOperadoraPublicId ?? patient.ConvenioOperadoraPublicId
+    const convenioNome =
+        opPub && operadoraNameByPublicId?.get
+            ? operadoraNameByPublicId.get(String(opPub).toLowerCase())
+            : null
+    const badge =
+        convenioNome ||
+        patient.insuranceName ||
+        patient.insurance ||
+        patient.consumerKind ||
+        null
+
+    return {
+        id:         patient.publicId ?? patient.id,
+        name:       displayName(patient),
+        email:      patient.email,
+        meta:       patient.cpf,
+        badge:      badge || undefined,
+        status:     'ativo',
+        avatarName: displayName(patient),
+        _raw:       patient,
+    }
+}
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -293,34 +330,111 @@ const PatientRecordIndex = () => {
 
     const navigate = useNavigate()
     const location = useLocation()
+    const companyPublicId = useSelector((state) => state.auth.user.companyPublicId)
 
+    const [patients, setPatients] = useState(PATIENTS)
+    const [loadingPatients, setLoadingPatients] = useState(false)
     const [searchTerm, setSearchTerm] = useState('')
+    const [apiResults, setApiResults] = useState([])
     const [selectedPatient, setSelectedPatient] = useState(null)
+    const [showNewDialog, setShowNewDialog] = useState(false)
+    const [showEditDialog, setShowEditDialog] = useState(false)
+    const [editingPatient, setEditingPatient] = useState(null)
     const [historyStack, setHistoryStack] = useState([])
     const [recentIds, setRecentIds] = useState(() => {
         try {
             const stored = localStorage.getItem(RECENTES_KEY)
-            return stored ? JSON.parse(stored) : PATIENTS.slice(0, 3).map((p) => p.id)
+            return stored ? JSON.parse(stored) : []
         } catch {
-            return PATIENTS.slice(0, 3).map((p) => p.id)
+            return []
         }
     })
     const [searchParams] = useSearchParams()
+
+    const enrichPatientFromApis = useCallback(async (publicId) => {
+        if (!publicId) return null
+        const [full, convenios, ops] = await Promise.all([
+            getConsumerById(publicId),
+            getConsumerConvenios(publicId).catch(() => []),
+            companyPublicId ? operadorasGetByCompany(companyPublicId).catch(() => []) : Promise.resolve([]),
+        ])
+        if (!full) return null
+        return mergeConsumerConvenioForUi(full, convenios, Array.isArray(ops) ? ops : [])
+    }, [companyPublicId])
+
+    const refreshPatientList = useCallback(() => {
+        if (!companyPublicId) return Promise.resolve()
+        return Promise.all([
+            getConsumersByCompany(companyPublicId),
+            operadorasGetByCompany(companyPublicId).catch(() => []),
+        ])
+            .then(([data, ops]) => {
+                setPatients(Array.isArray(data) ? data : [])
+                setOperadorasForBadges(Array.isArray(ops) ? ops : [])
+            })
+            .catch(() => toast.push(<Notification type="danger" title="Erro ao carregar prontuários" />, { placement: 'top-center' }))
+    }, [companyPublicId])
+
+    useEffect(() => {
+        if (!companyPublicId) return
+        setLoadingPatients(true)
+        refreshPatientList().finally(() => setLoadingPatients(false))
+    }, [companyPublicId, refreshPatientList])
+
     const [patientImages, setPatientImages] = useState([])
     const [patientDocuments, setPatientDocuments] = useState([])
     const [imageViewMode, setImageViewMode] = useState('list')
     const [printTemplates, setPrintTemplates] = useState([])
+
+    const [notes, setNotes] = useState([])
+    const [loadingNotes, setLoadingNotes] = useState(false)
+    const [noteForm, setNoteForm] = useState({ content: '', noteType: 'note', alertSeverity: '', showOnAttendance: true })
+    const [savingNote, setSavingNote] = useState(false)
+    const [operadorasForBadges, setOperadorasForBadges] = useState([])
+
+    const operadoraNameByPublicId = useMemo(() => {
+        const m = new Map()
+        for (const o of operadorasForBadges) {
+            const id = o.publicId ?? o.PublicId
+            if (id) m.set(String(id).toLowerCase(), o.name ?? o.Name ?? '')
+        }
+        return m
+    }, [operadorasForBadges])
+
+    /** Nome da operadora no cabeçalho (API: convenioOperadoraPublicId + mapa; ou insuranceName / insurance). */
+    const headerConvenioName = useMemo(() => {
+        if (!selectedPatient) return ''
+        const opId =
+            selectedPatient.convenioOperadoraPublicId ??
+            selectedPatient.ConvenioOperadoraPublicId ??
+            selectedPatient.insurancePublicId ??
+            selectedPatient.InsurancePublicId
+        if (opId) {
+            const fromMap = operadoraNameByPublicId.get(String(opId).toLowerCase())
+            if (fromMap) return fromMap
+        }
+        return (
+            selectedPatient.insuranceName ||
+            selectedPatient.insurance ||
+            ''
+        )
+    }, [selectedPatient, operadoraNameByPublicId])
 
     const imageInputRef    = useRef(null)
     const documentInputRef = useRef(null)
 
     useEffect(() => {
         const patientId = searchParams.get('id')
-        if (patientId) {
-            const found = PATIENTS.find((p) => String(p.id) === patientId)
-            if (found) setSelectedPatient(found)
-        }
-    }, [searchParams])
+        if (!patientId) return
+        const found = patients.find((p) => String(p.publicId ?? p.id) === patientId)
+        if (!found) return
+        setSelectedPatient(found)
+        enrichPatientFromApis(found.publicId ?? found.id)
+            .then((full) => {
+                if (full) setSelectedPatient((prev) => ({ ...prev, ...full }))
+            })
+            .catch(() => {})
+    }, [searchParams, patients, enrichPatientFromApis])
 
     useEffect(() => {
         const raw = localStorage.getItem('patient_record_templates')
@@ -344,19 +458,30 @@ const PatientRecordIndex = () => {
         if (!selectedPatient) {
             setPatientImages([])
             setPatientDocuments([])
+            setNotes([])
             return
         }
         const base = INITIAL_PATIENT_FILES[selectedPatient.id] || { images: [], documents: [] }
         setPatientImages(base.images)
         setPatientDocuments(base.documents)
         setImageViewMode('list')
+
+        const pid = selectedPatient.publicId ?? selectedPatient.id
+        setLoadingNotes(true)
+        getConsumerNotes(pid)
+            .then((data) => setNotes(Array.isArray(data) ? data : []))
+            .catch(() => {})
+            .finally(() => setLoadingNotes(false))
     }, [selectedPatient])
 
-    const filteredPatients = PATIENTS.filter(
-        (p) =>
-            p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.cpf.includes(searchTerm),
-    )
+    const filteredPatients = patients.filter((p) => {
+        const lower = searchTerm.toLowerCase()
+        return (
+            p.name?.toLowerCase().includes(lower) ||
+            p.socialName?.toLowerCase().includes(lower) ||
+            (p.cpf && p.cpf.includes(searchTerm))
+        )
+    })
 
     // ─── Handlers ─────────────────────────────────────────────────────────────
 
@@ -396,7 +521,7 @@ const PatientRecordIndex = () => {
         if (!selectedPatient) return content
         const todayIso = new Date().toISOString().slice(0, 10)
         const replacements = {
-            '[PACIENTE_NOME]': selectedPatient.name,
+            '[PACIENTE_NOME]': displayName(selectedPatient),
             '[PACIENTE_CPF]': selectedPatient.cpf,
             '[PACIENTE_NASCIMENTO]': formatDate(selectedPatient.birthDate),
             '[PROFISSIONAL_NOME]': 'Profissional Responsavel',
@@ -419,7 +544,7 @@ const PatientRecordIndex = () => {
 <style>body{font-family:Arial,sans-serif;padding:32px;color:#111827;line-height:1.5}h1{margin:0 0 8px}.meta{font-size:12px;color:#6b7280;margin-bottom:18px}.content{white-space:pre-wrap;font-size:14px}</style>
 </head><body>
 <h1>${title}</h1>
-<div class="meta">Paciente: ${selectedPatient?.name || ''} | Emitido em: ${formatDateTime(new Date().toISOString())}</div>
+<div class="meta">Paciente: ${selectedPatient ? displayName(selectedPatient) : ''} | Emitido em: ${formatDateTime(new Date().toISOString())}</div>
 <div class="content">${content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
 </body></html>`
 
@@ -446,7 +571,7 @@ const PatientRecordIndex = () => {
         const now = new Date().toISOString()
         setPatientDocuments((prev) => [{
             id: `print-${Date.now()}`,
-            name: `${title} - ${selectedPatient.name}.pdf`,
+            name: `${title} - ${displayName(selectedPatient)}.pdf`,
             createdAt: now.slice(0, 10),
             createdAtDateTime: now,
             size: Math.max(180000, content.length * 20),
@@ -469,12 +594,89 @@ const PatientRecordIndex = () => {
     const handleSchedule = () =>
         toast.push(<Notification type='info' title='Agendar'>Acesse a aba de agendamento.</Notification>)
 
-    const openPatient = (patient, fromLabel) => {
+    const openPatient = async (patient, fromLabel) => {
         setHistoryStack((prev) => [
             ...prev,
-            { label: fromLabel ?? (selectedPatient ? selectedPatient.name : 'Prontuários Recentes'), patient: selectedPatient },
+            { label: fromLabel ?? (selectedPatient ? displayName(selectedPatient) : 'Prontuários Recentes'), patient: selectedPatient },
         ])
         setSelectedPatient(patient)
+        try {
+            const merged = await enrichPatientFromApis(patient.publicId ?? patient.id)
+            if (merged) setSelectedPatient((prev) => ({ ...prev, ...merged }))
+        } catch (_) {}
+    }
+
+    const openEdit = async (patient) => {
+        try {
+            const merged = await enrichPatientFromApis(patient.publicId ?? patient.id)
+            setEditingPatient(merged ?? patient)
+        } catch {
+            setEditingPatient(patient)
+        }
+        setShowEditDialog(true)
+    }
+
+    const handleEditSuccess = (updated) => {
+        setShowEditDialog(false)
+        const convenioOpId =
+            updated.insurancePublicId ?? updated.convenioOperadoraPublicId ?? updated.ConvenioOperadoraPublicId
+        const patch = convenioOpId
+            ? { ...updated, convenioOperadoraPublicId: convenioOpId }
+            : { ...updated, convenioOperadoraPublicId: null }
+        setPatients((prev) =>
+            prev.map((p) => ((p.publicId ?? p.id) === (updated.publicId ?? updated.id) ? { ...p, ...patch } : p)),
+        )
+        if ((selectedPatient?.publicId ?? selectedPatient?.id) === (updated.publicId ?? updated.id)) {
+            setSelectedPatient((prev) => ({ ...prev, ...patch }))
+        }
+        toast.push(
+            <Notification type='success' title='Prontuário atualizado'>
+                Dados de <strong>{updated?.name}</strong> salvos com sucesso.
+            </Notification>,
+            { placement: 'top-center' }
+        )
+    }
+
+    const buildAddress = (p) => {
+        if (p.street) {
+            const parts = [
+                p.street,
+                p.addressNumber,
+                p.complement,
+                p.neighborhood,
+                p.city && p.state ? `${p.city}/${p.state}` : (p.city || p.state),
+            ].filter(Boolean)
+            return parts.join(', ')
+        }
+        return p.address ?? '—'
+    }
+
+    const handleSaveNote = async () => {
+        if (!noteForm.content.trim()) return
+        const pid = selectedPatient.publicId ?? selectedPatient.id
+        setSavingNote(true)
+        const payload = {
+            content: noteForm.content.trim(),
+            noteType: noteForm.noteType,
+            alertSeverity: noteForm.noteType === 'alert' ? (noteForm.alertSeverity || 'info') : null,
+            showOnAttendance: noteForm.showOnAttendance,
+        }
+        const created = await createConsumerNote(pid, payload)
+        if (created) {
+            setNotes((prev) => [created, ...prev])
+            setNoteForm({ content: '', noteType: 'note', alertSeverity: '', showOnAttendance: true })
+            toast.push(<Notification type='success' title='Anotação salva' />, { placement: 'top-center' })
+        }
+        setSavingNote(false)
+    }
+
+    const handleDeleteNote = async (notePublicId) => {
+        const pid = selectedPatient.publicId ?? selectedPatient.id
+        const ok = await deleteConsumerNote(pid, notePublicId)
+        if (ok !== null) {
+            setNotes((prev) => prev.filter((n) => n.publicId !== notePublicId))
+            toast.push(<Notification type='success' title='Anotação removida' />, { placement: 'top-center' })
+        }
     }
 
     const goBack = () => {
@@ -495,6 +697,29 @@ const PatientRecordIndex = () => {
 
     return (
         <div className='w-full p-4 space-y-6'>
+
+            <ConsumerUpsertDialog
+                isOpen={showEditDialog}
+                onClose={() => setShowEditDialog(false)}
+                mode='edit'
+                initialData={editingPatient}
+                onSuccess={handleEditSuccess}
+            />
+
+            <ConsumerUpsertDialog
+                isOpen={showNewDialog}
+                onClose={() => setShowNewDialog(false)}
+                onSuccess={(created) => {
+                    setShowNewDialog(false)
+                    toast.push(
+                        <Notification type='success' title='Prontuário criado'>
+                            Prontuário de <strong>{created?.name}</strong> registrado no sistema.
+                        </Notification>,
+                        { placement: 'top-center' }
+                    )
+                    if (companyPublicId) refreshPatientList()
+                }}
+            />
 
             {/* ── Patient Content ── */}
             {selectedPatient && (
@@ -535,7 +760,7 @@ const PatientRecordIndex = () => {
                                         ? 'bg-gradient-to-br from-red-500 to-red-600'
                                         : 'bg-gradient-to-br from-blue-500 to-blue-600'
                                 }`}>
-                                    {selectedPatient.name.charAt(0)}
+                                    {displayName(selectedPatient).charAt(0)}
                                 </div>
                                 <div className='mt-2 text-center'>
                                     <span className='text-[10px] font-semibold uppercase tracking-widest text-indigo-400'>Prontuário</span>
@@ -547,14 +772,27 @@ const PatientRecordIndex = () => {
                             <div className='flex-1 min-w-0'>
                                 <div className='flex flex-wrap items-start justify-between gap-3 mb-4'>
                                     <div>
-                                        <h2 className='text-xl font-bold text-gray-900 leading-tight'>{selectedPatient.name}</h2>
+                                        <h2 className='text-xl font-bold text-gray-900 leading-tight'>{displayName(selectedPatient)}</h2>
+                                        {selectedPatient.socialName && (
+                                            <p className='text-xs text-gray-400 mt-0.5'>
+                                                Nome civil: <span className='font-medium text-gray-500'>{selectedPatient.name}</span>
+                                            </p>
+                                        )}
                                         <div className='flex items-center gap-3 mt-1 flex-wrap'>
-                                            <span className='text-xs text-gray-500'>{formatDate(selectedPatient.birthDate)} · {calcAge(selectedPatient.birthDate)} anos</span>
+                                            <span className='text-xs text-gray-500'>
+                                                {selectedPatient.birthDate
+                                                    ? `${formatDate(selectedPatient.birthDate)} · ${calcAge(selectedPatient.birthDate)} anos`
+                                                    : '—'}
+                                            </span>
                                             <span className='w-1 h-1 rounded-full bg-gray-300 inline-block' />
                                             <span className='text-xs font-mono text-gray-500'>{selectedPatient.cpf}</span>
                                         </div>
                                     </div>
                                     <div className='flex items-center gap-1 p-1 rounded-xl border border-white/80 bg-white/60 backdrop-blur-sm shadow-sm'>
+                                        <button title='Editar cadastro' onClick={() => openEdit(selectedPatient)}
+                                            className='w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-amber-700 hover:bg-amber-50 transition'>
+                                            <HiOutlinePencil className='w-4 h-4' />
+                                        </button>
                                         <button title='Iniciar atendimento' onClick={handleStartAppointment}
                                             className='w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-green-700 hover:bg-green-50 transition'>
                                             <HiOutlinePlay className='w-4 h-4' />
@@ -572,9 +810,9 @@ const PatientRecordIndex = () => {
 
                                 <div className='grid grid-cols-1 sm:grid-cols-3 gap-3'>
                                     {[
-                                        { icon: <HiOutlinePhone />, label: 'Telefone', value: selectedPatient.phone, color: 'indigo' },
-                                        { icon: <HiOutlineMail />, label: 'E-mail', value: selectedPatient.email, color: 'purple' },
-                                        { icon: <HiOutlineLocationMarker />, label: 'Endereço', value: selectedPatient.address, color: 'sky' },
+                                        { icon: <HiOutlinePhone />, label: 'Telefone', value: selectedPatient.phoneNumber ?? selectedPatient.phone ?? '—', color: 'indigo' },
+                                        { icon: <HiOutlineMail />, label: 'E-mail', value: selectedPatient.email ?? '—', color: 'purple' },
+                                        { icon: <HiOutlineLocationMarker />, label: 'Endereço', value: buildAddress(selectedPatient), color: 'sky' },
                                     ].map(({ icon, label, value, color }) => (
                                         <div key={label} className='flex items-center gap-2.5 bg-white/60 backdrop-blur-sm rounded-xl px-3 py-2.5 border border-white/80'>
                                             <div className={`w-7 h-7 rounded-lg bg-${color}-50 flex items-center justify-center flex-shrink-0`}>
@@ -589,17 +827,39 @@ const PatientRecordIndex = () => {
                                 </div>
 
                                 <div className='flex flex-wrap items-center gap-2 mt-3'>
-                                    <span className='inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700 border border-indigo-200'>
-                                        🩸 {selectedPatient.bloodType}
-                                    </span>
-                                    <span className='inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-violet-100 text-violet-700 border border-violet-200'>
-                                        {selectedPatient.insurance}
-                                    </span>
-                                    {selectedPatient.allergies.length > 0 && (
+                                    {selectedPatient.bloodType && (
+                                        <span className='inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700 border border-indigo-200'>
+                                            🩸 {selectedPatient.bloodType}
+                                        </span>
+                                    )}
+                                    {headerConvenioName && (
+                                        <span
+                                            title='Convênio'
+                                            className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-teal-100 text-teal-800 border border-teal-200 dark:bg-teal-900/35 dark:text-teal-200 dark:border-teal-800'
+                                        >
+                                            <HiOutlineShieldCheck className='w-3.5 h-3.5 flex-shrink-0' />
+                                            {headerConvenioName}
+                                        </span>
+                                    )}
+                                    {selectedPatient.allergies?.length > 0 && (
                                         <span className='inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-700 border border-rose-200'>
                                             ⚠ Alergias: {selectedPatient.allergies.join(', ')}
                                         </span>
                                     )}
+                                    {notes
+                                        .filter((n) => n.noteType === 'alert' && (n.alertSeverity === 'danger' || n.alertSeverity === 'warning'))
+                                        .map((n) => n.alertSeverity === 'danger' ? (
+                                            <span key={n.publicId} title={n.content} className='inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-200 cursor-default max-w-[220px]'>
+                                                <HiOutlineBell className='w-3.5 h-3.5 flex-shrink-0' />
+                                                <span className='truncate'>{n.content}</span>
+                                            </span>
+                                        ) : (
+                                            <span key={n.publicId} title={n.content} className='inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200 cursor-default max-w-[220px]'>
+                                                <HiOutlineBell className='w-3.5 h-3.5 flex-shrink-0' />
+                                                <span className='truncate'>{n.content}</span>
+                                            </span>
+                                        ))
+                                    }
                                 </div>
                             </div>
                         </div>
@@ -613,6 +873,7 @@ const PatientRecordIndex = () => {
                                     <TabNav value='dashboard'>Dashboard</TabNav>
                                     <TabNav value='financial'>Financeiro</TabNav>
                                     <TabNav value='appointments'>Atendimentos</TabNav>
+                                    <TabNav value='notes'>Anotações</TabNav>
                                     <TabNav value='media'>Imagens e Documentos</TabNav>
                                 </div>
                             </TabList>
@@ -624,15 +885,15 @@ const PatientRecordIndex = () => {
                                     <div className='grid grid-cols-1 lg:grid-cols-2 gap-5'>
                                         <SectionCard icon={<HiOutlineCurrencyDollar />} title='Últimos Financeiros' subtitle='Extrato recente da conta' color='emerald'>
                                             <div className={`p-3 mb-4 rounded-xl font-bold text-lg flex items-center justify-between ${
-                                                selectedPatient.financial.balance >= 0
+                                                (selectedPatient.financial?.balance ?? 0) >= 0
                                                     ? 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-950/40 dark:border-green-800 dark:text-green-400'
                                                     : 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:border-red-800 dark:text-red-400'
                                             }`}>
                                                 <span className='text-sm font-semibold'>Saldo Atual</span>
-                                                {selectedPatient.financial.balance >= 0 ? '+' : ''}R$ {selectedPatient.financial.balance.toFixed(2).replace('.', ',')}
+                                                {(selectedPatient.financial?.balance ?? 0) >= 0 ? '+' : ''}R$ {(selectedPatient.financial?.balance ?? 0).toFixed(2).replace('.', ',')}
                                             </div>
                                             <div className='space-y-2'>
-                                                {sortByDateDesc(selectedPatient.financial.history).slice(0, 4).map((item) => (
+                                                {sortByDateDesc(selectedPatient.financial?.history ?? []).slice(0, 4).map((item) => (
                                                     <div key={item.id} className='flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/50'>
                                                         <div>
                                                             <p className='text-sm font-semibold text-gray-800 dark:text-gray-200'>{item.description}</p>
@@ -651,9 +912,9 @@ const PatientRecordIndex = () => {
 
                                         <SectionCard icon={<HiOutlineClock />} title='Próximos Atendimentos' subtitle='Agenda futura do paciente' color='blue'>
                                             <div className='space-y-3'>
-                                                {sortByDateAsc(selectedPatient.nextAppointments).length === 0 ? (
+                                                {sortByDateAsc(selectedPatient.nextAppointments ?? []).length === 0 ? (
                                                     <p className='text-gray-500 text-sm'>Nenhum agendamento futuro</p>
-                                                ) : sortByDateAsc(selectedPatient.nextAppointments).map((apt) => (
+                                                ) : sortByDateAsc(selectedPatient.nextAppointments ?? []).map((apt) => (
                                                     <div key={apt.id} className='flex items-center gap-4 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-100 dark:border-blue-900/50'>
                                                         <div className='bg-blue-600 text-white rounded-xl p-2 text-center min-w-14'>
                                                             <p className='text-xs'>{formatDate(apt.date).slice(3)}</p>
@@ -672,11 +933,11 @@ const PatientRecordIndex = () => {
 
                                     <div className='grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5'>
                                         <SectionCard icon={<HiOutlineExclamation />} title='Tratamentos Pendentes' subtitle='Aguardando realização' color='amber'>
-                                            {selectedPatient.pendingTreatments.length === 0 ? (
+                                            {selectedPatient.pendingTreatments ?? [].length === 0 ? (
                                                 <p className='text-gray-500 text-sm'>Nenhum tratamento pendente</p>
                                             ) : (
                                                 <div className='space-y-3'>
-                                                    {selectedPatient.pendingTreatments.map((t) => (
+                                                    {selectedPatient.pendingTreatments ?? [].map((t) => (
                                                         <div key={t.id} className='p-3 rounded-xl border border-gray-200 dark:border-gray-700/50 bg-gray-50 dark:bg-gray-800/40'>
                                                             <div className='flex items-center justify-between'>
                                                                 <p className='font-bold text-gray-800 dark:text-gray-200 text-sm'>{t.treatment}</p>
@@ -692,12 +953,54 @@ const PatientRecordIndex = () => {
 
                                         <SectionCard icon={<HiOutlineClipboardList />} title='Últimos 3 Atendimentos' subtitle='Histórico mais recente' color='violet'>
                                             <div className='space-y-3'>
-                                                {sortByDateDesc(selectedPatient.pastAppointments).slice(0, 3).length === 0 ? (
+                                                {sortByDateDesc(selectedPatient.pastAppointments ?? []).slice(0, 3).length === 0 ? (
                                                     <p className='text-gray-500 text-sm'>Nenhum atendimento registrado</p>
-                                                ) : sortByDateDesc(selectedPatient.pastAppointments).slice(0, 3).map((apt) => (
+                                                ) : sortByDateDesc(selectedPatient.pastAppointments ?? []).slice(0, 3).map((apt) => (
                                                     <AppointmentCard key={apt.id} appointment={apt} />
                                                 ))}
                                             </div>
+                                        </SectionCard>
+                                    </div>
+
+                                    {/* ── Convênio ── */}
+                                    <div className='mt-5'>
+                                        <SectionCard icon={<HiOutlineShieldCheck />} title='Convênio' subtitle='Plano de saúde do paciente' color='teal'
+                                            headerAction={
+                                                <button
+                                                    onClick={() => openEdit(selectedPatient)}
+                                                    className='flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 border border-teal-200 dark:border-teal-800 transition'
+                                                >
+                                                    <HiOutlinePencil className='w-3.5 h-3.5' />
+                                                    Editar
+                                                </button>
+                                            }
+                                        >
+                                            {!(selectedPatient.insuranceName || selectedPatient.insurance) ? (
+                                                <div className='flex items-center gap-3 py-3'>
+                                                    <div className='w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0'>
+                                                        <HiOutlineShieldCheck className='w-5 h-5 text-gray-300' />
+                                                    </div>
+                                                    <p className='text-sm text-gray-400'>Nenhum convênio cadastrado</p>
+                                                </div>
+                                            ) : (
+                                                <div className='flex flex-wrap gap-4'>
+                                                    {[
+                                                        { icon: <HiOutlineShieldCheck />, label: 'Operadora', value: selectedPatient.insuranceName || selectedPatient.insurance },
+                                                        selectedPatient.insurancePlan   && { icon: <HiOutlineShieldCheck />, label: 'Plano',          value: selectedPatient.insurancePlan },
+                                                        selectedPatient.insuranceNumber && { icon: <HiOutlineHashtag />,      label: 'Carteirinha',   value: selectedPatient.insuranceNumber },
+                                                        selectedPatient.insuranceExpiry && { icon: <HiOutlineCalendar />,     label: 'Validade',      value: formatDate(selectedPatient.insuranceExpiry?.slice(0, 10)) },
+                                                        selectedPatient.insuranceHolder && { icon: <HiOutlineIdentification />, label: 'Titular',     value: selectedPatient.insuranceHolder },
+                                                    ].filter(Boolean).map(({ icon, label, value }) => (
+                                                        <div key={label} className='flex items-center gap-2.5 bg-teal-50/60 dark:bg-teal-950/20 border border-teal-100 dark:border-teal-900/40 rounded-xl px-3.5 py-2.5 min-w-[160px]'>
+                                                            <span className='text-teal-400 flex-shrink-0'>{icon}</span>
+                                                            <div>
+                                                                <p className='text-[10px] font-semibold text-teal-500 dark:text-teal-400 uppercase tracking-wide'>{label}</p>
+                                                                <p className='text-sm font-semibold text-gray-700 dark:text-gray-200'>{value}</p>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </SectionCard>
                                     </div>
                                 </TabContent>
@@ -707,18 +1010,18 @@ const PatientRecordIndex = () => {
                                     <div className='grid grid-cols-1 lg:grid-cols-3 gap-5'>
                                         <SectionCard icon={<HiOutlineCurrencyDollar />} title='Resumo' subtitle='Posição financeira atual' color='emerald' className='lg:col-span-1'>
                                             <div className={`p-4 rounded-xl font-bold text-xl ${
-                                                selectedPatient.financial.balance >= 0
+                                                (selectedPatient.financial?.balance ?? 0) >= 0
                                                     ? 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-950/40 dark:border-green-800 dark:text-green-400'
                                                     : 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:border-red-800 dark:text-red-400'
                                             }`}>
                                                 <p className='text-sm font-semibold mb-1'>Saldo Atual</p>
-                                                <p>{selectedPatient.financial.balance >= 0 ? '+' : ''}R$ {selectedPatient.financial.balance.toFixed(2).replace('.', ',')}</p>
+                                                <p>{(selectedPatient.financial?.balance ?? 0) >= 0 ? '+' : ''}R$ {(selectedPatient.financial?.balance ?? 0).toFixed(2).replace('.', ',')}</p>
                                             </div>
                                         </SectionCard>
 
                                         <SectionCard icon={<HiOutlineCollection />} title='Todo Financeiro' subtitle='Histórico completo de movimentos' color='teal' className='lg:col-span-2'>
                                             <div className='space-y-2 max-h-[520px] overflow-y-auto pr-1'>
-                                                {sortByDateDesc(selectedPatient.financial.history).map((item) => (
+                                                {sortByDateDesc(selectedPatient.financial?.history ?? []).map((item) => (
                                                     <div key={item.id} className='flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/50'>
                                                         <div>
                                                             <p className='text-sm font-semibold text-gray-800 dark:text-gray-200'>{item.description}</p>
@@ -742,9 +1045,9 @@ const PatientRecordIndex = () => {
                                     <div className='space-y-5'>
                                         <SectionCard icon={<HiOutlineClock />} title='Próximos Atendimentos' subtitle='Agenda futura do paciente' color='blue'>
                                             <div className='space-y-3'>
-                                                {sortByDateAsc(selectedPatient.nextAppointments).length === 0 ? (
+                                                {sortByDateAsc(selectedPatient.nextAppointments ?? []).length === 0 ? (
                                                     <p className='text-gray-500 text-sm'>Nenhum agendamento futuro</p>
-                                                ) : sortByDateAsc(selectedPatient.nextAppointments).map((apt) => (
+                                                ) : sortByDateAsc(selectedPatient.nextAppointments ?? []).map((apt) => (
                                                     <div key={apt.id} className='flex items-center gap-4 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-100 dark:border-blue-900/50'>
                                                         <div className='bg-blue-600 text-white rounded-xl p-2 text-center min-w-14'>
                                                             <p className='text-xs'>{formatDate(apt.date).slice(3)}</p>
@@ -762,13 +1065,173 @@ const PatientRecordIndex = () => {
 
                                         <SectionCard icon={<HiOutlineClipboardList />} title='Todos os Atendimentos' subtitle='Histórico completo de consultas' color='violet'>
                                             <div className='space-y-3'>
-                                                {sortByDateDesc(selectedPatient.pastAppointments).length === 0 ? (
+                                                {sortByDateDesc(selectedPatient.pastAppointments ?? []).length === 0 ? (
                                                     <p className='text-gray-500 text-sm'>Nenhum atendimento registrado</p>
-                                                ) : sortByDateDesc(selectedPatient.pastAppointments).map((apt) => (
+                                                ) : sortByDateDesc(selectedPatient.pastAppointments ?? []).map((apt) => (
                                                     <AppointmentCard key={apt.id} appointment={apt} />
                                                 ))}
                                             </div>
                                         </SectionCard>
+                                    </div>
+                                </TabContent>
+
+                                {/* ── Anotações ── */}
+                                <TabContent value='notes'>
+                                    <div className='grid grid-cols-1 lg:grid-cols-3 gap-5'>
+                                        {/* Formulário de nova anotação */}
+                                        <div className='lg:col-span-1'>
+                                            <SectionCard icon={<HiOutlineAnnotation />} title='Nova Anotação' subtitle='Adicione observações ao prontuário' color='violet'>
+                                                <div className='space-y-3'>
+                                                    <div>
+                                                        <label className='text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5'>Tipo</label>
+                                                        <div className='flex gap-2'>
+                                                            {[
+                                                                { value: 'note', label: 'Nota', color: 'indigo' },
+                                                                { value: 'alert', label: 'Alerta', color: 'amber' },
+                                                                { value: 'observation', label: 'Observação', color: 'sky' },
+                                                            ].map(({ value, label, color }) => (
+                                                                <button
+                                                                    key={value}
+                                                                    onClick={() => setNoteForm((f) => ({ ...f, noteType: value }))}
+                                                                    className={`flex-1 py-1.5 rounded-xl text-xs font-semibold border transition ${
+                                                                        noteForm.noteType === value
+                                                                            ? `bg-${color}-600 text-white border-${color}-600`
+                                                                            : `bg-white dark:bg-gray-800 text-gray-500 border-gray-200 dark:border-gray-700 hover:border-${color}-300`
+                                                                    }`}
+                                                                >
+                                                                    {label}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+
+                                                    {noteForm.noteType === 'alert' && (
+                                                        <div>
+                                                            <label className='text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5'>Severidade</label>
+                                                            <div className='flex gap-2'>
+                                                                {[
+                                                                    { value: 'info', label: 'Info', color: 'blue' },
+                                                                    { value: 'warning', label: 'Atenção', color: 'amber' },
+                                                                    { value: 'danger', label: 'Crítico', color: 'red' },
+                                                                ].map(({ value, label, color }) => (
+                                                                    <button
+                                                                        key={value}
+                                                                        onClick={() => setNoteForm((f) => ({ ...f, alertSeverity: value }))}
+                                                                        className={`flex-1 py-1.5 rounded-xl text-xs font-semibold border transition ${
+                                                                            noteForm.alertSeverity === value
+                                                                                ? `bg-${color}-500 text-white border-${color}-500`
+                                                                                : `bg-white dark:bg-gray-800 text-gray-500 border-gray-200 dark:border-gray-700 hover:border-${color}-300`
+                                                                        }`}
+                                                                    >
+                                                                        {label}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    <div>
+                                                        <label className='text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5'>Conteúdo</label>
+                                                        <textarea
+                                                            rows={5}
+                                                            value={noteForm.content}
+                                                            onChange={(e) => setNoteForm((f) => ({ ...f, content: e.target.value }))}
+                                                            placeholder='Descreva a observação, alerta ou nota clínica…'
+                                                            className='w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 text-sm text-gray-800 dark:text-gray-200 px-3 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-violet-400 transition placeholder-gray-400'
+                                                        />
+                                                    </div>
+
+                                                    <label className='flex items-center gap-2 cursor-pointer group'>
+                                                        <input
+                                                            type='checkbox'
+                                                            checked={noteForm.showOnAttendance}
+                                                            onChange={(e) => setNoteForm((f) => ({ ...f, showOnAttendance: e.target.checked }))}
+                                                            className='w-4 h-4 accent-violet-600 rounded'
+                                                        />
+                                                        <span className='text-xs font-medium text-gray-600 dark:text-gray-400 group-hover:text-violet-600 transition'>
+                                                            Exibir no atendimento
+                                                        </span>
+                                                    </label>
+
+                                                    <button
+                                                        onClick={handleSaveNote}
+                                                        disabled={savingNote || !noteForm.content.trim()}
+                                                        className='w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold bg-violet-600 hover:bg-violet-700 disabled:bg-violet-300 dark:disabled:bg-violet-900/40 text-white transition shadow-sm shadow-violet-200'
+                                                    >
+                                                        <HiOutlinePlus className='w-4 h-4' />
+                                                        {savingNote ? 'Salvando…' : 'Salvar Anotação'}
+                                                    </button>
+                                                </div>
+                                            </SectionCard>
+                                        </div>
+
+                                        {/* Lista de anotações */}
+                                        <div className='lg:col-span-2'>
+                                            <SectionCard icon={<HiOutlineAnnotation />} title='Histórico de Anotações' subtitle={`${notes.length} registro${notes.length !== 1 ? 's' : ''}`} color='indigo'>
+                                                {loadingNotes ? (
+                                                    <div className='flex items-center justify-center py-10'>
+                                                        <div className='w-6 h-6 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin' />
+                                                    </div>
+                                                ) : notes.length === 0 ? (
+                                                    <div className='flex flex-col items-center justify-center py-10 text-gray-400'>
+                                                        <HiOutlineAnnotation className='w-10 h-10 mb-2 opacity-40' />
+                                                        <p className='text-sm'>Nenhuma anotação registrada</p>
+                                                    </div>
+                                                ) : (
+                                                    <div className='space-y-3 max-h-[600px] overflow-y-auto pr-1'>
+                                                        {notes.map((note) => {
+                                                            const typeConfig = {
+                                                                alert: {
+                                                                    danger:  { bar: 'bg-red-500',    bg: 'bg-red-50 dark:bg-red-950/20',    border: 'border-red-200 dark:border-red-900/40',    badge: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',    icon: <HiOutlineBell className='w-3.5 h-3.5' />,         label: 'Crítico' },
+                                                                    warning: { bar: 'bg-amber-400',  bg: 'bg-amber-50 dark:bg-amber-950/20', border: 'border-amber-200 dark:border-amber-900/40', badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', icon: <HiOutlineBell className='w-3.5 h-3.5' />,         label: 'Atenção' },
+                                                                    info:    { bar: 'bg-blue-400',   bg: 'bg-blue-50 dark:bg-blue-950/20',   border: 'border-blue-200 dark:border-blue-900/40',   badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',   icon: <HiOutlineBell className='w-3.5 h-3.5' />,         label: 'Info' },
+                                                                },
+                                                                note:        { bar: 'bg-indigo-400', bg: 'bg-indigo-50 dark:bg-indigo-950/20', border: 'border-indigo-200 dark:border-indigo-900/40', badge: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400', icon: <HiOutlineAnnotation className='w-3.5 h-3.5' />, label: 'Nota' },
+                                                                observation: { bar: 'bg-sky-400',    bg: 'bg-sky-50 dark:bg-sky-950/20',     border: 'border-sky-200 dark:border-sky-900/40',     badge: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400',       icon: <HiOutlineAnnotation className='w-3.5 h-3.5' />, label: 'Observação' },
+                                                            }
+
+                                                            const cfg = note.noteType === 'alert'
+                                                                ? (typeConfig.alert[note.alertSeverity] ?? typeConfig.alert.info)
+                                                                : (typeConfig[note.noteType] ?? typeConfig.note)
+
+                                                            return (
+                                                                <div
+                                                                    key={note.publicId}
+                                                                    className={`flex gap-0 rounded-xl border overflow-hidden ${cfg.border} ${cfg.bg}`}
+                                                                >
+                                                                    <div className={`w-1 flex-shrink-0 ${cfg.bar}`} />
+                                                                    <div className='flex-1 p-3.5'>
+                                                                        <div className='flex items-start justify-between gap-2 mb-2'>
+                                                                            <div className='flex items-center gap-1.5 flex-wrap'>
+                                                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${cfg.badge}`}>
+                                                                                    {cfg.icon}
+                                                                                    {cfg.label}
+                                                                                </span>
+                                                                                {note.showOnAttendance && (
+                                                                                    <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'>
+                                                                                        <HiOutlineCheckCircle className='w-3.5 h-3.5' />
+                                                                                        Exibir no atendimento
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                            <button
+                                                                                onClick={() => handleDeleteNote(note.publicId)}
+                                                                                className='flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition'
+                                                                                title='Excluir anotação'
+                                                                            >
+                                                                                <HiOutlineTrash className='w-4 h-4' />
+                                                                            </button>
+                                                                        </div>
+                                                                        <p className='text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap'>{note.content}</p>
+                                                                        <p className='text-[11px] text-gray-400 mt-2'>{formatDateTime(note.createdAt)}</p>
+                                                                    </div>
+                                                                </div>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </SectionCard>
+                                        </div>
                                     </div>
                                 </TabContent>
 
@@ -899,13 +1362,25 @@ const PatientRecordIndex = () => {
             {/* ── Recentes / Busca ── */}
             {!selectedPatient && (
                 <div className='space-y-5'>
-                    <Input
-                        placeholder='Buscar paciente por nome ou CPF…'
-                        size='sm'
-                        prefix={<HiOutlineSearch className='text-gray-400' />}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+                    {/* Header bar: busca + botão novo */}
+                    <div className='flex items-center gap-3'>
+                        <div className='flex-1'>
+                            <ConsumerSearchInput
+                                value={searchTerm}
+                                onChange={(v) => { setSearchTerm(v); if (!v.trim()) setApiResults([]) }}
+                                onResults={setApiResults}
+                                onSelect={(consumer) => openPatient(consumer, 'Busca')}
+                                placeholder='Buscar paciente por nome, nome social ou CPF…'
+                            />
+                        </div>
+                        <button
+                            onClick={() => setShowNewDialog(true)}
+                            className='flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl bg-violet-600 hover:bg-violet-700 text-white transition shadow-sm shadow-violet-200 whitespace-nowrap'
+                        >
+                            <HiOutlinePlus className='w-4 h-4' />
+                            Novo Prontuário
+                        </button>
+                    </div>
 
                     {searchTerm.trim() ? (
                         <div className='space-y-3'>
@@ -914,13 +1389,20 @@ const PatientRecordIndex = () => {
                                     Resultados
                                 </p>
                                 <span className='px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400'>
-                                    {filteredPatients.length}
+                                    {apiResults.length}
                                 </span>
                             </div>
                             <Pattern1
-                                items={filteredPatients.map(toPatternItem)}
-                                emptyMessage='Nenhum paciente encontrado'
+                                items={apiResults.map((p) => toPatternItem(p, operadoraNameByPublicId))}
+                                loading={loadingPatients}
+                                emptyMessage={searchTerm.trim().length < 2 ? 'Digite ao menos 2 caracteres…' : 'Nenhum paciente encontrado'}
                                 onItemClick={(item) => openPatient(item._raw, 'Busca')}
+                                actions={[{
+                                    key: 'edit',
+                                    icon: <HiOutlinePencil />,
+                                    tooltip: 'Editar',
+                                    onClick: (item) => openEdit(item._raw),
+                                }]}
                             />
                         </div>
                     ) : (
@@ -930,11 +1412,17 @@ const PatientRecordIndex = () => {
                             </p>
                             <Pattern1
                                 items={recentIds
-                                    .map((id) => PATIENTS.find((p) => p.id === id))
+                                    .map((id) => patients.find((p) => (p.publicId ?? p.id) === id))
                                     .filter(Boolean)
-                                    .map(toPatternItem)}
+                                    .map((p) => toPatternItem(p, operadoraNameByPublicId))}
                                 emptyMessage='Nenhum prontuário acessado recentemente'
                                 onItemClick={(item) => openPatient(item._raw, 'Prontuários Recentes')}
+                                actions={[{
+                                    key: 'edit',
+                                    icon: <HiOutlinePencil />,
+                                    tooltip: 'Editar',
+                                    onClick: (item) => openEdit(item._raw),
+                                }]}
                             />
                         </div>
                     )}

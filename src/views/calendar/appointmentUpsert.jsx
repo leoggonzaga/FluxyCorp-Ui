@@ -6,14 +6,13 @@ import { Button, Input, Notification, Select, toast, InputPhone, InputNationalDo
 import * as Yup from 'yup'
 import DatePickerInputtable from '../../components/ui/DatePicker/DatePickerInputtable';
 import TimeInputRange from '../../components/ui/TimeInput/TimeInputRange';
-import AsyncSelect from 'react-select/async'
 import { components } from 'react-select'
 import Loading from '../../components/shared/Loading'
+import ConsumerSearchInput from '@/components/shared/ConsumerSearchInput'
 import { enterpriseApiGetEmployees, enterpriseApiGetEmployeeSimplifiedById } from '../../api/enterprise/EnterpriseService';
 import { useEffect, useState } from 'react';
 import { consultationTypeApiGetTypes } from '../../api/consultation/consultationService';
 import CreatableSelect from 'react-select/creatable'
-import AsyncCreatableSelect from 'react-select/async-creatable'
 
 
 
@@ -57,6 +56,7 @@ const AppointmentUpsert = ({ data, onClose }) => {
     console.log(data);
 
     const [isLoading, setIsLoading] = useState(false);
+    const [phoneKey, setPhoneKey] = useState(0);
 
     const [employees, setEmployees] = useState([]);
     const [consultationTypes, setConsultationTypes] = useState([]);
@@ -137,35 +137,25 @@ const AppointmentUpsert = ({ data, onClose }) => {
 
                                 <div className='mt-4'>
                                     <FormItem
-                                        label="Nome Completo"
+                                        label="Paciente"
                                         asterisk
                                         invalid={errors.consumerName && touched.consumerName}
                                         errorMessage={errors.consumerName}
                                     >
                                         <Field name='consumerName'>
                                             {({ field, form }) => (
-                                                <Select
-                                                    defaultValue={values.customerName}
-                                                    placeholder="Nome Completo"
-                                                    value={{ value: values?.consumerPublicId, label: values?.consumerName }}
-                                                    loadOptions={(inputValue) => {
-                                                        return new Promise((resolve) => {
-                                                            setTimeout(() => {
-                                                                resolve([])
-                                                            }, 1000)
-                                                        })
+                                                <ConsumerSearchInput
+                                                    value={field.value || ''}
+                                                    onChange={(term) => form.setFieldValue(field.name, term)}
+                                                    onSelect={(consumer) => {
+                                                        form.setFieldValue('consumerPublicId', consumer.publicId)
+                                                        form.setFieldValue('consumerName', consumer.socialName || consumer.name)
+                                                        form.setFieldValue('email', consumer.email || '')
+                                                        form.setFieldValue('customerPhone', consumer.phoneNumber || '')
+                                                        setPhoneKey(k => k + 1)
                                                     }}
-                                                    componentAs={AsyncCreatableSelect}
-                                                    // components={{
-                                                    //     Option: CustomSelectOption,
-                                                    //     Control: CustomControl,
-                                                    // }}
-                                                    onCreateOption={(value) => form.setFieldValue(
-                                                        field.name,
-                                                        value
-                                                    )}
-                                                    onChange={(option) => { debugger }}
-                                                    size='lg'
+                                                    placeholder='Buscar por nome, nome social ou CPF…'
+                                                    className='w-full'
                                                 />
                                             )}
                                         </Field>
@@ -179,8 +169,9 @@ const AppointmentUpsert = ({ data, onClose }) => {
                                                 errorMessage={errors.customerEmail}
                                             >
                                                 <Field name='email'>
-                                                    {({ field, form }) => (
+                                                    {({ field }) => (
                                                         <Input
+                                                            {...field}
                                                             placeholder='Email'
                                                             className='w-[380px]'
                                                         />
@@ -197,7 +188,13 @@ const AppointmentUpsert = ({ data, onClose }) => {
                                             >
                                                 <Field name='customerPhone'>
                                                     {({ field, form }) => (
-                                                        <InputPhone className='w-[190px]' />
+                                                        <InputPhone
+                                                            key={phoneKey}
+                                                            field={field}
+                                                            form={form}
+                                                            mask="(00) 00000-0000"
+                                                            className='w-[190px]'
+                                                        />
                                                     )}
                                                 </Field>
                                             </FormItem>

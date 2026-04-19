@@ -1,91 +1,72 @@
-import { useMemo, useState } from 'react'
-import Avatar from '@/components/ui/Avatar'
-import Dropdown from '@/components/ui/Dropdown'
+import { useState } from 'react'
 import Spinner from '@/components/ui/Spinner'
-import classNames from 'classnames'
-import withHeaderItem from '@/utils/hoc/withHeaderItem'
 import { setLang, useAppSelector, useAppDispatch } from '@/store'
 import { dateLocales } from '@/locales'
 import dayjs from 'dayjs'
 // eslint-disable-next-line import/no-named-as-default
 import i18n from 'i18next'
-import { HiCheck } from 'react-icons/hi'
-import type { CommonProps } from '@/@types/common'
 
-const languageList = [{ label: 'English', value: 'en', flag: 'us' }]
+const LANGUAGES = [
+    { value: 'pt-BR', flag: '🇧🇷', label: 'Português (BR)' },
+    { value: 'pt-PT', flag: '🇵🇹', label: 'Português (PT)' },
+    { value: 'en',    flag: '🇺🇸', label: 'English' },
+    { value: 'es',    flag: '🇪🇸', label: 'Español' },
+]
 
-const _LanguageSelector = ({ className }: CommonProps) => {
+const LanguageSelector = () => {
     const [loading, setLoading] = useState(false)
     const locale = useAppSelector((state) => state.locale.currentLang)
     const dispatch = useAppDispatch()
 
-    const selectLangFlag = useMemo(() => {
-        return languageList.find((lang) => lang.value === locale)?.flag
-    }, [locale])
-
-    const selectedLanguage = (
-        <div className={classNames(className, 'flex items-center')}>
-            {loading ? (
-                <Spinner size={20} />
-            ) : (
-                <Avatar
-                    size={24}
-                    shape="circle"
-                    src={`/img/countries/${selectLangFlag}.png`}
-                />
-            )}
-        </div>
-    )
-
-    const onLanguageSelect = (lang: string) => {
-        const formattedLang = lang.replace(/-([a-z])/g, function (g) {
-            return g[1].toUpperCase()
-        })
-
+    const onSelect = (lang: string) => {
+        if (lang === locale || loading) return
+        const formatted = lang.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())
         setLoading(true)
 
-        const dispatchLang = () => {
-            i18n.changeLanguage(formattedLang)
+        const apply = () => {
+            i18n.changeLanguage(formatted)
             dispatch(setLang(lang))
             setLoading(false)
         }
 
-        dateLocales[formattedLang]()
-            .then(() => {
-                dayjs.locale(formattedLang)
-                dispatchLang()
-            })
-            .catch(() => {
-                dispatchLang()
-            })
+        const loader = dateLocales[formatted] ?? dateLocales[lang]
+        if (loader) {
+            loader().then(() => { dayjs.locale(formatted); apply() }).catch(apply)
+        } else {
+            apply()
+        }
+    }
+
+    if (loading) {
+        return (
+            <div className="flex items-center px-2">
+                <Spinner size={18} />
+            </div>
+        )
     }
 
     return (
-        <Dropdown renderTitle={selectedLanguage} placement="bottom-end">
-            {languageList.map((lang) => (
-                <Dropdown.Item
-                    key={lang.label}
-                    className="mb-1 justify-between"
-                    eventKey={lang.label}
-                    onClick={() => onLanguageSelect(lang.value)}
-                >
-                    <span className="flex items-center">
-                        <Avatar
-                            size={18}
-                            shape="circle"
-                            src={`/img/countries/${lang.flag}.png`}
-                        />
-                        <span className="ltr:ml-2 rtl:mr-2">{lang.label}</span>
-                    </span>
-                    {locale === lang.value && (
-                        <HiCheck className="text-emerald-500 text-lg" />
-                    )}
-                </Dropdown.Item>
-            ))}
-        </Dropdown>
+        <div className="flex items-center gap-0.5 px-1">
+            {LANGUAGES.map((lang) => {
+                const active = locale === lang.value
+                return (
+                    <button
+                        key={lang.value}
+                        title={lang.label}
+                        onClick={() => onSelect(lang.value)}
+                        className={[
+                            'flex items-center justify-center w-8 h-8 rounded-lg text-lg transition-all duration-150 select-none',
+                            active
+                                ? 'bg-white dark:bg-gray-700 shadow-sm ring-1 ring-black/5 scale-110'
+                                : 'opacity-40 hover:opacity-80 hover:bg-black/5 dark:hover:bg-white/10',
+                        ].join(' ')}
+                    >
+                        {lang.flag}
+                    </button>
+                )
+            })}
+        </div>
     )
 }
-
-const LanguageSelector = withHeaderItem(_LanguageSelector)
 
 export default LanguageSelector

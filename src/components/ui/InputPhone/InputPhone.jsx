@@ -26,6 +26,7 @@ const InputPhone = forwardRef((props, ref) => {
         field,
         form,
         onChange,
+        mask: maskOverride,
         ...rest
     } = props
 
@@ -43,8 +44,10 @@ const InputPhone = forwardRef((props, ref) => {
     const currentLang = i18n.language
 
     const phoneMask = useMemo(() => {
+        if (maskOverride) return maskOverride
         switch (currentLang) {
             case 'pt-BR':
+            case 'pt':
                 return '(00) 00000-0000'
             case 'en':
                 return '(000) 000-0000'
@@ -56,7 +59,7 @@ const InputPhone = forwardRef((props, ref) => {
             default:
                 return '(00) 00000-0000'
         }
-    }, [currentLang])
+    }, [currentLang, maskOverride])
 
     const fixControlledValue = (val) => {
         if (typeof val === 'undefined' || val === null) return ''
