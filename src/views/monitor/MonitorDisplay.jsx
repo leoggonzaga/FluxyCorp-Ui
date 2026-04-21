@@ -19,6 +19,9 @@ const LS_PHOTOS = 'fluxy_monitor_photos'
 const LS_SETTINGS = 'fluxy_monitor_settings'
 const LS_COMPANY = 'fluxy_monitor_company'
 const SS_UNLOCKED = 'fluxy_monitor_unlocked'
+const EVENT_CALL = 'CALL_TO_ROOM'
+const EVENT_HISTORY_VIDEO = 'HISTORY_WITH_VIDEO'
+const EVENT_HISTORY_ADS = 'HISTORY_WITH_ADS'
 
 // Fotos base64 podem ser grandes — nunca deixar um QuotaExceededError travar o monitor
 function safeSave(key, value) {
@@ -414,6 +417,8 @@ export default function MonitorDisplay() {
     const [callVisible, setCallVisible] = useState(false)
     const [queueVisible, setQueueVisible] = useState(true)
     const [videoExpanded, setVideoExpanded] = useState(false)
+    const [eventQueue, setEventQueue] = useState([])
+    const [eventCursor, setEventCursor] = useState(0)
 
     // Carousel state
     const [carouselActive, setCarouselActive] = useState(false)
@@ -423,9 +428,8 @@ export default function MonitorDisplay() {
     const dismissRef = useRef(null)
     const expandRef = useRef(null)
     const repeatRef = useRef(null)
-    const queueHideRef = useRef(null)    // usado pelo ciclo queueHideSec
-    const queueDismissRef = useRef(null) // usado exclusivamente pelo timer pós-chamada
-    const queueCycleRef = useRef(null)
+    const eventDoneRef = useRef(null)
+    const currentEventRef = useRef(null)
     const lastCallRef = useRef(null)
     const cfgRef = useRef(cfg)
     cfgRef.current = cfg
@@ -436,9 +440,9 @@ export default function MonitorDisplay() {
     const carouselActiveRef = useRef(false)
     carouselActiveRef.current = carouselActive
     const bootedRef = useRef(false)
-    const repeatCountRef = useRef(0)
     const carouselSequenceRef = useRef(null)
-    const carouselIntervalRef = useRef(null)
+    const eventSchedulerRef = useRef(null)
+    const adsSchedulerRef = useRef(null)
 
     const [time, setTime] = useState(new Date())
     const iframeRef = useRef(null)
@@ -456,36 +460,6 @@ export default function MonitorDisplay() {
     useEffect(() => {
         if (resolvedCid) localStorage.setItem(LS_COMPANY, resolvedCid)
     }, [resolvedCid])
-
-    // ── Queue visibility cycle ─────────────────────────────────────────────────
-    const startQueueCycle = useCallback(() => {
-        if (queueHideRef.current) clearTimeout(queueHideRef.current)
-        if (queueCycleRef.current) clearTimeout(queueCycleRef.current)
-        const step = () => {
-            const hideSec = cfgRef.current.queueHideSec ?? 0
-            if (hideSec <= 0) { setQueueVisible(true); return }
-            queueHideRef.current = setTimeout(() => {
-                setQueueVisible(false)
-                queueCycleRef.current = setTimeout(() => {
-                    setQueueVisible(true)
-                    step()
-                }, hideSec * 1000)
-            }, hideSec * 1000)
-        }
-        step()
-    }, [])
-
-    useEffect(() => {
-        if (!unlocked) return
-        const hideSec = cfg.queueHideSec ?? 0
-        if (queueHideRef.current) clearTimeout(queueHideRef.current)
-        if (queueCycleRef.current) clearTimeout(queueCycleRef.current)
-        if (hideSec <= 0) {
-            setQueueVisible(true)
-        } else if (queue.length > 0) {
-            startQueueCycle()
-        }
-    }, [cfg.queueHideSec, unlocked]) // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Volume via YouTube IFrame API ──────────────────────────────────────────
     useEffect(() => {
@@ -629,67 +603,59 @@ export default function MonitorDisplay() {
         carouselSequenceRef.current = setTimeout(() => advanceCarouselRef.current?.(), displayMs)
     }
 
-    // Periodic carousel trigger
+    const enqueueEvent = useCallback((event, options = {}) => {
+        const { priority = false } = options
+        setEventQueue(prev => {
+            const queueSnapshot = priority ? [event, ...prev] : [...prev, event]
+            const normalized = queueSnapshot.filter((item, idx, arr) => idx === 0 || item.type !== arr[idx - 1].type)
+            return normalized
+        })
+    }, [])
+
+    // Schedulers de eventos vindos das frequencias da API
     useEffect(() => {
         if (!unlocked) return
-        if (carouselIntervalRef.current) { clearInterval(carouselIntervalRef.current); carouselIntervalRef.current = null }
+        if (eventSchedulerRef.current) clearInterval(eventSchedulerRef.current)
+        if (adsSchedulerRef.current) clearInterval(adsSchedulerRef.current)
 
-        if (!cfg.showPhotoCarousel || photos.length === 0) {
-            stopCarousel()
-            return
+        const historySec = Math.max(5, cfg.queueHideSec ?? 5)
+        eventSchedulerRef.current = setInterval(() => {
+            enqueueEvent({ type: EVENT_HISTORY_VIDEO })
+        }, historySec * 1000)
+        enqueueEvent({ type: EVENT_HISTORY_VIDEO })
+
+        if (cfg.showPhotoCarousel && photos.length > 0) {
+            const adsMs = Math.max(1, cfg.carouselIntervalMin ?? 10) * 60 * 1000
+            adsSchedulerRef.current = setInterval(() => {
+                enqueueEvent({ type: EVENT_HISTORY_ADS })
+            }, adsMs)
         }
-
-        const intervalMs = Math.max(1, cfg.carouselIntervalMin ?? 10) * 60 * 1000
-        carouselIntervalRef.current = setInterval(() => startCarouselRef.current?.(), intervalMs)
 
         return () => {
-            if (carouselIntervalRef.current) { clearInterval(carouselIntervalRef.current); carouselIntervalRef.current = null }
+            if (eventSchedulerRef.current) clearInterval(eventSchedulerRef.current)
+            if (adsSchedulerRef.current) clearInterval(adsSchedulerRef.current)
         }
-    }, [unlocked, cfg.showPhotoCarousel, cfg.carouselIntervalMin, photos.length, stopCarousel])
+    }, [unlocked, cfg.queueHideSec, cfg.showPhotoCarousel, cfg.carouselIntervalMin, photos.length, enqueueEvent])
 
-    // ── Repeat last call ───────────────────────────────────────────────────────
-    const doRepeatRef = useRef(null)
-    doRepeatRef.current = () => {
-        if (repeatCountRef.current >= 1) return
-        const call = lastCallRef.current
-        if (!call) return
-        repeatCountRef.current++
-        const displayMs = Math.max(5, cfgRef.current.callDisplaySec ?? 5) * 1000
-        const expandMs  = Math.max(displayMs - 500, 0)
-        setActiveCall(call)
-        setCallVisible(true)
-        setQueueVisible(true)
-        setVideoExpanded(false)
+    const enterIdleVideoMode = useCallback(() => {
+        setCallVisible(false)
+        setQueueVisible(false)
+        setVideoExpanded(true)
         stopCarousel()
-        playChime()
-        if (dismissRef.current) clearTimeout(dismissRef.current)
-        if (expandRef.current) clearTimeout(expandRef.current)
-        expandRef.current = setTimeout(() => setVideoExpanded(true), expandMs)
-        dismissRef.current = setTimeout(() => {
-            setCallVisible(false)
-            setVideoExpanded(false)
-            if (queueDismissRef.current) clearTimeout(queueDismissRef.current)
-            const queueSec = cfgRef.current.queueHideSec ?? 0
-            if (queueSec > 0) queueDismissRef.current = setTimeout(() => setQueueVisible(false), queueSec * 1000)
-            const interval = cfgRef.current.callRepeatIntervalSec ?? 0
-            if (interval > 0 && repeatCountRef.current < 2) {
-                repeatRef.current = setTimeout(() => doRepeatRef.current?.(), interval * 1000)
-            }
-        }, displayMs)
-    }
+    }, [stopCarousel])
 
-    const handleIncomingCall = useCallback((patientName, room) => {
-        const call = { patientName, room, ts: Date.now() }
-        lastCallRef.current = call
-        repeatCountRef.current = 0
-        setLastCall(call)
-        setQueue(prev => {
-            const q = [call, ...prev].slice(0, 5)
-            localStorage.setItem(LS_QUEUE, JSON.stringify(q))
-            return q
-        })
+    const finishCurrentEvent = useCallback(() => {
+        if (eventDoneRef.current) {
+            clearTimeout(eventDoneRef.current)
+            eventDoneRef.current = null
+        }
+        currentEventRef.current = null
+        setEventCursor(prev => prev + 1)
+    }, [])
+
+    const processCallSequence = useCallback((call, runNumber = 1) => {
         const displayMs = Math.max(5, cfgRef.current.callDisplaySec ?? 5) * 1000
-        const expandMs  = Math.max(displayMs - 500, 0)
+        const expandMs = Math.max(displayMs - 500, 0)
         setActiveCall(call)
         setCallVisible(true)
         setQueueVisible(true)
@@ -699,22 +665,84 @@ export default function MonitorDisplay() {
         if (dismissRef.current) clearTimeout(dismissRef.current)
         if (expandRef.current) clearTimeout(expandRef.current)
         if (repeatRef.current) clearTimeout(repeatRef.current)
-        if (queueHideRef.current) clearTimeout(queueHideRef.current)
-        if (queueDismissRef.current) clearTimeout(queueDismissRef.current)
-        if (queueCycleRef.current) clearTimeout(queueCycleRef.current)
         expandRef.current = setTimeout(() => setVideoExpanded(true), expandMs)
         dismissRef.current = setTimeout(() => {
             setCallVisible(false)
             setVideoExpanded(false)
-            if (queueDismissRef.current) clearTimeout(queueDismissRef.current)
-            const queueSec = cfgRef.current.queueHideSec ?? 0
-            if (queueSec > 0) queueDismissRef.current = setTimeout(() => setQueueVisible(false), queueSec * 1000)
-            const interval = cfgRef.current.callRepeatIntervalSec ?? 0
-            if (interval > 0) {
-                repeatRef.current = setTimeout(() => doRepeatRef.current?.(), interval * 1000)
+            const interval = Math.max(0, cfgRef.current.callRepeatIntervalSec ?? 0)
+            if (runNumber < 2 && interval > 0) {
+                repeatRef.current = setTimeout(() => processCallSequence(call, runNumber + 1), interval * 1000)
+                return
             }
+            finishCurrentEvent()
         }, displayMs)
-    }, [stopCarousel, startQueueCycle])
+    }, [finishCurrentEvent, stopCarousel])
+
+    const runEventRef = useRef(null)
+    runEventRef.current = (event) => {
+        if (!event) return
+        currentEventRef.current = event
+
+        if (event.type === EVENT_CALL) {
+            processCallSequence(event.payload, 1)
+            return
+        }
+
+        if (eventDoneRef.current) clearTimeout(eventDoneRef.current)
+        setActiveCall(null)
+        setCallVisible(false)
+        setQueueVisible(true)
+        setVideoExpanded(false)
+
+        if (event.type === EVENT_HISTORY_ADS) {
+            startCarouselRef.current?.()
+            const adsMs = Math.max(6, cfgRef.current.photoDisplaySec ?? 8) * 1000 * Math.max(1, photosRef.current.length || 1)
+            eventDoneRef.current = setTimeout(() => {
+                stopCarousel()
+                finishCurrentEvent()
+            }, adsMs)
+            return
+        }
+
+        stopCarousel()
+        const historyMs = 5000
+        eventDoneRef.current = setTimeout(() => finishCurrentEvent(), historyMs)
+    }
+
+    useEffect(() => {
+        if (!unlocked) return
+        if (currentEventRef.current || !eventQueue.length) return
+        const [next, ...rest] = eventQueue
+        setEventQueue(rest)
+        runEventRef.current?.(next)
+    }, [eventQueue, unlocked, eventCursor])
+
+    useEffect(() => {
+        if (!unlocked) return
+        if (currentEventRef.current) return
+        if (eventQueue.length > 0) return
+        enterIdleVideoMode()
+    }, [unlocked, eventQueue, eventCursor, enterIdleVideoMode])
+
+    const handleIncomingCall = useCallback((patientName, room) => {
+        const call = { patientName, room, ts: Date.now() }
+        lastCallRef.current = call
+        setLastCall(call)
+        setQueue(prev => {
+            const q = [call, ...prev].slice(0, 5)
+            localStorage.setItem(LS_QUEUE, JSON.stringify(q))
+            return q
+        })
+
+        if (dismissRef.current) clearTimeout(dismissRef.current)
+        if (expandRef.current) clearTimeout(expandRef.current)
+        if (repeatRef.current) clearTimeout(repeatRef.current)
+        if (eventDoneRef.current) clearTimeout(eventDoneRef.current)
+        stopCarousel()
+
+        finishCurrentEvent()
+        enqueueEvent({ type: EVENT_CALL, payload: call }, { priority: true })
+    }, [enqueueEvent, finishCurrentEvent, stopCarousel])
 
     const handleRemoteSettings = useCallback((data) => {
         if (!data) return
@@ -768,25 +796,28 @@ export default function MonitorDisplay() {
             }
             if (data.type === 'CLEAR_QUEUE') {
                 setQueue([]); setActiveCall(null); setLastCall(null); lastCallRef.current = null
-                setCallVisible(false); setQueueVisible(true)
+                setEventQueue([])
+                setCallVisible(false); setQueueVisible(false); setVideoExpanded(true)
                 if (repeatRef.current) clearTimeout(repeatRef.current)
-                if (queueHideRef.current) clearTimeout(queueHideRef.current)
-                if (queueDismissRef.current) clearTimeout(queueDismissRef.current)
-                if (queueCycleRef.current) clearTimeout(queueCycleRef.current)
+                if (dismissRef.current) clearTimeout(dismissRef.current)
+                if (expandRef.current) clearTimeout(expandRef.current)
+                if (eventDoneRef.current) clearTimeout(eventDoneRef.current)
+                stopCarousel()
+                finishCurrentEvent()
                 localStorage.removeItem(LS_QUEUE)
             }
         }
         return () => {
             bc.close()
             if (dismissRef.current) clearTimeout(dismissRef.current)
+            if (expandRef.current) clearTimeout(expandRef.current)
             if (repeatRef.current) clearTimeout(repeatRef.current)
-            if (queueHideRef.current) clearTimeout(queueHideRef.current)
-            if (queueDismissRef.current) clearTimeout(queueDismissRef.current)
-            if (queueCycleRef.current) clearTimeout(queueCycleRef.current)
+            if (eventDoneRef.current) clearTimeout(eventDoneRef.current)
             if (carouselSequenceRef.current) clearTimeout(carouselSequenceRef.current)
-            if (carouselIntervalRef.current) clearInterval(carouselIntervalRef.current)
+            if (eventSchedulerRef.current) clearInterval(eventSchedulerRef.current)
+            if (adsSchedulerRef.current) clearInterval(adsSchedulerRef.current)
         }
-    }, [unlocked, handleIncomingCall])
+    }, [unlocked, handleIncomingCall, finishCurrentEvent, stopCarousel])
 
     // Video cycling
     useEffect(() => {
