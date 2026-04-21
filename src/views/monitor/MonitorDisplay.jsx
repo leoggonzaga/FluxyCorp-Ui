@@ -423,7 +423,8 @@ export default function MonitorDisplay() {
     const dismissRef = useRef(null)
     const expandRef = useRef(null)
     const repeatRef = useRef(null)
-    const queueHideRef = useRef(null)
+    const queueHideRef = useRef(null)    // usado pelo ciclo queueHideSec
+    const queueDismissRef = useRef(null) // usado exclusivamente pelo timer pós-chamada
     const queueCycleRef = useRef(null)
     const lastCallRef = useRef(null)
     const cfgRef = useRef(cfg)
@@ -667,8 +668,9 @@ export default function MonitorDisplay() {
         dismissRef.current = setTimeout(() => {
             setCallVisible(false)
             setVideoExpanded(false)
-            if (queueHideRef.current) clearTimeout(queueHideRef.current)
-            queueHideRef.current = setTimeout(() => setQueueVisible(false), 6000)
+            if (queueDismissRef.current) clearTimeout(queueDismissRef.current)
+            const queueSec = cfgRef.current.queueHideSec ?? 0
+            if (queueSec > 0) queueDismissRef.current = setTimeout(() => setQueueVisible(false), queueSec * 1000)
             const interval = cfgRef.current.callRepeatIntervalSec ?? 0
             if (interval > 0 && repeatCountRef.current < 2) {
                 repeatRef.current = setTimeout(() => doRepeatRef.current?.(), interval * 1000)
@@ -698,13 +700,15 @@ export default function MonitorDisplay() {
         if (expandRef.current) clearTimeout(expandRef.current)
         if (repeatRef.current) clearTimeout(repeatRef.current)
         if (queueHideRef.current) clearTimeout(queueHideRef.current)
+        if (queueDismissRef.current) clearTimeout(queueDismissRef.current)
         if (queueCycleRef.current) clearTimeout(queueCycleRef.current)
         expandRef.current = setTimeout(() => setVideoExpanded(true), expandMs)
         dismissRef.current = setTimeout(() => {
             setCallVisible(false)
             setVideoExpanded(false)
-            if (queueHideRef.current) clearTimeout(queueHideRef.current)
-            queueHideRef.current = setTimeout(() => setQueueVisible(false), 6000)
+            if (queueDismissRef.current) clearTimeout(queueDismissRef.current)
+            const queueSec = cfgRef.current.queueHideSec ?? 0
+            if (queueSec > 0) queueDismissRef.current = setTimeout(() => setQueueVisible(false), queueSec * 1000)
             const interval = cfgRef.current.callRepeatIntervalSec ?? 0
             if (interval > 0) {
                 repeatRef.current = setTimeout(() => doRepeatRef.current?.(), interval * 1000)
@@ -767,6 +771,7 @@ export default function MonitorDisplay() {
                 setCallVisible(false); setQueueVisible(true)
                 if (repeatRef.current) clearTimeout(repeatRef.current)
                 if (queueHideRef.current) clearTimeout(queueHideRef.current)
+                if (queueDismissRef.current) clearTimeout(queueDismissRef.current)
                 if (queueCycleRef.current) clearTimeout(queueCycleRef.current)
                 localStorage.removeItem(LS_QUEUE)
             }
@@ -776,6 +781,7 @@ export default function MonitorDisplay() {
             if (dismissRef.current) clearTimeout(dismissRef.current)
             if (repeatRef.current) clearTimeout(repeatRef.current)
             if (queueHideRef.current) clearTimeout(queueHideRef.current)
+            if (queueDismissRef.current) clearTimeout(queueDismissRef.current)
             if (queueCycleRef.current) clearTimeout(queueCycleRef.current)
             if (carouselSequenceRef.current) clearTimeout(carouselSequenceRef.current)
             if (carouselIntervalRef.current) clearInterval(carouselIntervalRef.current)
