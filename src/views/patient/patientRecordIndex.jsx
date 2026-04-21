@@ -1383,11 +1383,11 @@ const PatientRecordIndex = () => {
                         <Tabs defaultValue='dashboard'>
                             <TabList>
                                 <div className='flex flex-wrap items-center gap-2 w-full'>
-                                    <TabNav value='dashboard'>Dashboard</TabNav>
-                                    <TabNav value='financial'>Financeiro</TabNav>
-                                    <TabNav value='appointments'>Atendimentos</TabNav>
-                                    <TabNav value='notes'>Anotações</TabNav>
-                                    <TabNav value='media'>Imagens e Documentos</TabNav>
+                                    <TabNav value='dashboard' icon={<HiOutlineClipboardList />}>Dashboard</TabNav>
+                                    <TabNav value='financial' icon={<HiOutlineCurrencyDollar />}>Financeiro</TabNav>
+                                    <TabNav value='appointments' icon={<HiOutlineCalendar />}>Atendimentos</TabNav>
+                                    <TabNav value='notes' icon={<HiOutlineAnnotation />}>Anotações</TabNav>
+                                    <TabNav value='media' icon={<HiOutlinePhotograph />}>Imagens e Documentos</TabNav>
                                 </div>
                             </TabList>
 

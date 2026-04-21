@@ -1,5 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
-import { Card, Input, Button, Notification, toast } from '@/components/ui'
+import { Card, Input, Button, Notification, Tabs, toast } from '@/components/ui'
+import TabList from '@/components/ui/Tabs/TabList'
+import TabNav from '@/components/ui/Tabs/TabNav'
 import { monitorGetSettings, monitorUpdateSettings } from '@/api/enterprise/EnterpriseService'
 import { callPatientOnMonitor } from '@/utils/monitorBroadcast'
 import { useAppSelector } from '@/store/hook'
@@ -288,6 +290,7 @@ export default function MonitorSettingsIndex() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [showPass, setShowPass] = useState(false)
+    const [activeTab, setActiveTab] = useState('general')
     const cfgRef = useRef(cfg)
     const videosRef = useRef(videos)
     const photosRef = useRef(photos)
@@ -423,7 +426,7 @@ export default function MonitorSettingsIndex() {
     const volumeVal = cfg.volume ?? 50
 
     return (
-        <div className="p-6 max-w-3xl mx-auto space-y-4">
+        <div className="p-6 w-full space-y-4">
             {/* Header */}
             <div className="flex items-center justify-between mb-2">
                 <div>
@@ -442,8 +445,28 @@ export default function MonitorSettingsIndex() {
                 </div>
             </div>
 
+            <Card className="border border-gray-200 dark:border-gray-700">
+                <Tabs defaultValue="general" onChange={setActiveTab}>
+                    <TabList>
+                        <TabNav value="general" icon={<HiOutlineDesktopComputer />}>
+                            Geral
+                        </TabNav>
+                        <TabNav value="appearance" icon={<HiOutlineAdjustments />}>
+                            Aparência
+                        </TabNav>
+                        <TabNav value="behavior" icon={<HiOutlineClock />}>
+                            Comportamento
+                        </TabNav>
+                        <TabNav value="media" icon={<HiOutlinePhotograph />}>
+                            Mídia
+                        </TabNav>
+                    </TabList>
+                </Tabs>
+            </Card>
+
             {/* ── Linha 1: Acesso + Segurança ─────────────────────────────── */}
-            <div className="grid grid-cols-2 gap-4">
+            {activeTab === 'general' && (
+                <div className="grid grid-cols-2 gap-4">
                 {/* URL */}
                 <Card className="border border-gray-200 dark:border-gray-700 overflow-hidden">
                     <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60">
@@ -524,10 +547,12 @@ export default function MonitorSettingsIndex() {
                         </div>
                     </div>
                 </Card>
-            </div>
+                </div>
+            )}
 
             {/* ── Aparência ─────────────────────────────────────────────────── */}
-            <Card className="border border-gray-200 dark:border-gray-700 overflow-hidden">
+            {activeTab === 'appearance' && (
+                <Card className="border border-gray-200 dark:border-gray-700 overflow-hidden">
                 <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60">
                     <div className="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                         <HiOutlineAdjustments className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -655,10 +680,12 @@ export default function MonitorSettingsIndex() {
                         </div>
                     </div>
                 </div>
-            </Card>
+                </Card>
+            )}
 
             {/* ── Comportamento ─────────────────────────────────────────────── */}
-            <Card className="border border-gray-200 dark:border-gray-700 overflow-hidden">
+            {activeTab === 'behavior' && (
+                <Card className="border border-gray-200 dark:border-gray-700 overflow-hidden">
                 <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60">
                     <div className="w-7 h-7 rounded-lg bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
                         <HiOutlineClock className="w-4 h-4 text-violet-600 dark:text-violet-400" />
@@ -723,10 +750,13 @@ export default function MonitorSettingsIndex() {
                         </select>
                     </div>
                 </div>
-            </Card>
+                </Card>
+            )}
 
             {/* ── Espaço Publicitário ───────────────────────────────────────── */}
-            <Card className="border border-gray-200 dark:border-gray-700 overflow-hidden">
+            {activeTab === 'media' && (
+                <>
+                    <Card className="border border-gray-200 dark:border-gray-700 overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60">
                     <div className="flex items-center gap-2.5">
                         <div className="w-7 h-7 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
@@ -823,10 +853,10 @@ export default function MonitorSettingsIndex() {
                         />
                     )}
                 </div>
-            </Card>
+                    </Card>
 
             {/* ── Playlist ──────────────────────────────────────────────────── */}
-            <Card className="border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <Card className="border border-gray-200 dark:border-gray-700 overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60">
                     <div className="flex items-center gap-2.5">
                         <div className="w-7 h-7 rounded-lg bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
@@ -852,7 +882,9 @@ export default function MonitorSettingsIndex() {
                 ) : (
                     <Pattern1 items={videoItems} actions={videoActions} onItemClick={item => setVideoDialog({ open: true, video: item._raw })} />
                 )}
-            </Card>
+                    </Card>
+                </>
+            )}
 
             <VideoDialog open={videoDialog.open} video={videoDialog.video} onClose={() => setVideoDialog({ open: false, video: null })} onSave={handleVideoSave} />
             <TestCallDialog open={testDialog} onClose={() => setTestDialog(false)} onCall={handleTestCall} />

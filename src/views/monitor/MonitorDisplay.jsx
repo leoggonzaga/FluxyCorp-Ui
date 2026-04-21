@@ -166,6 +166,25 @@ function formatCallDateTime(ts) {
     })
 }
 
+function detectLowPerfMode() {
+    try {
+        if (typeof window === 'undefined') return false
+        const nav = window.navigator || {}
+        const lowCpu = Number(nav.hardwareConcurrency || 0) > 0 && Number(nav.hardwareConcurrency) <= 4
+        const lowMem = Number(nav.deviceMemory || 0) > 0 && Number(nav.deviceMemory) <= 2
+        const reducedMotion = !!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+        return lowCpu || lowMem || reducedMotion
+    } catch {
+        return false
+    }
+}
+
+function normalizePhotosForDevice(list, lowPerfMode) {
+    const source = Array.isArray(list) ? list : []
+    const maxPhotos = lowPerfMode ? 8 : 24
+    return source.slice(0, maxPhotos)
+}
+
 function playChime() {
     try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext
@@ -207,12 +226,12 @@ function playChime() {
 
 // ─── Carousel slide ───────────────────────────────────────────────────────────
 
-function CarouselSlide({ photo, fade, total, current, theme: t }) {
+function CarouselSlide({ photo, fade, total, current, theme: t, lowPerfMode }) {
     return (
         <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-10 py-8">
             {/* Fundo desfocado da imagem */}
             <div
-                className="absolute inset-0 scale-110 blur-2xl opacity-20 pointer-events-none"
+                className={`absolute inset-0 scale-110 opacity-20 pointer-events-none ${lowPerfMode ? 'blur-lg' : 'blur-2xl'}`}
                 style={{ backgroundImage: `url(${photo.imageBase64})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
             />
 
@@ -232,8 +251,8 @@ function CarouselSlide({ photo, fade, total, current, theme: t }) {
                 <img
                     src={photo.imageBase64}
                     alt={photo.title || 'Publicidade'}
-                    className="max-h-full max-w-full object-contain rounded-2xl shadow-2xl"
-                    style={{ boxShadow: `0 24px 80px rgba(0,0,0,0.5)` }}
+                    className={`max-h-full max-w-full object-contain rounded-2xl ${lowPerfMode ? 'shadow-lg' : 'shadow-2xl'}`}
+                    style={{ boxShadow: lowPerfMode ? '0 10px 28px rgba(0,0,0,0.35)' : '0 24px 80px rgba(0,0,0,0.5)' }}
                 />
             </div>
 
@@ -410,6 +429,7 @@ function MonitorLockScreen({ onUnlock, companyPublicId: cid }) {
 // ─── Main Monitor ─────────────────────────────────────────────────────────────
 
 export default function MonitorDisplay() {
+    const lowPerfMode = useMemo(() => detectLowPerfMode(), [])
     const [unlocked, setUnlocked] = useState(false)
     const [fadeIn, setFadeIn] = useState(false)
     const [booting, setBooting] = useState(true)
@@ -512,7 +532,7 @@ export default function MonitorDisplay() {
                 carouselIntervalMin:   data.carouselIntervalMin   ?? 10,
             }
             const vids = data.videos?.length ? data.videos : SEED_VIDEOS
-            const ph = data.photos ?? []
+            const ph = normalizePhotosForDevice(data.photos ?? [], lowPerfMode)
             safeSave(LS_SETTINGS, merged)
             safeSave(LS_VIDEOS, vids)
             safeSave(LS_PHOTOS, ph)
@@ -551,7 +571,7 @@ export default function MonitorDisplay() {
         const v = JSON.parse(localStorage.getItem(LS_VIDEOS) || 'null')
         if (v?.length) setVideos(v)
         const p = JSON.parse(localStorage.getItem(LS_PHOTOS) || '[]')
-        setPhotos(p)
+        setPhotos(normalizePhotosForDevice(p, lowPerfMode))
         // Descarta fila do boot anterior — monitor sempre abre com vídeo expandido
         setUnlocked(true)
         setTimeout(() => setFadeIn(true), 30)
@@ -841,11 +861,11 @@ export default function MonitorDisplay() {
             safeSave(LS_VIDEOS, data.videos)
         }
         if (data.photos !== undefined) {
-            const ph = data.photos ?? []
+            const ph = normalizePhotosForDevice(data.photos ?? [], lowPerfMode)
             setPhotos(ph)
             safeSave(LS_PHOTOS, ph)
         }
-    }, [])
+    }, [lowPerfMode])
 
     // SignalR
     useMonitorSignalR({
@@ -862,11 +882,19 @@ export default function MonitorDisplay() {
         bc.onmessage = ({ data }) => {
             if (data.type === 'CALL_PATIENT') handleIncomingCall(data.payload.patientName, data.payload.room)
             if (data.type === 'UPDATE_VIDEOS') { setVideos(data.payload); setVidIdx(0); safeSave(LS_VIDEOS, data.payload) }
-            if (data.type === 'UPDATE_PHOTOS') { setPhotos(data.payload); safeSave(LS_PHOTOS, data.payload) }
+            if (data.type === 'UPDATE_PHOTOS') {
+                const ph = normalizePhotosForDevice(data.payload, lowPerfMode)
+                setPhotos(ph)
+                safeSave(LS_PHOTOS, ph)
+            }
             if (data.type === 'UPDATE_SETTINGS') {
                 const s = data.payload
                 setCfg(s)
-                if (s.photos !== undefined) { setPhotos(s.photos ?? []); safeSave(LS_PHOTOS, s.photos ?? []) }
+                if (s.photos !== undefined) {
+                    const ph = normalizePhotosForDevice(s.photos ?? [], lowPerfMode)
+                    setPhotos(ph)
+                    safeSave(LS_PHOTOS, ph)
+                }
             }
             if (data.type === 'CLEAR_QUEUE') {
                 setQueue([]); setActiveCall(null); setLastCall(null); lastCallRef.current = null
@@ -892,7 +920,7 @@ export default function MonitorDisplay() {
             if (eventSchedulerRef.current) clearInterval(eventSchedulerRef.current)
             if (adsSchedulerRef.current) clearInterval(adsSchedulerRef.current)
         }
-    }, [unlocked, handleIncomingCall, finishCurrentEvent, stopCarousel])
+    }, [unlocked, handleIncomingCall, finishCurrentEvent, stopCarousel, lowPerfMode])
 
     // Video cycling
     useEffect(() => {
@@ -969,7 +997,7 @@ export default function MonitorDisplay() {
             {callVisible && (
                 <div className="absolute inset-0 pointer-events-none overflow-hidden">
                     <div
-                        className="absolute top-1/2 left-1/3 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full blur-[120px]"
+                        className={`absolute top-1/2 left-1/3 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full ${lowPerfMode ? 'blur-[60px]' : 'blur-[120px]'}`}
                         style={{ background: t.glow }}
                     />
                 </div>
@@ -981,11 +1009,11 @@ export default function MonitorDisplay() {
                 style={{ borderColor: t.topBarBorder }}
             >
                 <div className="flex items-center gap-4">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse shrink-0" />
+                    <span className={`w-2.5 h-2.5 rounded-full bg-emerald-400 ${lowPerfMode ? '' : 'shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse'} shrink-0`} />
                     {cfg.logoBase64 && (
                         <div
                             className="h-10 px-3 py-1.5 rounded-xl flex items-center"
-                            style={{ background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(8px)' }}
+                            style={{ background: 'rgba(255,255,255,0.06)', backdropFilter: lowPerfMode ? 'none' : 'blur(8px)' }}
                         >
                             <img
                                 src={cfg.logoBase64}
@@ -1042,11 +1070,12 @@ export default function MonitorDisplay() {
                                     >
                                         {activeCall.patientName}
                                     </p>
-                                    <div className="inline-flex items-center gap-5 rounded-2xl px-8 py-4 backdrop-blur-sm border"
+                                    <div className="inline-flex items-center gap-5 rounded-2xl px-8 py-4 border"
                                         style={{
                                             background: `linear-gradient(135deg, ${t.accentDim} 0%, rgba(0,0,0,0) 100%)`,
                                             borderColor: t.accentBorder,
-                                            boxShadow: `0 0 40px ${t.glow}, inset 0 1px 0 ${t.accentBorder}`,
+                                            boxShadow: lowPerfMode ? `0 0 16px ${t.glow}` : `0 0 40px ${t.glow}, inset 0 1px 0 ${t.accentBorder}`,
+                                            backdropFilter: lowPerfMode ? 'none' : 'blur(4px)',
                                         }}
                                     >
                                         <span className="text-[16px] uppercase tracking-[0.45em] font-medium shrink-0" style={{ color: t.accentLabel }}>
@@ -1124,7 +1153,7 @@ export default function MonitorDisplay() {
                             className="absolute bottom-0 left-0 right-0 z-20 flex items-center justify-between px-12 py-5"
                             style={{
                                 background: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.5) 65%, transparent 100%)',
-                                backdropFilter: 'blur(4px)',
+                                backdropFilter: lowPerfMode ? 'none' : 'blur(4px)',
                             }}
                         >
                             <div className="flex items-center gap-4">
@@ -1157,12 +1186,12 @@ export default function MonitorDisplay() {
                     )}
 
                     <div
-                        className="relative overflow-hidden shadow-2xl shadow-black/40"
+                        className={`relative overflow-hidden ${lowPerfMode ? 'shadow-lg' : 'shadow-2xl shadow-black/40'}`}
                         style={{
                             flex: 1,
                             borderRadius: effectiveExpanded ? '0' : '1rem',
                             background: t.panelBg,
-                            transition: 'border-radius 1.4s cubic-bezier(0.4,0,0.2,1)',   
+                            transition: lowPerfMode ? 'none' : 'border-radius 1.4s cubic-bezier(0.4,0,0.2,1)',
                         }}
                     >
                         {/* Iframe sempre montado — música não para durante o carrossel */}
@@ -1197,6 +1226,7 @@ export default function MonitorDisplay() {
                                     total={photos.length}
                                     current={carouselPhotoIdx}
                                     theme={t}
+                                    lowPerfMode={lowPerfMode}
                                 />
                             </div>
                         )}
