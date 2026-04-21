@@ -10,7 +10,7 @@ import EmployeeTabAvailableSchedule from "./tabs/employeeTabAvailableSchedule";
 import EmployeeTabPermissions from "./tabs/employeeTabPermissions";
 
 
-const EmployeeViewTabs = ({data}) => {
+const EmployeeViewTabs = ({ data, refresh }) => {
     return (
         <Card className='w-4/6'>
             <Tabs defaultValue="tabPersonal" >
@@ -30,10 +30,10 @@ const EmployeeViewTabs = ({data}) => {
                 </TabList>
                 <div className="py-3">
                     <TabContent value='tabPersonal'>
-                        <EmployeeTabPersonal data={data}/>
+                        <EmployeeTabPersonal data={data} refresh={refresh}/>
                     </TabContent>
                     <TabContent value='tabProfessional'>
-                        <EmployeeTabProfessional data={data}/>
+                        <EmployeeTabProfessional data={data} refresh={refresh}/>
                     </TabContent>
                     <TabContent value='tabTimes'>
                         <EmployeeTabAvailableSchedule data={data}/>

@@ -4,6 +4,17 @@ import type { Routes } from '@/@types/routes'
 
 export const publicRoutes: Routes = [...authRoute]
 
+// Rotas acessíveis sem autenticação e sem redirecionamento para autenticados
+export const openRoutes: Routes = [
+    {
+        key: 'monitorDisplay',
+        path: '/monitor/display',
+        component: lazy(() => import('@/views/monitor/MonitorDisplay')),
+        authority: [],
+        meta: { layout: 'blank', pageContainerType: 'gutterless' },
+    },
+]
+
 export const protectedRoutes = [
     {
         key: 'home',
@@ -108,6 +119,12 @@ export const protectedRoutes = [
         authority: [],
     },
     {
+        key: 'estabelecimento',
+        path: '/settings/estabelecimento',
+        component: lazy(() => import('@/views/settings/EstabelecimentoIndex')),
+        authority: [],
+    },
+    {
         key: 'settingsTemplates',
         path: '/settings/templates',
         component: lazy(() => import('@/views/settings/SettingsTemplates')),
@@ -117,6 +134,42 @@ export const protectedRoutes = [
         key: 'operadoras',
         path: '/settings/operadoras',
         component: lazy(() => import('@/views/settings/operadorasIndex')),
+        authority: [],
+    },
+    {
+        key: 'paymentMethods',
+        path: '/settings/payment-methods',
+        component: lazy(() => import('@/views/settings/PaymentMethodsIndex')),
+        authority: [],
+    },
+    {
+        key: 'rooms',
+        path: '/settings/rooms',
+        component: lazy(() => import('@/views/settings/RoomsIndex')),
+        authority: [],
+    },
+    {
+        key: 'chartOfAccounts',
+        path: '/settings/chart-of-accounts',
+        component: lazy(() => import('@/views/settings/ChartOfAccountsIndex')),
+        authority: [],
+    },
+    {
+        key: 'comissionamento',
+        path: '/settings/comissionamento',
+        component: lazy(() => import('@/views/settings/ComissionamentoIndex')),
+        authority: [],
+    },
+    {
+        key: 'monitorSettings',
+        path: '/settings/monitor',
+        component: lazy(() => import('@/views/settings/MonitorSettingsIndex')),
+        authority: [],
+    },
+    {
+        key: 'financialAccounts',
+        path: '/finance/accounts',
+        component: lazy(() => import('@/views/finance/FinancialAccountsIndex')),
         authority: [],
     },
     {
@@ -171,6 +224,12 @@ export const protectedRoutes = [
         key: 'accountsPayable',
         path: '/accounts-payable',
         component: lazy(() => import('@/views/cashFlow/accountsPayableIndex')),
+        authority: [],
+    },
+    {
+        key: 'costCenterGoals',
+        path: '/finance/cost-center-goals',
+        component: lazy(() => import('@/views/finance/CostCenterGoalsIndex')),
         authority: [],
     },
     {

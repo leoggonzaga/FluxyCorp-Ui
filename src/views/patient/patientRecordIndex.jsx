@@ -40,7 +40,6 @@ import AppointmentCard from './components/AppointmentCard'
 import FilePermissionPopover from './components/FilePermissionPopover'
 import ConsumerUpsertDialog from './components/ConsumerUpsertDialog'
 import {
-    getConsumersByCompany,
     getConsumerById,
     getConsumerConvenios,
     getConsumerNotes,
@@ -58,6 +57,21 @@ import {
     recordSettlement,
     cancelCharge as cancelChargeApi,
 } from '@/api/billing/billingService'
+
+// ─── Empty state ─────────────────────────────────────────────────────────────
+
+const EmptyState = ({ icon, message, sub, action }) => (
+    <div className='flex flex-col items-center justify-center py-8 gap-2.5 select-none'>
+        <div className='w-14 h-14 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-300 dark:text-gray-600'>
+            <span className='text-2xl'>{icon}</span>
+        </div>
+        <div className='text-center'>
+            <p className='text-sm font-medium text-gray-500 dark:text-gray-400'>{message}</p>
+            {sub && <p className='text-xs text-gray-400 dark:text-gray-500 mt-0.5'>{sub}</p>}
+        </div>
+        {action && <div className='mt-1'>{action}</div>}
+    </div>
+)
 
 // ─── Billing helpers ──────────────────────────────────────────────────────────
 
@@ -766,8 +780,6 @@ const PatientRecordIndex = () => {
     const location = useLocation()
     const companyPublicId = useSelector((state) => state.auth.user.companyPublicId)
 
-    const [patients, setPatients] = useState(PATIENTS)
-    const [loadingPatients, setLoadingPatients] = useState(false)
     const [searchTerm, setSearchTerm] = useState('')
     const [apiResults, setApiResults] = useState([])
     const [selectedPatient, setSelectedPatient] = useState(null)
@@ -775,10 +787,16 @@ const PatientRecordIndex = () => {
     const [showEditDialog, setShowEditDialog] = useState(false)
     const [editingPatient, setEditingPatient] = useState(null)
     const [historyStack, setHistoryStack] = useState([])
-    const [recentIds, setRecentIds] = useState(() => {
+    const [recentPatients, setRecentPatients] = useState(() => {
         try {
             const stored = localStorage.getItem(RECENTES_KEY)
-            return stored ? JSON.parse(stored) : []
+            if (!stored) return []
+            const parsed = JSON.parse(stored)
+            if (!Array.isArray(parsed)) return []
+            // suporte ao formato legado (array de IDs) — typeof null === 'object', então filtramos com Boolean
+            const objects = parsed.filter(Boolean)
+            if (objects.length > 0 && typeof objects[0] !== 'object') return []
+            return objects
         } catch {
             return []
         }
@@ -842,24 +860,7 @@ const PatientRecordIndex = () => {
         }
     }, [companyPublicId])
 
-    const refreshPatientList = useCallback(() => {
-        if (!companyPublicId) return Promise.resolve()
-        return Promise.all([
-            getConsumersByCompany(companyPublicId),
-            operadorasGetByCompany(companyPublicId).catch(() => []),
-        ])
-            .then(([data, ops]) => {
-                setPatients(Array.isArray(data) ? data : [])
-                setOperadorasForBadges(Array.isArray(ops) ? ops : [])
-            })
-            .catch(() => toast.push(<Notification type="danger" title="Erro ao carregar prontuários" />, { placement: 'top-center' }))
-    }, [companyPublicId])
 
-    useEffect(() => {
-        if (!companyPublicId) return
-        setLoadingPatients(true)
-        refreshPatientList().finally(() => setLoadingPatients(false))
-    }, [companyPublicId, refreshPatientList])
 
     const [patientImages, setPatientImages] = useState([])
     const [patientDocuments, setPatientDocuments] = useState([])
@@ -870,8 +871,6 @@ const PatientRecordIndex = () => {
     const [loadingNotes, setLoadingNotes] = useState(false)
     const [noteForm, setNoteForm] = useState({ content: '', noteType: 'note', alertSeverity: '', showOnAttendance: true })
     const [savingNote, setSavingNote] = useState(false)
-    const [operadorasForBadges, setOperadorasForBadges] = useState([])
-
     const [charges, setCharges] = useState([])
     const [loadingCharges, setLoadingCharges] = useState(false)
     const [newChargeOpen, setNewChargeOpen] = useState(false)
@@ -879,14 +878,7 @@ const PatientRecordIndex = () => {
     const [cancelingCharge, setCancelingCharge] = useState(null)
     const [expandedChargeId, setExpandedChargeId] = useState(null)
 
-    const operadoraNameByPublicId = useMemo(() => {
-        const m = new Map()
-        for (const o of operadorasForBadges) {
-            const id = o.publicId ?? o.PublicId
-            if (id) m.set(String(id).toLowerCase(), o.name ?? o.Name ?? '')
-        }
-        return m
-    }, [operadorasForBadges])
+    const operadoraNameByPublicId = useMemo(() => new Map(), [])
 
     /** Nome da operadora no cabeçalho (API: convenioOperadoraPublicId + mapa; ou insuranceName / insurance). */
     const headerConvenioName = useMemo(() => {
@@ -913,15 +905,10 @@ const PatientRecordIndex = () => {
     useEffect(() => {
         const patientId = searchParams.get('id')
         if (!patientId) return
-        const found = patients.find((p) => String(p.publicId ?? p.id) === patientId)
-        if (!found) return
-        setSelectedPatient(found)
-        enrichPatientFromApis(found.publicId ?? found.id)
-            .then((full) => {
-                if (full) setSelectedPatient((prev) => ({ ...prev, ...full }))
-            })
+        enrichPatientFromApis(patientId)
+            .then((full) => { if (full) setSelectedPatient(full) })
             .catch(() => {})
-    }, [searchParams, patients, enrichPatientFromApis])
+    }, [searchParams, enrichPatientFromApis])
 
     useEffect(() => {
         const raw = localStorage.getItem('patient_record_templates')
@@ -934,12 +921,26 @@ const PatientRecordIndex = () => {
 
     useEffect(() => {
         if (!selectedPatient) return
-        setRecentIds((prev) => {
-            const next = [selectedPatient.id, ...prev.filter((id) => id !== selectedPatient.id)].slice(0, 8)
+        const uid = selectedPatient.publicId ?? selectedPatient.id
+        const snapshot = {
+            publicId:                   selectedPatient.publicId ?? selectedPatient.id,
+            id:                         selectedPatient.id,
+            name:                       selectedPatient.name,
+            socialName:                 selectedPatient.socialName ?? null,
+            email:                      selectedPatient.email ?? null,
+            cpf:                        selectedPatient.cpf ?? null,
+            convenioOperadoraPublicId:  selectedPatient.convenioOperadoraPublicId ?? null,
+            insuranceName:              selectedPatient.insuranceName ?? null,
+            insurance:                  selectedPatient.insurance ?? null,
+            consumerKind:               selectedPatient.consumerKind ?? null,
+            _cachedAt:                  Date.now(),
+        }
+        setRecentPatients((prev) => {
+            const next = [snapshot, ...prev.filter((p) => p && (p.publicId ?? p.id) !== uid)].slice(0, 15)
             localStorage.setItem(RECENTES_KEY, JSON.stringify(next))
             return next
         })
-    }, [selectedPatient?.id])
+    }, [selectedPatient?.publicId, selectedPatient?.id])
 
     useEffect(() => {
         if (!selectedPatient) {
@@ -973,14 +974,6 @@ const PatientRecordIndex = () => {
         }
     }, [selectedPatient])
 
-    const filteredPatients = patients.filter((p) => {
-        const lower = searchTerm.toLowerCase()
-        return (
-            p.name?.toLowerCase().includes(lower) ||
-            p.socialName?.toLowerCase().includes(lower) ||
-            (p.cpf && p.cpf.includes(searchTerm))
-        )
-    })
 
     // ─── Handlers ─────────────────────────────────────────────────────────────
 
@@ -1122,9 +1115,6 @@ const PatientRecordIndex = () => {
         const patch = convenioOpId
             ? { ...updated, convenioOperadoraPublicId: convenioOpId }
             : { ...updated, convenioOperadoraPublicId: null }
-        setPatients((prev) =>
-            prev.map((p) => ((p.publicId ?? p.id) === (updated.publicId ?? updated.id) ? { ...p, ...patch } : p)),
-        )
         if ((selectedPatient?.publicId ?? selectedPatient?.id) === (updated.publicId ?? updated.id)) {
             setSelectedPatient((prev) => ({ ...prev, ...patch }))
         }
@@ -1210,13 +1200,7 @@ const PatientRecordIndex = () => {
                 onClose={() => setShowNewDialog(false)}
                 onSuccess={(created) => {
                     setShowNewDialog(false)
-                    toast.push(
-                        <Notification type='success' title='Prontuário criado'>
-                            Prontuário de <strong>{created?.name}</strong> registrado no sistema.
-                        </Notification>,
-                        { placement: 'top-center' }
-                    )
-                    if (companyPublicId) refreshPatientList()
+                    openPatient(created, 'Prontuários')
                 }}
             />
 
@@ -1418,7 +1402,11 @@ const PatientRecordIndex = () => {
                                                     <span className='w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin' />
                                                 </div>
                                             ) : charges.length === 0 ? (
-                                                <p className='text-gray-400 text-sm py-4 text-center'>Nenhuma cobrança registrada</p>
+                                                <EmptyState
+                                                    icon={<HiOutlineCurrencyDollar />}
+                                                    message='Nenhuma cobrança registrada'
+                                                    sub='Crie a primeira cobrança para este paciente'
+                                                />
                                             ) : (
                                                 <div className='space-y-2'>
                                                     {charges.slice(0, 4).map((charge) => {
@@ -1444,7 +1432,11 @@ const PatientRecordIndex = () => {
                                         <SectionCard icon={<HiOutlineClock />} title='Próximos Agendamentos' subtitle='Agenda futura do paciente' color='blue'>
                                             <div className='space-y-3'>
                                                 {sortByDateAsc(selectedPatient.nextAppointments ?? []).length === 0 ? (
-                                                    <p className='text-gray-500 text-sm'>Nenhum agendamento futuro</p>
+                                                    <EmptyState
+                                                        icon={<HiOutlineCalendar />}
+                                                        message='Nenhum agendamento futuro'
+                                                        sub='O paciente não possui consultas marcadas'
+                                                    />
                                                 ) : sortByDateAsc(selectedPatient.nextAppointments ?? []).map((apt) => (
                                                     <div key={apt.id} className='flex items-center gap-4 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-100 dark:border-blue-900/50'>
                                                         <div className='bg-blue-600 text-white rounded-xl p-2 text-center min-w-14'>
@@ -1465,7 +1457,11 @@ const PatientRecordIndex = () => {
                                     <div className='grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5'>
                                         <SectionCard icon={<HiOutlineExclamation />} title='Tratamentos Pendentes' subtitle='Aguardando realização' color='amber'>
                                             {selectedPatient.pendingTreatments ?? [].length === 0 ? (
-                                                <p className='text-gray-500 text-sm'>Nenhum tratamento pendente</p>
+                                                <EmptyState
+                                                    icon={<HiOutlineCheckCircle />}
+                                                    message='Nenhum tratamento pendente'
+                                                    sub='Tudo em dia por aqui'
+                                                />
                                             ) : (
                                                 <div className='space-y-3'>
                                                     {selectedPatient.pendingTreatments ?? [].map((t) => (
@@ -1485,7 +1481,11 @@ const PatientRecordIndex = () => {
                                         <SectionCard icon={<HiOutlineClipboardList />} title='Últimos 3 Atendimentos' subtitle='Histórico mais recente' color='violet'>
                                             <div className='space-y-3'>
                                                 {sortByDateDesc(selectedPatient.pastAppointments ?? []).slice(0, 3).length === 0 ? (
-                                                    <p className='text-gray-500 text-sm'>Nenhum atendimento registrado</p>
+                                                    <EmptyState
+                                                        icon={<HiOutlineClipboardList />}
+                                                        message='Nenhum atendimento registrado'
+                                                        sub='O histórico aparecerá após a primeira consulta'
+                                                    />
                                                 ) : sortByDateDesc(selectedPatient.pastAppointments ?? []).slice(0, 3).map((apt) => (
                                                     <AppointmentCard key={apt.id} appointment={apt} />
                                                 ))}
@@ -1507,12 +1507,11 @@ const PatientRecordIndex = () => {
                                             }
                                         >
                                             {!(selectedPatient.insuranceName || selectedPatient.insurance) ? (
-                                                <div className='flex items-center gap-3 py-3'>
-                                                    <div className='w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0'>
-                                                        <HiOutlineShieldCheck className='w-5 h-5 text-gray-300' />
-                                                    </div>
-                                                    <p className='text-sm text-gray-400'>Nenhum convênio cadastrado</p>
-                                                </div>
+                                                <EmptyState
+                                                    icon={<HiOutlineShieldCheck />}
+                                                    message='Nenhum convênio cadastrado'
+                                                    sub='Clique em Editar para vincular um plano'
+                                                />
                                             ) : (
                                                 <div className='flex flex-wrap gap-4'>
                                                     {[
@@ -1580,14 +1579,17 @@ const PatientRecordIndex = () => {
                                                             <span className='w-6 h-6 border-2 border-violet-400 border-t-transparent rounded-full animate-spin' />
                                                         </div>
                                                     ) : charges.length === 0 ? (
-                                                        <div className='flex flex-col items-center gap-3 py-10 text-gray-400'>
-                                                            <HiOutlineCurrencyDollar className='w-10 h-10 opacity-30' />
-                                                            <p className='text-sm'>Nenhuma cobrança registrada</p>
-                                                            <button onClick={() => setNewChargeOpen(true)}
-                                                                className='mt-1 px-4 py-2 rounded-xl text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 transition'>
-                                                                Criar primeira cobrança
-                                                            </button>
-                                                        </div>
+                                                        <EmptyState
+                                                            icon={<HiOutlineCurrencyDollar />}
+                                                            message='Nenhuma cobrança registrada'
+                                                            sub='Registre pagamentos e cobranças deste paciente'
+                                                            action={
+                                                                <button onClick={() => setNewChargeOpen(true)}
+                                                                    className='px-4 py-2 rounded-xl text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 transition shadow-sm'>
+                                                                    Criar primeira cobrança
+                                                                </button>
+                                                            }
+                                                        />
                                                     ) : (
                                                         <div className='space-y-2 max-h-[560px] overflow-y-auto pr-1'>
                                                             {charges.map(charge => {
@@ -1702,7 +1704,11 @@ const PatientRecordIndex = () => {
                                         <SectionCard icon={<HiOutlineClock />} title='Próximos Agendamentos' subtitle='Agenda futura do paciente' color='blue'>
                                             <div className='space-y-3'>
                                                 {sortByDateAsc(selectedPatient.nextAppointments ?? []).length === 0 ? (
-                                                    <p className='text-gray-500 text-sm'>Nenhum agendamento futuro</p>
+                                                    <EmptyState
+                                                        icon={<HiOutlineCalendar />}
+                                                        message='Nenhum agendamento futuro'
+                                                        sub='O paciente não possui consultas marcadas'
+                                                    />
                                                 ) : sortByDateAsc(selectedPatient.nextAppointments ?? []).map((apt) => (
                                                     <div key={apt.id} className='flex items-center gap-4 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-100 dark:border-blue-900/50'>
                                                         <div className='bg-blue-600 text-white rounded-xl p-2 text-center min-w-14'>
@@ -1722,7 +1728,11 @@ const PatientRecordIndex = () => {
                                         <SectionCard icon={<HiOutlineClipboardList />} title='Todos os Atendimentos' subtitle='Histórico completo de consultas' color='violet'>
                                             <div className='space-y-3'>
                                                 {sortByDateDesc(selectedPatient.pastAppointments ?? []).length === 0 ? (
-                                                    <p className='text-gray-500 text-sm'>Nenhum atendimento registrado</p>
+                                                    <EmptyState
+                                                        icon={<HiOutlineClipboardList />}
+                                                        message='Nenhum atendimento registrado'
+                                                        sub='O histórico aparecerá após a primeira consulta'
+                                                    />
                                                 ) : sortByDateDesc(selectedPatient.pastAppointments ?? []).map((apt) => (
                                                     <AppointmentCard key={apt.id} appointment={apt} />
                                                 ))}
@@ -1829,10 +1839,11 @@ const PatientRecordIndex = () => {
                                                         <div className='w-6 h-6 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin' />
                                                     </div>
                                                 ) : notes.length === 0 ? (
-                                                    <div className='flex flex-col items-center justify-center py-10 text-gray-400'>
-                                                        <HiOutlineAnnotation className='w-10 h-10 mb-2 opacity-40' />
-                                                        <p className='text-sm'>Nenhuma anotação registrada</p>
-                                                    </div>
+                                                    <EmptyState
+                                                        icon={<HiOutlineAnnotation />}
+                                                        message='Nenhuma anotação registrada'
+                                                        sub='Use as anotações para registrar alertas, observações e evoluções'
+                                                    />
                                                 ) : (
                                                     <div className='space-y-3 max-h-[600px] overflow-y-auto pr-1'>
                                                         {notes.map((note) => {
@@ -1911,7 +1922,11 @@ const PatientRecordIndex = () => {
                                             }
                                         >
                                             {patientDocuments.length === 0 ? (
-                                                <p className='text-gray-500 text-sm'>Nenhum documento cadastrado.</p>
+                                                <EmptyState
+                                                    icon={<HiOutlineDocumentText />}
+                                                    message='Nenhum documento cadastrado'
+                                                    sub='Clique em Incluir para anexar contratos, receitas ou laudos'
+                                                />
                                             ) : (
                                                 <div className='space-y-2'>
                                                     {patientDocuments.map((doc) => (
@@ -1969,7 +1984,11 @@ const PatientRecordIndex = () => {
                                             }
                                         >
                                             {patientImages.length === 0 ? (
-                                                <p className='text-gray-500 text-sm'>Nenhuma imagem cadastrada.</p>
+                                                <EmptyState
+                                                    icon={<HiOutlinePhotograph />}
+                                                    message='Nenhuma imagem cadastrada'
+                                                    sub='Adicione radiografias, fotos clínicas e registros visuais'
+                                                />
                                             ) : imageViewMode === 'list' ? (
                                                 <div className='space-y-2'>
                                                     {patientImages.map((img) => (
@@ -2025,7 +2044,7 @@ const PatientRecordIndex = () => {
                                 value={searchTerm}
                                 onChange={(v) => { setSearchTerm(v); if (!v.trim()) setApiResults([]) }}
                                 onResults={setApiResults}
-                                onSelect={(consumer) => openPatient(consumer, 'Busca')}
+                                onSelect={(consumer) => { setSearchTerm(''); setApiResults([]); openPatient(consumer, 'Busca') }}
                                 placeholder='Buscar paciente por nome, nome social ou CPF…'
                             />
                         </div>
@@ -2050,9 +2069,8 @@ const PatientRecordIndex = () => {
                             </div>
                             <Pattern1
                                 items={apiResults.map((p) => toPatternItem(p, operadoraNameByPublicId))}
-                                loading={loadingPatients}
                                 emptyMessage={searchTerm.trim().length < 2 ? 'Digite ao menos 2 caracteres…' : 'Nenhum paciente encontrado'}
-                                onItemClick={(item) => openPatient(item._raw, 'Busca')}
+                                onItemClick={(item) => { setSearchTerm(''); setApiResults([]); openPatient(item._raw, 'Busca') }}
                                 actions={[{
                                     key: 'edit',
                                     icon: <HiOutlinePencil />,
@@ -2063,14 +2081,20 @@ const PatientRecordIndex = () => {
                         </div>
                     ) : (
                         <div className='space-y-3'>
-                            <p className='text-xs font-semibold text-gray-400 uppercase tracking-wide'>
-                                Prontuários Recentes
-                            </p>
+                            <div className='flex items-center gap-2'>
+                                <p className='text-xs font-semibold text-gray-400 uppercase tracking-wide'>
+                                    Prontuários Recentes
+                                </p>
+                                {recentPatients.length > 0 && (
+                                    <span className='px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400'>
+                                        {recentPatients.length}
+                                    </span>
+                                )}
+                            </div>
                             <Pattern1
-                                items={recentIds
-                                    .map((id) => patients.find((p) => (p.publicId ?? p.id) === id))
-                                    .filter(Boolean)
-                                    .map((p) => toPatternItem(p, operadoraNameByPublicId))}
+                                items={recentPatients.filter(Boolean).map((p) =>
+                                    toPatternItem(p, operadoraNameByPublicId)
+                                )}
                                 emptyMessage='Nenhum prontuário acessado recentemente'
                                 onItemClick={(item) => openPatient(item._raw, 'Prontuários Recentes')}
                                 actions={[{

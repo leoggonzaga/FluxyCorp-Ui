@@ -9,7 +9,7 @@ import TimeInputRange from '../../components/ui/TimeInput/TimeInputRange';
 import { components } from 'react-select'
 import Loading from '../../components/shared/Loading'
 import ConsumerSearchInput from '@/components/shared/ConsumerSearchInput'
-import { enterpriseApiGetEmployees, enterpriseApiGetEmployeeSimplifiedById } from '../../api/enterprise/EnterpriseService';
+import { enterpriseApiGetEmployees, enterpriseApiGetEmployeeSimplifiedById, roomsGetAll } from '../../api/enterprise/EnterpriseService';
 import { useEffect, useState } from 'react';
 import { consultationTypeApiGetTypes } from '../../api/consultation/consultationService';
 import CreatableSelect from 'react-select/creatable'
@@ -60,19 +60,33 @@ const AppointmentUpsert = ({ data, onClose }) => {
 
     const [employees, setEmployees] = useState([]);
     const [consultationTypes, setConsultationTypes] = useState([]);
+    const [rooms, setRooms] = useState([]);
 
     const getEmployees = async () => {
-        var result = await enterpriseApiGetEmployees();
-
-        if (result.data)
+        const result = await enterpriseApiGetEmployees();
+        if (result?.data)
             setEmployees(result.data.map(x => ({ label: x.fullName, value: x.publicId })));
     }
 
     const getConsultationTypes = async () => {
-        var result = await consultationTypeApiGetTypes();
+        const result = await consultationTypeApiGetTypes();
+        const list = Array.isArray(result) ? result : result?.data;
+        if (Array.isArray(list))
+            setConsultationTypes(list.map(x => ({ label: x.name, value: x.publicId })));
+    }
 
-        if (result.data)
-            setConsultationTypes(result.data.map(x => ({ label: x.name, value: x.publicId })));
+    const getRooms = async () => {
+        const result = await roomsGetAll();
+        const list = Array.isArray(result) ? result : result?.data;
+        if (Array.isArray(list))
+            setRooms(
+                list
+                    .filter(x => x.isAvailable)
+                    .map(x => ({
+                        label: `${x.name}`,
+                        value: x.publicId,
+                    }))
+            );
     }
 
     const handleCreate = (values) => {
@@ -90,7 +104,8 @@ const AppointmentUpsert = ({ data, onClose }) => {
 
         Promise.all([
             getEmployees(),
-            getConsultationTypes()
+            getConsultationTypes(),
+            getRooms(),
         ])
             .finally(() => setIsLoading(false))
     }, [])
@@ -148,12 +163,13 @@ const AppointmentUpsert = ({ data, onClose }) => {
                                                     value={field.value || ''}
                                                     onChange={(term) => form.setFieldValue(field.name, term)}
                                                     onSelect={(consumer) => {
-                                                        form.setFieldValue('consumerPublicId', consumer.publicId)
+                                                        form.setFieldValue('consumerPublicId', consumer.publicId ?? null)
                                                         form.setFieldValue('consumerName', consumer.socialName || consumer.name)
                                                         form.setFieldValue('email', consumer.email || '')
                                                         form.setFieldValue('customerPhone', consumer.phoneNumber || '')
                                                         setPhoneKey(k => k + 1)
                                                     }}
+                                                    allowFreeText
                                                     placeholder='Buscar por nome, nome social ou CPF…'
                                                     className='w-full'
                                                 />
@@ -259,16 +275,18 @@ const AppointmentUpsert = ({ data, onClose }) => {
                                         <FormItem
                                             label="Sala"
                                             asterisk
-                                            invalid={errors.room && touched.room}
-                                            errorMessage={errors.room}
+                                            invalid={errors.roomPublicId && touched.roomPublicId}
+                                            errorMessage={errors.roomPublicId}
                                         >
-                                            <Field name='room'>
+                                            <Field name='roomPublicId'>
                                                 {({ field, form }) => (
                                                     <Select
-                                                        defaultValue={values.room}
+                                                        options={rooms}
                                                         placeholder="Sala"
                                                         className='w-[180px]'
                                                         size='lg'
+                                                        onChange={(opt) => form.setFieldValue(field.name, opt?.value)}
+                                                        defaultValue={values?.roomPublicId ? rooms.find(x => x.value === values.roomPublicId) : null}
                                                     />
                                                 )}
                                             </Field>
@@ -280,23 +298,17 @@ const AppointmentUpsert = ({ data, onClose }) => {
                                             <FormItem
                                                 asterisk
                                                 label="Tipo de Atendimento"
-                                                invalid={errors.timeRange && touched.timeRange}
-                                                errorMessage={errors.timeRange}
+                                                invalid={errors.consultationTypePublicId && touched.consultationTypePublicId}
+                                                errorMessage={errors.consultationTypePublicId}
                                                 className='w-full'
                                             >
-                                                <Field name='timeRange'>
+                                                <Field name='consultationTypePublicId'>
                                                     {({ field, form }) => (
                                                         <Select
                                                             options={consultationTypes}
                                                             placeholder='Tipo de Atendimento'
-                                                            onChange={(options) => {
-                                                                form.setFieldValue(
-                                                                    field.name,
-                                                                    options.value
-                                                                )
-                                                            }
-                                                            }
-                                                            defaultValue={values?.consultationTypePublicId ? consultationTypes.find(x => x.value == values.consultationTypePublicId) : null}
+                                                            onChange={(opt) => form.setFieldValue(field.name, opt?.value)}
+                                                            defaultValue={values?.consultationTypePublicId ? consultationTypes.find(x => x.value === values.consultationTypePublicId) : null}
                                                             className='w-[290px]'
                                                             size='lg'
                                                         />

@@ -1,30 +1,26 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useEffect, useState } from "react";
 
 export const WSContext = createContext(null)
 
+const WS_URL = import.meta.env.VITE_WS_URL ?? ''
+
 const WebSocketContext = ({ children }) => {
     const [websocketMessage, setWebsocketMessage] = useState("");
-    const [isSendingMessage, setIsSendingMessage] = useState(false);
     const [websocketInstance, setWebsocketInstance] = useState(null);
-
 
     const handleSendWebsocketMessage = (message) => {
         if (!websocketInstance || websocketInstance.readyState !== WebSocket.OPEN)
             return;
-
         websocketInstance.send(message);
-        setIsSendingMessage(true);
     };
 
-
     useEffect(() => {
-        const ws = new WebSocket("ws://localhost:3000?token=123456");
+        if (!WS_URL) return;
 
-        if (!ws) return;
+        const ws = new WebSocket(WS_URL);
 
         ws.addEventListener("message", (event) => {
             setWebsocketMessage(event.data);
-            setIsSendingMessage(false);
         });
 
         setWebsocketInstance(ws);
@@ -35,11 +31,7 @@ const WebSocketContext = ({ children }) => {
     }, []);
 
     return (
-        <WSContext value={{
-            message: websocketMessage
-        }
-        }
-        >
+        <WSContext value={{ message: websocketMessage, send: handleSendWebsocketMessage }}>
             {children}
         </WSContext>
     )

@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import classNames from 'classnames'
-import { Notification, toast, Button, Dialog } from '@/components/ui'
+import { Notification, toast } from '@/components/ui'
 import Odontogram from './components/Odontogram'
-import ToothFaceSelector from './components/ToothFaceSelector'
 import {
     HiOutlineCamera,
     HiOutlineCheck,
@@ -19,6 +18,7 @@ import {
     HiOutlinePlay,
     HiOutlinePlus,
     HiOutlineRefresh,
+    HiOutlineArrowsExpand,
     HiOutlinePhotograph,
     HiOutlineSearch,
     HiOutlineTrash,
@@ -340,12 +340,8 @@ const AttendanceIndex = () => {
     const [evolutionText, setEvolutionText]   = useState('')
     const [searchQuery, setSearchQuery]       = useState('')
     const [addedProcedures, setAddedProcedures] = useState([])
-    const [proceduresByTooth, setProceduresByTooth] = useState({})
-    const [selectedTeeth, setSelectedTeeth] = useState([])
-    const [currentTooth, setCurrentTooth] = useState(null)
-    const [selectedToothProcedureId, setSelectedToothProcedureId] = useState(null)
-    const [selectedToothFaces, setSelectedToothFaces] = useState([])
-    const [toothModalOpen, setToothModalOpen] = useState(false)
+    const [odontoTeeth, setOdontoTeeth] = useState({})
+    const [odontoExpanded, setOdontoExpanded] = useState(false)
     const [saveStatus, setSaveStatus]         = useState('saved')
     const [showFinish, setShowFinish]         = useState(false)
     const [finished, setFinished]             = useState(false)
@@ -473,33 +469,6 @@ const AttendanceIndex = () => {
         scheduleAutosave(evolutionText, updated)
     }
 
-    const handleToggleTooth = (tooth) => {
-        setCurrentTooth(tooth)
-        setSelectedToothFaces([])
-        setToothModalOpen(true)
-        setSelectedTeeth((prev) =>
-            prev.includes(tooth) ? prev : [...prev, tooth]
-        )
-    }
-
-    const handleAssignToothProcedure = () => {
-        if (!currentTooth || !selectedToothProcedureId || selectedToothFaces.length === 0) return
-        const procedure = PROCEDURE_CATALOG.flatMap((cat) => cat.items).find((item) => item.id === selectedToothProcedureId)
-        if (!procedure) return
-
-        setProceduresByTooth((prev) => ({
-            ...prev,
-            [currentTooth]: [
-                ...(prev[currentTooth] || []),
-                { id: procedure.id, name: procedure.name, faces: selectedToothFaces },
-            ],
-        }))
-
-        handleAddProcedure(procedure)
-        setToothModalOpen(false)
-        setSelectedToothProcedureId(null)
-        setSelectedToothFaces([])
-    }
 
     const handleRemoveProcedure = (id) => {
         const updated = addedProcedures.filter((p) => p.id !== id)
@@ -644,17 +613,6 @@ const AttendanceIndex = () => {
                             </span>
                         )}
 
-                        {/* Iniciar Atendimento */}
-                        {!sessionStarted && !finished && sessionId && (
-                            <button
-                                onClick={handleStartSession}
-                                className='flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 border border-emerald-400/50 text-white text-sm font-bold transition-all duration-200 active:scale-95 flex-shrink-0 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40'
-                            >
-                                <HiOutlinePlay className='w-4 h-4' />
-                                <span className='hidden xs:inline'>Iniciar Atendimento</span>
-                                <span className='xs:hidden'>Iniciar</span>
-                            </button>
-                        )}
                         {sessionStarted && !finished && (
                             <span className='hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-400/20 border border-emerald-400/30 text-emerald-200 text-[10px] font-semibold flex-shrink-0'>
                                 <span className='w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse' />
@@ -729,20 +687,28 @@ const AttendanceIndex = () => {
                                 : <><HiOutlineCheck   className='w-3.5 h-3.5' /> Salvo</>}
                         </div>
 
-                        {!finished ? (
-                            <button
-                                onClick={() => setShowFinish(true)}
-                                className='flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl bg-white/20 hover:bg-white/30 border border-white/30 active:scale-95 text-white font-bold text-xs sm:text-sm transition backdrop-blur-sm'
-                            >
-                                <HiOutlineCheckCircle className='w-4 h-4 flex-shrink-0' />
-                                <span className='hidden sm:inline'>Finalizar</span>
-                            </button>
-                        ) : (
+                        {finished ? (
                             <span className='inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-400/20 text-emerald-100 text-xs sm:text-sm font-bold border border-emerald-300/30'>
                                 <HiOutlineCheck className='w-3.5 h-3.5 sm:w-4 sm:h-4' />
                                 <span className='hidden sm:inline'>Concluído</span>
                             </span>
-                        )}
+                        ) : sessionStarted ? (
+                            <button
+                                onClick={() => setShowFinish(true)}
+                                className='flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl bg-rose-500/80 hover:bg-rose-500 border border-rose-400/50 active:scale-95 text-white font-bold text-xs sm:text-sm transition shadow-lg shadow-rose-500/25'
+                            >
+                                <HiOutlineCheckCircle className='w-4 h-4 flex-shrink-0' />
+                                <span className='hidden sm:inline'>Finalizar</span>
+                            </button>
+                        ) : sessionId ? (
+                            <button
+                                onClick={handleStartSession}
+                                className='flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl bg-emerald-500 hover:bg-emerald-400 border border-emerald-400/50 active:scale-95 text-white font-bold text-xs sm:text-sm transition shadow-lg shadow-emerald-500/25'
+                            >
+                                <HiOutlinePlay className='w-4 h-4 flex-shrink-0' />
+                                <span className='hidden sm:inline'>Iniciar</span>
+                            </button>
+                        ) : null}
                     </div>
                 </div>
 
@@ -750,7 +716,7 @@ const AttendanceIndex = () => {
             </div>
 
             {/* ── Corpo ── */}
-            <div className='flex-1 p-4 grid grid-cols-1 xl:grid-cols-[1fr_420px] gap-4 items-start max-w-[1600px] mx-auto w-full'>
+            <div className='flex-1 p-4 grid grid-cols-1 xl:grid-cols-[1fr_600px] gap-4 items-start max-w-[1600px] mx-auto w-full'>
 
                 {/* ── Coluna esquerda: Evolução ── */}
                 <div className='flex flex-col gap-4'>
@@ -918,13 +884,13 @@ const AttendanceIndex = () => {
                                         <HiOutlineRefresh className='w-4 h-4 animate-spin' />
                                         <span className='text-sm'>Carregando histórico...</span>
                                     </div>
-                                ) : history.length === 0 ? (
+                                ) : history.filter((s) => s.status === 'Completed').length === 0 ? (
                                     <p className='text-sm text-gray-400 text-center py-8'>Sem histórico de atendimentos.</p>
                                 ) : (
                                     <div className='space-y-3 max-h-80 overflow-y-auto pr-0.5'>
-                                        {history.slice(0, 10).map((apt, idx) => (
+                                        {history.filter((s) => s.status === 'Completed').slice(0, 10).map((apt, idx, arr) => (
                                             <div key={apt.id} className='relative pl-4'>
-                                                {idx < Math.min(history.length, 10) - 1 && (
+                                                {idx < arr.length - 1 && (
                                                     <div className='absolute left-[7px] top-6 bottom-0 w-px bg-gray-200 dark:bg-gray-700' />
                                                 )}
                                                 <div className='absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-teal-400 bg-white dark:bg-gray-900' />
@@ -999,7 +965,7 @@ const AttendanceIndex = () => {
                         </div>
                     </div>
 
-                    {/* Procedimentos incluídos */}
+                    {/* Odontograma */}
                     <div className='section-card border-indigo-200 dark:border-indigo-900/60'>
                         <div className='section-card-header-between bg-white dark:bg-gray-800/20'>
                             <div className='flex items-center gap-3'>
@@ -1008,14 +974,24 @@ const AttendanceIndex = () => {
                                 </span>
                                 <p className='section-card-title'>Odontograma</p>
                             </div>
+                            <button
+                                onClick={() => setOdontoExpanded(true)}
+                                title='Expandir odontograma'
+                                className='p-1.5 rounded-lg text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition'
+                            >
+                                <HiOutlineArrowsExpand className='w-4 h-4' />
+                            </button>
                         </div>
                         <div className='h-[2px] bg-gradient-to-r from-indigo-400 via-indigo-300/50 to-transparent' />
                         <div className='p-4'>
-                            <p className='mb-4 text-sm text-gray-500'>Clique no dente danificado para registrar o procedimento.</p>
                             <Odontogram
-                                selectedTeeth={selectedTeeth}
-                                onToggleTooth={handleToggleTooth}
-                                proceduresByTooth={proceduresByTooth}
+                                teeth={odontoTeeth}
+                                onTeethChange={setOdontoTeeth}
+                                expanded={odontoExpanded}
+                                onExpandClose={() => setOdontoExpanded(false)}
+                                procedures={PROCEDURE_CATALOG.flatMap((c) => c.items)}
+                                procedureCategories={PROCEDURE_CATALOG}
+                                onAddProcedure={handleAddProcedure}
                             />
                         </div>
                     </div>
@@ -1112,50 +1088,6 @@ const AttendanceIndex = () => {
                 </div>
             </div>
 
-            {/* ── Dialog dente ── */}
-            <Dialog
-                isOpen={toothModalOpen}
-                onRequestClose={() => setToothModalOpen(false)}
-                onClose={() => setToothModalOpen(false)}
-                width={500}
-                title={currentTooth ? `Procedimento - Dente ${currentTooth}` : 'Procedimento por Dente'}
-            >
-                <div className='space-y-6'>
-                    <div>
-                        <label className='block text-sm font-medium text-gray-700 mb-2'>Selecione o procedimento</label>
-                        <select
-                            value={selectedToothProcedureId || ''}
-                            onChange={(event) => setSelectedToothProcedureId(event.target.value)}
-                            className='w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-400/25'
-                        >
-                            <option value='' disabled>Selecione um procedimento</option>
-                            {PROCEDURE_CATALOG.flatMap((category) => category.items).map((proc) => (
-                                <option key={proc.id} value={proc.id}>{proc.name}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {selectedToothProcedureId && (
-                        <div className='border-t pt-6'>
-                            <ToothFaceSelector
-                                selectedFaces={selectedToothFaces}
-                                onFaceToggle={setSelectedToothFaces}
-                            />
-                        </div>
-                    )}
-
-                    <div className='flex justify-end gap-2 pt-4 border-t'>
-                        <Button variant='plain' onClick={() => setToothModalOpen(false)}>Cancelar</Button>
-                        <Button
-                            variant='solid'
-                            onClick={handleAssignToothProcedure}
-                            disabled={!selectedToothProcedureId || selectedToothFaces.length === 0}
-                        >
-                            Adicionar ao dente
-                        </Button>
-                    </div>
-                </div>
-            </Dialog>
 
             {/* ── Modal de Finalização ── */}
             {showFinish && (
@@ -1263,42 +1195,57 @@ const AttendanceIndex = () => {
             />
 
             {/* Dialog para iniciar atendimento */}
-            <Dialog
-                isOpen={showStartDialog}
-                onClose={() => setShowStartDialog(false)}
-            >
-                <div className="p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-                            <HiOutlinePlay className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                        </div>
-                        <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">
-                            Iniciar Atendimento
-                        </h3>
-                    </div>
-                    
-                    <p className="text-gray-600 dark:text-gray-400 mb-6">
-                        Você começou a digitar a evolução clínica, mas o atendimento ainda não foi iniciado. 
-                        Deseja iniciar o atendimento agora para registrar o tempo e habilitar todas as funcionalidades?
-                    </p>
-
-                    <div className="flex gap-3">
+            {showStartDialog && (
+                <div className='fixed inset-0 z-50 flex items-center justify-center'>
+                    <div
+                        className='absolute inset-0 bg-black/40 backdrop-blur-sm'
+                        onClick={() => setShowStartDialog(false)}
+                    />
+                    <div className='relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6'>
                         <button
                             onClick={() => setShowStartDialog(false)}
-                            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition"
+                            className='absolute top-4 right-4 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition'
                         >
-                            Cancelar
+                            <HiOutlineX className='w-4 h-4' />
                         </button>
-                        <button
-                            onClick={handleStartFromDialog}
-                            className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-white font-bold text-sm transition shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2"
-                        >
-                            <HiOutlinePlay className="w-4 h-4" />
-                            Iniciar Atendimento
-                        </button>
+
+                        <div className='flex items-center gap-3 mb-1'>
+                            <div className='w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center shrink-0'>
+                                <HiOutlinePlay className='w-5 h-5 text-violet-600 dark:text-violet-400' />
+                            </div>
+                            <div>
+                                <h3 className='text-base font-bold text-gray-800 dark:text-gray-100'>
+                                    Iniciar Atendimento
+                                </h3>
+                                <p className='text-xs text-gray-400 dark:text-gray-500'>
+                                    Registro de sessão clínica
+                                </p>
+                            </div>
+                        </div>
+
+                        <p className='text-sm text-gray-600 dark:text-gray-400 mt-4 mb-6 leading-relaxed'>
+                            Você começou a digitar a evolução clínica, mas o atendimento ainda não foi iniciado.
+                            Deseja iniciar agora para registrar o tempo e habilitar todas as funcionalidades?
+                        </p>
+
+                        <div className='flex gap-3'>
+                            <button
+                                onClick={() => setShowStartDialog(false)}
+                                className='flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition'
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleStartFromDialog}
+                                className='flex-1 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 active:scale-[0.98] text-white font-bold text-sm transition shadow-lg shadow-violet-500/25 flex items-center justify-center gap-2'
+                            >
+                                <HiOutlinePlay className='w-4 h-4' />
+                                Iniciar Atendimento
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </Dialog>
+            )}
         </div>
     )
 }

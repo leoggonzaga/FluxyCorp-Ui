@@ -19,6 +19,17 @@ import {
     HiOutlineCube,
     HiOutlineTruck,
     HiOutlineTag,
+    HiOutlineCreditCard,
+    HiOutlineUserGroup,
+    HiOutlineDocumentText,
+    HiOutlineBriefcase,
+    HiOutlineArchive,
+    HiOutlineBookOpen,
+    HiOutlineShoppingBag,
+    HiOutlineLibrary,
+    HiOutlineFlag,
+    HiOutlineOfficeBuilding,
+    HiOutlineChartPie,
 } from 'react-icons/hi'
 import type { JSX } from 'react'
 
@@ -45,6 +56,19 @@ const navigationIcon: NavigationIcons = {
     truck:           <HiOutlineTruck/>,
     tag:             <HiOutlineTag/>,
     clipboardCheck:  <HiOutlineClipboardCheck/>,
+    creditCard:      <HiOutlineCreditCard/>,
+    userGroup:       <HiOutlineUserGroup/>,
+    documentText:    <HiOutlineDocumentText/>,
+    briefcase:       <HiOutlineBriefcase/>,
+    archive:         <HiOutlineArchive/>,
+    bookOpen:        <HiOutlineBookOpen/>,
+    shoppingBag:     <HiOutlineShoppingBag/>,
+    rooms:           <HiOutlineHome/>,
+    wallet:          <HiOutlineLibrary/>,
+    flag:            <HiOutlineFlag/>,
+    officeBuilding:  <HiOutlineOfficeBuilding/>,
+    percent:         <HiOutlineChartPie/>,
+    monitor:         <HiOutlineDesktopComputer/>,
 }
 
 export default navigationIcon

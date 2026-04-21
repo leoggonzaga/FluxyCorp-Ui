@@ -184,12 +184,74 @@ Todas as strings visíveis ao usuário passam pelo i18next (hook `useTranslation
 ### personalidade de desing 
 seja  profissional muito exigente com o layout das pagina. gosto de resultados elegantes , com transparencia , detalhes que podem fazer toda a diferença na usabilidade das telas 
 
+### Empty state — padrão obrigatório
+
+Sempre que uma lista ou seção não tiver dados, **nunca use um `<p>` simples**. Use o componente `EmptyState` local (definido em cada view que precisar):
+
+```jsx
+const EmptyState = ({ icon, message, sub, action }) => (
+    <div className='flex flex-col items-center justify-center py-8 gap-2.5 select-none'>
+        <div className='w-14 h-14 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-300 dark:text-gray-600'>
+            <span className='text-2xl'>{icon}</span>
+        </div>
+        <div className='text-center'>
+            <p className='text-sm font-medium text-gray-500 dark:text-gray-400'>{message}</p>
+            {sub && <p className='text-xs text-gray-400 dark:text-gray-500 mt-0.5'>{sub}</p>}
+        </div>
+        {action && <div className='mt-1'>{action}</div>}
+    </div>
+)
+```
+
+**Uso:**
+```jsx
+<EmptyState
+    icon={<HiOutlineCalendar />}          // ícone react-icons contextual
+    message='Nenhum agendamento futuro'   // mensagem principal
+    sub='O paciente não possui consultas marcadas'  // orientação ao usuário (opcional)
+    action={<button ...>Criar</button>}   // botão de ação (opcional, apenas quando fizer sentido)
+/>
+```
+
+Regras:
+- O ícone deve ser da seção (dinheiro para finanças, calendário para agenda, foto para imagens etc.)
+- `sub` deve orientar o próximo passo, não apenas repetir a mensagem
+- `action` só aparece quando há uma ação direta e óbvia disponível (ex: "Criar primeira cobrança")
+
 ### Convenção de cores em modais de ação
 
 - **Criar** → roxo/violet (`bg-violet-600`, `text-violet-*`) — ação nova, tom primário do sistema
 - **Editar** → âmbar (`bg-amber-500`, `text-amber-*`) — modificação de algo existente, sinaliza atenção
 
 Manter essa distinção em todos os dialogs/modais de CRUD para dar feedback visual imediato ao usuário sobre o contexto da ação.
+
+## Segurança — regras obrigatórias (NUNCA violar)
+
+### Senhas e dados sensíveis — JAMAIS armazenar em plain text
+
+Toda senha armazenada no banco **deve** ser hasheada com BCrypt antes de persistir. A validação **deve** ocorrer server-side. O cliente **nunca** recebe a senha ou o hash — nem no GET, nem no response do POST.
+
+**Padrão obrigatório para qualquer campo de senha:**
+
+```csharp
+// ✅ SALVAR — hashear antes de persistir
+if (!string.IsNullOrWhiteSpace(cmd.Password))
+    entity.PasswordHash = BCrypt.Net.BCrypt.HashPassword(cmd.Password);
+
+// ✅ VALIDAR — endpoint dedicado, retorna apenas { valid: bool }
+var valid = BCrypt.Net.BCrypt.Verify(request.Password, entity.PasswordHash);
+return Ok(new { valid });
+
+// ❌ NUNCA retornar senha ou hash no DTO
+// ❌ NUNCA comparar senha no frontend
+// ❌ NUNCA salvar senha sem hash
+```
+
+**DTO:** use `HasPassword: bool` (indica se foi configurada) — nunca exponha o valor.
+
+**Package:** `BCrypt.Net-Next` (já adicionado em Enterprise.Application e Enterprise.API).
+
+---
 
 ## CORS nos microserviços ASP.NET Core (padrão obrigatório)
 
@@ -345,3 +407,5 @@ public class ConsumerRepository : IConsumerRepository
 Este guia deve ser seguido para garantir consistência e qualidade no desenvolvimento do projeto `FluxyCorp.Consumer`. Caso tenha dúvidas, consulte a equipe de arquitetura.
 
 os tipos de licenças Vet, PEt m odonto , piscicolo , pedico sao sempre  1 por usuario/assinatura então um prontuario de um usuario que a licença é de odonto os campos serao de odonto 
+
+//claude --dangerously-skip-permissions

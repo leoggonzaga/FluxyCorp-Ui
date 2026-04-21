@@ -12,6 +12,8 @@ import {
 import useAuth from '@/utils/hooks/useAuth'
 import useDirection from '@/utils/hooks/useDirection'
 import useLocale from '@/utils/hooks/useLocale'
+import { useLocation } from 'react-router-dom'
+import { openRoutes } from '@/configs/routes.config'
 
 const layouts = {
     [LAYOUT_TYPE_CLASSIC]: lazy(() => import('./ClassicLayout')),
@@ -26,17 +28,23 @@ const Layout = () => {
     const layoutType = useAppSelector((state) => state.theme.layout.type)
 
     const { authenticated } = useAuth()
+    const { pathname } = useLocation()
 
     useDirection()
 
     useLocale()
 
+    const isOpenRoute = openRoutes.some((r) => r.path === pathname)
+
     const AppLayout = useMemo(() => {
         if (authenticated) {
             return layouts[layoutType]
         }
+        if (isOpenRoute) {
+            return layouts[LAYOUT_TYPE_BLANK]
+        }
         return lazy(() => import('./AuthLayout'))
-    }, [layoutType, authenticated])
+    }, [layoutType, authenticated, isOpenRoute])
 
     return (
         <Suspense

@@ -19,20 +19,22 @@ function calcAge(birthDate) {
  * ConsumerSearchInput — campo de busca de consumidores reutilizável.
  *
  * Props:
- *  value        string    — valor exibido no input (controlado)
- *  onChange     (term)    — dispara a cada keystroke (para filtro local)
- *  onSelect     (consumer)— dispara quando o usuário escolhe um resultado do dropdown
- *  onResults    (items[]) — quando fornecido, suprime o dropdown e entrega os resultados
- *                           para o pai renderizar inline
- *  placeholder  string
- *  className    string    — classe do container externo
- *  inputClass   string    — classe extra no <input>
+ *  value          string    — valor exibido no input (controlado)
+ *  onChange       (term)    — dispara a cada keystroke (para filtro local)
+ *  onSelect       (consumer)— dispara quando o usuário escolhe um resultado do dropdown
+ *  onResults      (items[]) — quando fornecido, suprime o dropdown e entrega os resultados
+ *                             para o pai renderizar inline
+ *  allowFreeText  bool      — quando true, exibe opção "Usar '{nome}'" ao não encontrar paciente
+ *  placeholder    string
+ *  className      string    — classe do container externo
+ *  inputClass     string    — classe extra no <input>
  */
 const ConsumerSearchInput = ({
     value = '',
     onChange,
     onSelect,
     onResults,
+    allowFreeText = false,
     placeholder = 'Buscar por nome, nome social ou CPF…',
     className = '',
     inputClass = '',
@@ -95,6 +97,13 @@ const ConsumerSearchInput = ({
         onSelect?.(consumer)
     }
 
+    const handleFreeText = () => {
+        justSelectedRef.current = true
+        setResults([])
+        setOpen(false)
+        onSelect?.({ name: value.trim(), publicId: null })
+    }
+
     return (
         <div ref={containerRef} className={`relative ${className}`}>
             <div className='relative'>
@@ -145,8 +154,28 @@ const ConsumerSearchInput = ({
                             </button>
                         )
                     }) : (
-                        <div className='px-4 py-3 text-sm text-center text-gray-400'>
-                            Nenhum paciente encontrado
+                        <div className='flex flex-col'>
+                            <div className='px-4 py-2.5 text-sm text-center text-gray-400'>
+                                Nenhum paciente encontrado
+                            </div>
+                            {allowFreeText && value.trim().length >= 2 && (
+                                <button
+                                    onMouseDown={handleFreeText}
+                                    className='w-full flex items-center gap-3 px-4 py-3 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition text-left border-t border-gray-100 dark:border-gray-700'
+                                >
+                                    <div className='w-8 h-8 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center text-violet-600 dark:text-violet-400 text-sm flex-shrink-0 select-none font-bold'>
+                                        +
+                                    </div>
+                                    <div className='min-w-0 flex-1'>
+                                        <p className='font-semibold text-violet-700 dark:text-violet-300 text-sm truncate'>
+                                            Continuar como &quot;{value.trim()}&quot;
+                                        </p>
+                                        <p className='text-xs text-gray-400 dark:text-gray-500'>
+                                            Paciente não cadastrado
+                                        </p>
+                                    </div>
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>

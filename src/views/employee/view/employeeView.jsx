@@ -34,7 +34,7 @@ const EmployeeView = () => {
         <Loading loading={loading}>
             <div className='flex gap-6 w-full items-start'>
                 <EmployeeViewDetails data={employee} />
-                <EmployeeViewTabs data={employee} />
+                <EmployeeViewTabs data={employee} refresh={loadEmployee} />
             </div>
         </Loading>
     )
