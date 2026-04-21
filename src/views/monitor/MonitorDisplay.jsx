@@ -155,6 +155,17 @@ function ytId(url) {
     return m?.[1] ?? null
 }
 
+function formatCallDateTime(ts) {
+    if (!ts) return ''
+    const d = new Date(ts)
+    return d.toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+    })
+}
+
 function playChime() {
     try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext
@@ -419,6 +430,7 @@ export default function MonitorDisplay() {
     const [videoExpanded, setVideoExpanded] = useState(false)
     const [eventQueue, setEventQueue] = useState([])
     const [eventCursor, setEventCursor] = useState(0)
+    const [adsOnlyMode, setAdsOnlyMode] = useState(false)
 
     // Carousel state
     const [carouselActive, setCarouselActive] = useState(false)
@@ -443,6 +455,7 @@ export default function MonitorDisplay() {
     const carouselSequenceRef = useRef(null)
     const eventSchedulerRef = useRef(null)
     const adsSchedulerRef = useRef(null)
+    const historyExpiryRef = useRef(null)
 
     const [time, setTime] = useState(new Date())
     const iframeRef = useRef(null)
@@ -612,6 +625,48 @@ export default function MonitorDisplay() {
         })
     }, [])
 
+    const canRunHistoryEvent = useCallback(() => {
+        const lastTs = lastCallRef.current?.ts
+        if (!lastTs) return false
+        return (Date.now() - lastTs) <= (3 * 60 * 1000)
+    }, [])
+
+    useEffect(() => {
+        if (historyExpiryRef.current) {
+            clearTimeout(historyExpiryRef.current)
+            historyExpiryRef.current = null
+        }
+        if (!unlocked) return
+        const lastTs = lastCall?.ts
+        if (!lastTs) return
+
+        const ttlMs = 3 * 60 * 1000
+        const elapsed = Date.now() - lastTs
+        const remaining = ttlMs - elapsed
+
+        if (remaining <= 0) {
+            setEventQueue(prev => {
+                const filtered = prev.filter(event => event.type !== EVENT_HISTORY_VIDEO)
+                return filtered.length === prev.length ? prev : filtered
+            })
+            return
+        }
+
+        historyExpiryRef.current = setTimeout(() => {
+            setEventQueue(prev => {
+                const filtered = prev.filter(event => event.type !== EVENT_HISTORY_VIDEO)
+                return filtered.length === prev.length ? prev : filtered
+            })
+        }, remaining)
+
+        return () => {
+            if (historyExpiryRef.current) {
+                clearTimeout(historyExpiryRef.current)
+                historyExpiryRef.current = null
+            }
+        }
+    }, [unlocked, lastCall?.ts])
+
     // Schedulers de eventos vindos das frequencias da API
     useEffect(() => {
         if (!unlocked) return
@@ -620,9 +675,13 @@ export default function MonitorDisplay() {
 
         const historySec = Math.max(5, cfg.queueHideSec ?? 5)
         eventSchedulerRef.current = setInterval(() => {
-            enqueueEvent({ type: EVENT_HISTORY_VIDEO })
+            if (canRunHistoryEvent()) {
+                enqueueEvent({ type: EVENT_HISTORY_VIDEO })
+            }
         }, historySec * 1000)
-        enqueueEvent({ type: EVENT_HISTORY_VIDEO })
+        if (canRunHistoryEvent()) {
+            enqueueEvent({ type: EVENT_HISTORY_VIDEO })
+        }
 
         if (cfg.showPhotoCarousel && photos.length > 0) {
             const adsMs = Math.max(1, cfg.carouselIntervalMin ?? 10) * 60 * 1000
@@ -635,12 +694,13 @@ export default function MonitorDisplay() {
             if (eventSchedulerRef.current) clearInterval(eventSchedulerRef.current)
             if (adsSchedulerRef.current) clearInterval(adsSchedulerRef.current)
         }
-    }, [unlocked, cfg.queueHideSec, cfg.showPhotoCarousel, cfg.carouselIntervalMin, photos.length, enqueueEvent])
+    }, [unlocked, cfg.queueHideSec, cfg.showPhotoCarousel, cfg.carouselIntervalMin, photos.length, enqueueEvent, canRunHistoryEvent])
 
     const enterIdleVideoMode = useCallback(() => {
         setCallVisible(false)
         setQueueVisible(false)
         setVideoExpanded(true)
+        setAdsOnlyMode(false)
         stopCarousel()
     }, [stopCarousel])
 
@@ -654,6 +714,7 @@ export default function MonitorDisplay() {
     }, [])
 
     const processCallSequence = useCallback((call, runNumber = 1) => {
+        setAdsOnlyMode(false)
         const displayMs = Math.max(5, cfgRef.current.callDisplaySec ?? 5) * 1000
         const expandMs = Math.max(displayMs - 500, 0)
         setActiveCall(call)
@@ -688,14 +749,26 @@ export default function MonitorDisplay() {
             return
         }
 
+        if (event.type === EVENT_HISTORY_VIDEO && !canRunHistoryEvent()) {
+            finishCurrentEvent()
+            return
+        }
+
         if (eventDoneRef.current) clearTimeout(eventDoneRef.current)
         setActiveCall(null)
         setCallVisible(false)
         setQueueVisible(true)
         setVideoExpanded(false)
+        setAdsOnlyMode(false)
 
         if (event.type === EVENT_HISTORY_ADS) {
             startCarouselRef.current?.()
+            const showListWithAds = canRunHistoryEvent()
+            setAdsOnlyMode(!showListWithAds)
+            if (!showListWithAds) {
+                setQueueVisible(false)
+                setVideoExpanded(true)
+            }
             const adsMs = Math.max(6, cfgRef.current.photoDisplaySec ?? 8) * 1000 * Math.max(1, photosRef.current.length || 1)
             eventDoneRef.current = setTimeout(() => {
                 stopCarousel()
@@ -705,6 +778,7 @@ export default function MonitorDisplay() {
         }
 
         stopCarousel()
+        setAdsOnlyMode(false)
         const historyMs = 5000
         eventDoneRef.current = setTimeout(() => finishCurrentEvent(), historyMs)
     }
@@ -813,6 +887,7 @@ export default function MonitorDisplay() {
             if (expandRef.current) clearTimeout(expandRef.current)
             if (repeatRef.current) clearTimeout(repeatRef.current)
             if (eventDoneRef.current) clearTimeout(eventDoneRef.current)
+            if (historyExpiryRef.current) clearTimeout(historyExpiryRef.current)
             if (carouselSequenceRef.current) clearTimeout(carouselSequenceRef.current)
             if (eventSchedulerRef.current) clearInterval(eventSchedulerRef.current)
             if (adsSchedulerRef.current) clearInterval(adsSchedulerRef.current)
@@ -990,7 +1065,7 @@ export default function MonitorDisplay() {
                         )}
 
                         {/* Histórico de chamadas — visível em idle e durante o carrossel */}
-                        {!callVisible && (queueVisible || carouselShowing) && queue.length > 0 && (
+                        {!callVisible && !adsOnlyMode && (queueVisible || carouselShowing) && queue.length > 0 && (
                             <div className="px-10 py-10">
                                 <p className="text-[9px] uppercase tracking-[0.3em] mb-3 pl-0.5" style={{ color: t.textMuted }}>
                                     Chamadas anteriores
@@ -1002,7 +1077,12 @@ export default function MonitorDisplay() {
                                             className="flex items-center justify-between rounded-xl px-4 py-2.5 border text-[12px]"
                                             style={{ background: t.queueBg, borderColor: t.queueBorder }}
                                         >
-                                            <span className="text-sm" style={{ color: t.textSecondary }}>{c.patientName}</span>
+                                            <div className="min-w-0 pr-3">
+                                                <p className="text-sm truncate" style={{ color: t.textSecondary }}>{c.patientName}</p>
+                                                <p className="text-[10px] tracking-wide uppercase mt-0.5" style={{ color: t.textVeryMuted }}>
+                                                    {formatCallDateTime(c.ts)}
+                                                </p>
+                                            </div>
                                             <span
                                                 className="text-xs font-semibold w-24 h-7 flex items-center justify-center rounded-lg shrink-0"
                                                 style={{ color: t.textSecondary, background: t.queueBorder }}
