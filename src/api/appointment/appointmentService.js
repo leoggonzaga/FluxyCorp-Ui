@@ -5,6 +5,26 @@ export const appointmentApiGetEventsByRange = async (dateStart, dateEnd) => {
     return await appointmentApi.get(endpoints.appointmentAPI_range + `?start=${dateStart}&end=${dateEnd}`);
 }
 
+export const appointmentApiCreateService = async (dto) => {
+    return await appointmentApi.post(endpoints.appointmentAPI_createService, dto)
+}
+
+export const appointmentApiEditService = async (id, dto) => {
+    return await appointmentApi.put(endpoints.appointmentAPI_editService(id), dto)
+}
+
+export const appointmentApiConfirm = async (id) => {
+    return await appointmentApi.post(endpoints.appointmentAPI_confirm(id))
+}
+
+export const appointmentApiCancel = async (id) => {
+    return await appointmentApi.post(endpoints.appointmentAPI_cancel(id))
+}
+
+export const appointmentApiDelete = async (id) => {
+    return await appointmentApi.delete(endpoints.appointmentAPI_delete(id))
+}
+
 export const getAppointmentsByPatient = async (patientId) => {
     // Buscar agendamentos dos próximos 30 dias para o paciente
     const today = new Date();

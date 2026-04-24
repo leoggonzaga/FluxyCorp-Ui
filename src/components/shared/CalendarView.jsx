@@ -8,7 +8,7 @@ import CalendarEventMonth from '../../views/calendar/calendarEvents/calendarEven
 import CalendarEventWeek from '../../views/calendar/calendarEvents/calendarEventWeek'
 import CalendarEventDay from '../../views/calendar/calendarEvents/calendarEventDay'
 import CalendarSlot from '../../views/calendar/calendarSlot'
-import { appointmentApiGetEventsByRange } from '../../api/appointment/appointmentService'
+import { appointmentApiGetEventsByRange, appointmentApiEditService } from '../../api/appointment/appointmentService'
 
 const defaultColorList = {
     red: { bg: 'bg-red-50 dark:bg-red-500/10', text: 'text-red-500 dark:text-red-100', dot: 'bg-red-500' },
@@ -50,6 +50,51 @@ const CalendarView = (props) => {
         if (arg.view.type === 'dayGridMonth') openUpsert()
     }
 
+    const buildEditDto = (event, oldEvent) => {
+        const ep = event.extendedProps
+        const originalDuration = oldEvent.end
+            ? oldEvent.end.getTime() - oldEvent.start.getTime()
+            : 60 * 60 * 1000
+        const newEnd = event.end ?? new Date(event.start.getTime() + originalDuration)
+
+        return {
+            publicId: ep.publicId,
+            employeePublicId: ep.employeePublicId,
+            employeeName: ep.employeeName ?? '',
+            consumerPublicId: ep.consumerPublicId ?? null,
+            consumerName: ep.consumerName ?? '',
+            consumerEmail: ep.consumerEmail ?? '',
+            consumerCellPhone: ep.consumerPhone ?? '',
+            roomPublicId: ep.roomPublicId,
+            roomName: ep.roomName ?? '',
+            scheduledAt: event.start.toISOString(),
+            scheduledEnd: newEnd.toISOString(),
+            note: ep.note ?? null,
+            consultationTypePublicId: ep.consultationTypePublicId,
+            consultationType: ep.consultationTypeName ?? '',
+        }
+    }
+
+    const handleEventDrop = async (info) => {
+        const ep = info.event.extendedProps
+        if (!ep.publicId) { info.revert(); return }
+        try {
+            await appointmentApiEditService(ep.publicId, buildEditDto(info.event, info.oldEvent))
+        } catch {
+            info.revert()
+        }
+    }
+
+    const handleEventResize = async (info) => {
+        const ep = info.event.extendedProps
+        if (!ep.publicId) { info.revert(); return }
+        try {
+            await appointmentApiEditService(ep.publicId, buildEditDto(info.event, info.oldEvent))
+        } catch {
+            info.revert()
+        }
+    }
+
     const handleEventClick = (clickInfo) => {
         let event = {
             ...clickInfo.event?.extendedProps,
@@ -61,20 +106,23 @@ const CalendarView = (props) => {
     }
 
     const getEvents = (info, success, failure) => {
-        appointmentApiGetEventsByRange(info.startStr.slice(0, 16), info.endStr.slice(0, 16))
+        const start = info.startStr.slice(0, 10)
+        const end = info.endStr.slice(0, 10)
+        console.log('[Calendar] buscando range:', start, '→', end)
+        appointmentApiGetEventsByRange(start, end)
             .then(res => {
-                const items = Array.isArray(res.data) ? res.data : (res.data?.events ?? []);
-
+                const items = Array.isArray(res?.data) ? res.data : (res?.data?.events ?? [])
+                console.log('[Calendar] itens recebidos:', items.length, items[0] ?? '(vazio)')
                 success(items.map(item => ({
-                    id: String(item.id),
-                    title: item.title,
-                    start: item.scheduledAt ? item.scheduledAt.slice(0, 16) : null,
-                    end: item.scheduledEnd ? item.scheduledEnd.slice(0, 16) : null,
+                    id: String(item.publicId ?? item.id ?? ''),
+                    title: item.consumerName ?? item.eventName ?? item.title ?? '',
+                    start: item.scheduledAt ?? null,
+                    end: item.scheduledEnd ?? null,
                     allDay: !!item.allDay,
                     extendedProps: { ...item }
-                })));
+                })))
             })
-            .catch(failure);
+            .catch(err => { console.error('[Calendar] erro ao buscar eventos:', err); failure(err) })
     }
 
     useEffect(() => {
@@ -104,6 +152,8 @@ const CalendarView = (props) => {
                 // dayCellClassNames={'p-8'}
                 droppable={true}
                 editable={true}
+                eventDrop={handleEventDrop}
+                eventResize={handleEventResize}
                 slotDuration="00:15:00"
                 nowIndicator={true}
                 slotEventOverlap={true}

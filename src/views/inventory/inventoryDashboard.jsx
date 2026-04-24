@@ -17,18 +17,22 @@ import StockMovementDialog from './components/StockMovementDialog'
 import StockRequestDialog from './components/StockRequestDialog'
 import ProductUpsert from './components/ProductUpsert'
 
-const KpiCard = ({ icon, label, value, color, sub }) => (
-    <Card className={`border-l-4 ${color} bg-white/80 backdrop-blur-sm`}>
-        <div className="flex items-center justify-between">
-            <div>
-                <p className="text-sm text-gray-500 font-medium">{label}</p>
-                <p className="text-3xl font-bold text-gray-800 mt-1">{value}</p>
-                {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+const KpiCard = ({ icon, label, value, color, sub }) => {
+    const len = String(value).length
+    const valCls = len > 14 ? 'text-base' : len > 10 ? 'text-lg' : len > 6 ? 'text-xl' : 'text-2xl'
+    return (
+        <Card className={`border-l-4 ${color} bg-white/80 backdrop-blur-sm`}>
+            <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500 font-medium truncate">{label}</p>
+                    <p className={`${valCls} font-bold text-gray-800 mt-1 leading-tight break-words`}>{value}</p>
+                    <p className={`text-xs mt-1 ${sub ? 'text-gray-400' : 'invisible'}`}>{sub ?? '·'}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-gray-50 shrink-0">{icon}</div>
             </div>
-            <div className="p-3 rounded-xl bg-gray-50">{icon}</div>
-        </div>
-    </Card>
-)
+        </Card>
+    )
+}
 
 const InventoryDashboard = () => {
     const navigate = useNavigate()

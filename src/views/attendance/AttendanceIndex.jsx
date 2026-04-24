@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import classNames from 'classnames'
 import { Notification, toast } from '@/components/ui'
 import Odontogram from './components/Odontogram'
+import PlanningPanel from './components/PlanningPanel'
 import {
     HiOutlineCamera,
     HiOutlineCheck,
@@ -33,7 +34,11 @@ import {
     sessionStart,
     sessionFinish,
     sessionCancel,
+    treatmentPlanGetByPatient,
+    treatmentPlanCreate,
+    treatmentPlanAddItem,
 } from '@/api/consultation/consultationService'
+import { catalogApiGetServices } from '@/api/catalog/catalogService'
 
 // ─── Catalog ──────────────────────────────────────────────────────────────────
 
@@ -350,10 +355,13 @@ const AttendanceIndex = () => {
     const [sessionPhotos, setSessionPhotos]   = useState([])
     const [finishing, setFinishing]           = useState(false)
     const [showStartDialog, setShowStartDialog] = useState(false)
+    const [catalogServices, setCatalogServices] = useState([])
+    const [catalogLoading, setCatalogLoading]   = useState(false)
 
-    const saveTimeoutRef = useRef(null)
-    const textareaRef    = useRef(null)
-    const autosaveRef    = useRef(null)
+    const saveTimeoutRef  = useRef(null)
+    const textareaRef     = useRef(null)
+    const autosaveRef     = useRef(null)
+    const draftPlanIdRef  = useRef(null)
 
     // ── Load patient + create session on mount ─────────────────────────────────
     useEffect(() => {
@@ -385,6 +393,26 @@ const AttendanceIndex = () => {
         }
 
         init()
+    }, [patientPublicId])
+
+    // ── Load real catalog on mount ─────────────────────────────────────────────
+    useEffect(() => {
+        setCatalogLoading(true)
+        catalogApiGetServices()
+            .then(res => {
+                const list = Array.isArray(res) ? res : (res?.data ?? [])
+                setCatalogServices(list)
+            })
+            .finally(() => setCatalogLoading(false))
+    }, [])
+
+    // ── Load draft plan id after patient loads ─────────────────────────────────
+    useEffect(() => {
+        if (!patientPublicId) return
+        treatmentPlanGetByPatient(patientPublicId).then(plans => {
+            const draft = (plans ?? []).find(p => p.status === 'Draft')
+            draftPlanIdRef.current = draft?.publicId ?? null
+        })
     }, [patientPublicId])
 
     // ── Load history when history tab is opened ────────────────────────────────
@@ -442,31 +470,63 @@ const AttendanceIndex = () => {
         }, 100)
     }
 
-    // ── Catalog filter ────────────────────────────────────────────────────────
-    const filteredCatalog = useMemo(() => {
+    // ── Catalog filter (real API catalog for Procedimentos tab) ──────────────
+    const filteredServices = useMemo(() => {
         const q = searchQuery.toLowerCase().trim()
-        if (!q) return PROCEDURE_CATALOG
-        return PROCEDURE_CATALOG.map((cat) => ({
-            ...cat,
-            items: cat.items.filter(
-                (item) =>
-                    item.name.toLowerCase().includes(q) ||
-                    item.code.toLowerCase().includes(q),
-            ),
-        })).filter((cat) => cat.items.length > 0)
-    }, [searchQuery])
+        if (!q) return catalogServices
+        return catalogServices.filter(s =>
+            s.name?.toLowerCase().includes(q) ||
+            s.description?.toLowerCase().includes(q)
+        )
+    }, [searchQuery, catalogServices])
 
     const addedIds = useMemo(() => new Set(addedProcedures.map((p) => p.id)), [addedProcedures])
     const total    = useMemo(() => addedProcedures.reduce((s, p) => s + p.value * p.qty, 0), [addedProcedures])
 
+    // ── Adiciona procedimento ao planejamento em rascunho (fire-and-forget) ──
+    const addToPlan = async (svc) => {
+        const patientNameVal = patient?.fullName ?? patient?.name ?? ''
+        let planId = draftPlanIdRef.current
+
+        if (!planId && patientPublicId) {
+            const plans = await treatmentPlanGetByPatient(patientPublicId)
+            const draft = (plans ?? []).find(p => p.status === 'Draft')
+            planId = draft?.publicId ?? null
+
+            if (!planId) {
+                const res = await treatmentPlanCreate({
+                    patientId:        patientPublicId,
+                    patientName:      patientNameVal,
+                    professionalName: '',
+                })
+                planId = res?.publicId ?? null
+            }
+            draftPlanIdRef.current = planId
+        }
+
+        if (planId) {
+            await treatmentPlanAddItem(planId, {
+                servicePublicId: svc.publicId,
+                serviceName:     svc.name,
+                unitPrice:       svc.price ?? 0,
+                quantity:        1,
+            })
+        }
+    }
+
     // ── Procedure handlers ────────────────────────────────────────────────────
     const handleAddProcedure = (proc) => {
-        const updated = addedProcedures.find((p) => p.id === proc.id)
-            ? addedProcedures.map((p) => (p.id === proc.id ? { ...p, qty: p.qty + 1 } : p))
-            : [...addedProcedures, { ...proc, qty: 1 }]
+        const id    = proc.id ?? proc.publicId
+        const value = proc.value ?? proc.price ?? 0
+        const updated = addedProcedures.find((p) => p.id === id)
+            ? addedProcedures.map((p) => (p.id === id ? { ...p, qty: p.qty + 1 } : p))
+            : [...addedProcedures, { ...proc, id, value, qty: 1 }]
         setAddedProcedures(updated)
         triggerSave()
         scheduleAutosave(evolutionText, updated)
+
+        // Adiciona ao planejamento se o procedimento vier do catálogo real (tem publicId)
+        if (proc.publicId) addToPlan(proc)
     }
 
 
@@ -796,6 +856,7 @@ const AttendanceIndex = () => {
                                     { id: 'procedures', label: 'Procedimentos', icon: <HiOutlineSearch className='w-3.5 h-3.5' /> },
                                     { id: 'history',    label: 'Histórico',     icon: <HiOutlineClock className='w-3.5 h-3.5' /> },
                                     { id: 'media',      label: 'Mídia',         icon: <HiOutlinePhotograph className='w-3.5 h-3.5' /> },
+                                    { id: 'planning',   label: 'Planejamento',  icon: <HiOutlineDocumentText className='w-3.5 h-3.5' /> },
                                 ].map((tab) => (
                                     <button
                                         key={tab.id}
@@ -826,7 +887,7 @@ const AttendanceIndex = () => {
                                             type='text'
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            placeholder='Nome ou código do procedimento...'
+                                            placeholder='Buscar procedimento no catálogo...'
                                             className='w-full pl-9 pr-9 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 text-sm text-gray-800 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-600 outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-400 transition'
                                         />
                                         {searchQuery && (
@@ -835,44 +896,49 @@ const AttendanceIndex = () => {
                                             </button>
                                         )}
                                     </div>
-                                    <div className='max-h-80 overflow-y-auto space-y-3 pr-0.5'>
-                                        {filteredCatalog.length === 0 ? (
-                                            <p className='text-sm text-gray-400 text-center py-6'>Nenhum procedimento encontrado.</p>
-                                        ) : filteredCatalog.map((cat) => (
-                                            <div key={cat.category}>
-                                                <p className='text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1 mb-1.5'>{cat.category}</p>
-                                                <div className='space-y-1'>
-                                                    {cat.items.map((proc) => {
-                                                        const isAdded = addedIds.has(proc.id)
-                                                        return (
-                                                            <div key={proc.id} className={classNames(
-                                                                'flex items-center gap-3 px-3 py-2.5 rounded-xl border transition',
-                                                                isAdded
-                                                                    ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-700/50'
-                                                                    : 'bg-white dark:bg-gray-800/30 border-gray-100 dark:border-gray-700/50 hover:border-teal-200 dark:hover:border-teal-700/40 hover:bg-teal-50/50 dark:hover:bg-teal-900/10',
-                                                            )}>
-                                                                <div className='flex-1 min-w-0'>
-                                                                    <p className='text-sm font-medium text-gray-800 dark:text-gray-200 truncate'>{proc.name}</p>
-                                                                    <p className='text-[10px] text-gray-400 mt-0.5'>{proc.code} · {fmt(proc.value)}</p>
-                                                                </div>
-                                                                <button
-                                                                    onClick={() => handleAddProcedure(proc)}
-                                                                    disabled={finished}
-                                                                    className={classNames(
-                                                                        'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed',
-                                                                        isAdded
-                                                                            ? 'bg-teal-500 text-white hover:bg-teal-400'
-                                                                            : 'bg-gray-100 dark:bg-gray-700/60 text-gray-500 hover:bg-teal-100 dark:hover:bg-teal-900/40 hover:text-teal-700',
-                                                                    )}
-                                                                >
-                                                                    <HiOutlinePlus className='w-4 h-4' />
-                                                                </button>
-                                                            </div>
-                                                        )
-                                                    })}
-                                                </div>
+                                    <div className='max-h-80 overflow-y-auto space-y-1 pr-0.5'>
+                                        {catalogLoading ? (
+                                            <div className='flex justify-center py-8'>
+                                                <span className='w-5 h-5 border-2 border-teal-400 border-t-transparent rounded-full animate-spin' />
                                             </div>
-                                        ))}
+                                        ) : filteredServices.length === 0 ? (
+                                            <p className='text-sm text-gray-400 text-center py-6'>
+                                                {catalogServices.length === 0
+                                                    ? 'Nenhum procedimento no catálogo.'
+                                                    : 'Nenhum resultado para a busca.'}
+                                            </p>
+                                        ) : filteredServices.map((svc) => {
+                                            const id      = svc.publicId ?? svc.id
+                                            const isAdded = addedIds.has(id)
+                                            return (
+                                                <div key={id} className={classNames(
+                                                    'flex items-center gap-3 px-3 py-2.5 rounded-xl border transition',
+                                                    isAdded
+                                                        ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-700/50'
+                                                        : 'bg-white dark:bg-gray-800/30 border-gray-100 dark:border-gray-700/50 hover:border-teal-200 dark:hover:border-teal-700/40 hover:bg-teal-50/50 dark:hover:bg-teal-900/10',
+                                                )}>
+                                                    <div className='flex-1 min-w-0'>
+                                                        <p className='text-sm font-medium text-gray-800 dark:text-gray-200 truncate'>{svc.name}</p>
+                                                        <p className='text-[10px] text-gray-400 mt-0.5'>
+                                                            {svc.description ? `${svc.description} · ` : ''}
+                                                            {(svc.price ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleAddProcedure({ ...svc, id, value: svc.price })}
+                                                        disabled={finished}
+                                                        className={classNames(
+                                                            'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed',
+                                                            isAdded
+                                                                ? 'bg-teal-500 text-white hover:bg-teal-400'
+                                                                : 'bg-gray-100 dark:bg-gray-700/60 text-gray-500 hover:bg-teal-100 dark:hover:bg-teal-900/40 hover:text-teal-700',
+                                                        )}
+                                                    >
+                                                        <HiOutlinePlus className='w-4 h-4' />
+                                                    </button>
+                                                </div>
+                                            )
+                                        })}
                                     </div>
                                 </div>
                             )}
@@ -930,6 +996,16 @@ const AttendanceIndex = () => {
                             )}
 
                             {/* ── Aba Mídia ── */}
+                            {/* ── Aba Planejamento ── */}
+                            {rightTab === 'planning' && (
+                                <PlanningPanel
+                                    patientId={patientPublicId}
+                                    patientName={patient?.fullName ?? patient?.name ?? ''}
+                                    professionalName={''}
+                                    disabled={finished}
+                                />
+                            )}
+
                             {rightTab === 'media' && (() => {
                                 const allImages = [...sessionPhotos]
                                 return (

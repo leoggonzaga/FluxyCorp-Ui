@@ -24,21 +24,40 @@ function createApi({ baseURL, defaultHeaders = {} }) {
         return response.data
     },
     (error) => {
+      const status  = error.response?.status
+      const data    = error.response?.data
+
+      let type    = 'danger'
+      let title   = 'Erro'
+      let message = 'Falha no processamento. Operação cancelada.'
+
+      if (status === 422 && data?.erros?.length > 0) {
+        type    = 'warning'
+        title   = 'Dados inválidos'
+        message = data.erros[0].descricao
+      } else if (status === 400) {
+        type    = 'warning'
+        title   = 'Dados inválidos'
+        message = data?.message || 'Requisição inválida.'
+      } else if (status === 404) {
+        type    = 'warning'
+        title   = 'Não encontrado'
+        message = data?.message || 'Recurso não encontrado.'
+      } else if (status === 409) {
+        type    = 'warning'
+        title   = 'Operação não permitida'
+        message = data?.message || 'Conflito ao processar a operação.'
+      } else if (status === 401 || status === 403) {
+        type    = 'warning'
+        title   = 'Acesso negado'
+        message = data?.message || 'Você não tem permissão para esta ação.'
+      } else if (data?.message) {
+        message = data.message
+      }
+
       toast.push(
-        <Notification type="danger" title="Error">
-            {
-                error.response?.status === 422 && error.response?.data?.erros?.length > 0
-                ?
-                <>
-                    {error.response?.data?.erros?.[0]?.descricao || "Error"}
-                </>
-
-                :
-
-                <>
-                    Falha no processamento. Operação cancelada.
-                </>
-            }
+        <Notification type={type} title={title}>
+          {message}
         </Notification>
       )
 

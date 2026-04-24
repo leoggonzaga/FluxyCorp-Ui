@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSelector } from 'react-redux'
 import { Card, Notification, toast } from '@/components/ui'
 import { ConfirmDialog } from '@/components/shared'
+import { getCostCenters, createCostCenter, updateCostCenter } from '@/api/billing/billingService'
 import {
     HiOutlinePlus,
     HiOutlinePencil,
@@ -71,44 +73,30 @@ const ccColor  = (v) => CC_COLORS.find((c) => c.value === v) ?? CC_COLORS[0]
 const ccType   = (v) => CC_TYPES.find((t) => t.value === v) ?? CC_TYPES[0]
 const goalType = (v) => GOAL_TYPES.find((t) => t.value === v) ?? GOAL_TYPES[0]
 
-// ─── Storage ──────────────────────────────────────────────────────────────────
+// ─── Storage (apenas goals e metadata visual dos CCs) ────────────────────────
 
-const SK_CC    = 'fluxy_cost_centers'
-const SK_GOALS = 'fluxy_cc_goals'
-const genId    = () => `id_${Date.now()}_${Math.random().toString(36).slice(2,6)}`
+const SK_GOALS   = 'fluxy_cc_goals'
+const SK_CC_META = 'fluxy_cc_meta'   // { [publicId]: { type, color, responsible } }
 
-const SEED_CC = [
-    { id:'cc1', code:'CC-001', name:'Clínica Geral',      type:'operacional',    responsible:'Dr. Carlos Silva',   color:'violet',  isActive:true,  description:'Consultas e procedimentos gerais' },
-    { id:'cc2', code:'CC-002', name:'Ortodontia',         type:'operacional',    responsible:'Dra. Ana Souza',     color:'blue',    isActive:true,  description:'Aparelhos e correção orthodôntica' },
-    { id:'cc3', code:'CC-003', name:'Implantodontia',     type:'operacional',    responsible:'Dr. Marcos Lima',    color:'emerald', isActive:true,  description:'Implantes e osseointegração' },
-    { id:'cc4', code:'CC-004', name:'Estética Dental',    type:'operacional',    responsible:'Dra. Juliana Costa', color:'rose',    isActive:true,  description:'Clareamento, facetas e lentes' },
-    { id:'cc5', code:'CC-005', name:'Administração',      type:'administrativo', responsible:'Renata Oliveira',    color:'slate',   isActive:true,  description:'Gestão, financeiro e RH' },
-    { id:'cc6', code:'CC-006', name:'Marketing',          type:'estrategico',    responsible:'Felipe Andrade',     color:'amber',   isActive:true,  description:'Captação e fidelização de pacientes' },
-]
+const SEED_GOALS = []
 
-const SEED_GOALS = [
-    // Clínica Geral - Abr/2026
-    { id:'g1',  costCenterId:'cc1', periodType:'mensal', period:4, year:2026, goalType:'receita',         targetValue:60000,  currentValue:45200,  notes:'Meta de abril', status:'em_andamento' },
-    { id:'g2',  costCenterId:'cc1', periodType:'mensal', period:4, year:2026, goalType:'despesa',         targetValue:15000,  currentValue:12800,  notes:'', status:'em_andamento' },
-    { id:'g3',  costCenterId:'cc1', periodType:'mensal', period:4, year:2026, goalType:'atendimentos',    targetValue:120,    currentValue:98,     notes:'', status:'em_andamento' },
-    // Ortodontia - Abr/2026
-    { id:'g4',  costCenterId:'cc2', periodType:'mensal', period:4, year:2026, goalType:'receita',         targetValue:45000,  currentValue:47800,  notes:'Superou expectativa', status:'em_andamento' },
-    { id:'g5',  costCenterId:'cc2', periodType:'mensal', period:4, year:2026, goalType:'novos_pacientes', targetValue:20,     currentValue:23,     notes:'', status:'em_andamento' },
-    // Implantodontia - Abr/2026
-    { id:'g6',  costCenterId:'cc3', periodType:'mensal', period:4, year:2026, goalType:'receita',         targetValue:80000,  currentValue:31000,  notes:'Mês fraco', status:'em_andamento' },
-    { id:'g7',  costCenterId:'cc3', periodType:'mensal', period:4, year:2026, goalType:'ticket_medio',    targetValue:5000,   currentValue:4800,   notes:'', status:'em_andamento' },
-    // Estética - Abr/2026
-    { id:'g8',  costCenterId:'cc4', periodType:'mensal', period:4, year:2026, goalType:'receita',         targetValue:35000,  currentValue:36500,  notes:'', status:'em_andamento' },
-    // Marketing - Abr/2026
-    { id:'g9',  costCenterId:'cc6', periodType:'mensal', period:4, year:2026, goalType:'despesa',         targetValue:8000,   currentValue:9200,   notes:'Campanha extra de Páscoa', status:'em_andamento' },
-    // Anual Clínica Geral
-    { id:'g10', costCenterId:'cc1', periodType:'anual',  period:null, year:2026, goalType:'receita',      targetValue:720000, currentValue:178000, notes:'Acumulado até abril', status:'em_andamento' },
-]
+const loadGoals  = () => { try { const r = localStorage.getItem(SK_GOALS);   return r ? JSON.parse(r) : SEED_GOALS } catch(_){return SEED_GOALS} }
+const loadMeta   = () => { try { const r = localStorage.getItem(SK_CC_META); return r ? JSON.parse(r) : {} }         catch(_){return {}} }
+const saveGoals  = (d) => { try { localStorage.setItem(SK_GOALS,   JSON.stringify(d)) } catch(_){} }
+const saveMeta   = (d) => { try { localStorage.setItem(SK_CC_META, JSON.stringify(d)) } catch(_){} }
 
-const loadCC    = () => { try { const r = localStorage.getItem(SK_CC);    return r ? JSON.parse(r) : SEED_CC }    catch(_){return SEED_CC} }
-const loadGoals = () => { try { const r = localStorage.getItem(SK_GOALS); return r ? JSON.parse(r) : SEED_GOALS } catch(_){return SEED_GOALS} }
-const saveCC    = (d) => { try { localStorage.setItem(SK_CC,    JSON.stringify(d)) } catch(_){} }
-const saveGoals = (d) => { try { localStorage.setItem(SK_GOALS, JSON.stringify(d)) } catch(_){} }
+// Mescla dados da API com metadata visual local
+const mergeCC = (apiCC, meta) => ({
+    id:          apiCC.publicId,
+    publicId:    apiCC.publicId,
+    code:        apiCC.code,
+    name:        apiCC.name,
+    description: apiCC.description ?? '',
+    isActive:    apiCC.isActive,
+    type:        meta?.type        ?? 'operacional',
+    color:       meta?.color       ?? 'violet',
+    responsible: meta?.responsible ?? '',
+})
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -263,14 +251,15 @@ const CCDialog = ({ isOpen, onClose, onSuccess, initial }) => {
         return e
     }
 
-    const submit = () => {
+    const submit = async () => {
         const e = validate()
         if (Object.keys(e).length) { setErrors(e); return }
         setSaving(true)
-        setTimeout(() => {
-            onSuccess({ id: initial?.id ?? genId(), ...form, name: form.name.trim(), code: form.code.trim(), description: form.description.trim() }, isEdit)
+        try {
+            await onSuccess({ ...form, name: form.name.trim(), code: form.code.trim(), description: form.description.trim() }, isEdit)
+        } finally {
             setSaving(false)
-        }, 280)
+        }
     }
 
     const inp = (err) => ['w-full py-2.5 px-3 text-sm rounded-xl border bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 transition-all',
@@ -401,7 +390,7 @@ const GoalDialog = ({ isOpen, onClose, onSuccess, initial, costCenters, defaultC
         setSaving(true)
         setTimeout(() => {
             const g = {
-                id: initial?.id ?? genId(),
+                id: initial?.id ?? `id_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
                 costCenterId: form.costCenterId,
                 periodType:   form.periodType,
                 period:       form.periodType === 'anual' ? null : Number(form.period),
@@ -727,27 +716,47 @@ const GoalPanel = ({ cc, goals, month, year, onAddGoal, onEditGoal, onUpdateReal
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 const CostCenterGoalsIndex = () => {
-    const now  = new Date()
-    const [costCenters, setCCs]    = useState(loadCC)
-    const [goals, setGoals]        = useState(loadGoals)
+    const now             = new Date()
+    const companyPublicId = useSelector((s) => s.auth.user.companyPublicId)
+
+    const [costCenters, setCCs]       = useState([])
+    const [ccMeta, setCCMeta]         = useState(loadMeta)
+    const [loading, setLoading]       = useState(false)
+    const [goals, setGoals]           = useState(loadGoals)
     const [selectedCC, setSelectedCC] = useState(null)
-    const [month, setMonth]        = useState(now.getMonth()+1)
-    const [year, setYear]          = useState(now.getFullYear())
+    const [month, setMonth]           = useState(now.getMonth()+1)
+    const [year, setYear]             = useState(now.getFullYear())
 
     // dialogs
-    const [ccDialog, setCCDialog]   = useState(false)
-    const [editingCC, setEditingCC] = useState(null)
-    const [deletingCC, setDeletingCC] = useState(null)
+    const [ccDialog, setCCDialog]         = useState(false)
+    const [editingCC, setEditingCC]       = useState(null)
+    const [deletingCC, setDeletingCC]     = useState(null)
     const [confirmCCOpen, setConfirmCCOpen] = useState(false)
 
-    const [goalDialog, setGoalDialog]     = useState(false)
-    const [editingGoal, setEditingGoal]   = useState(null)
-    const [deletingGoal, setDeletingGoal] = useState(null)
+    const [goalDialog, setGoalDialog]       = useState(false)
+    const [editingGoal, setEditingGoal]     = useState(null)
+    const [deletingGoal, setDeletingGoal]   = useState(null)
     const [confirmGoalOpen, setConfirmGoalOpen] = useState(false)
-    const [updateDialog, setUpdateDialog] = useState(false)
-    const [updatingGoal, setUpdatingGoal] = useState(null)
+    const [updateDialog, setUpdateDialog]   = useState(false)
+    const [updatingGoal, setUpdatingGoal]   = useState(null)
 
-    const persistCC    = (d) => { setCCs(d);   saveCC(d) }
+    // ── Carregar CCs da API ─────────────────────────────────────────────────
+    const loadFromApi = async () => {
+        if (!companyPublicId) return
+        setLoading(true)
+        try {
+            const data = await getCostCenters(companyPublicId)
+            const meta = loadMeta()
+            setCCs((data ?? []).map(cc => mergeCC(cc, meta[cc.publicId])))
+        } catch {
+            toast.push(<Notification type='danger' title='Erro ao carregar centros de custo'/>, {placement:'top-center'})
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    useEffect(() => { loadFromApi() }, [companyPublicId])
+
     const persistGoals = (d) => { setGoals(d); saveGoals(d) }
 
     const activeCCs = useMemo(() => costCenters.filter(c=>c.isActive), [costCenters])
@@ -767,20 +776,58 @@ const CostCenterGoalsIndex = () => {
         }
     }, [activeCCs, periodGoals])
 
-    // CC handlers
+    // ── CC handlers ──────────────────────────────────────────────────────────
     const openNewCC  = () => { setEditingCC(null); setCCDialog(true) }
     const openEditCC = (cc) => { setEditingCC(cc); setCCDialog(true) }
-    const handleCCSuccess = (cc, isEdit) => {
-        setCCDialog(false)
-        persistCC(isEdit ? costCenters.map(c=>c.id===cc.id?cc:c) : [...costCenters, cc])
-        toast.push(<Notification type='success' title={isEdit?'Centro atualizado':'Centro criado'}/>, {placement:'top-center'})
+
+    const handleCCSuccess = async (form, isEdit) => {
+        const payload = {
+            companyPublicId,
+            code:        form.code,
+            name:        form.name,
+            description: form.description,
+            isActive:    form.isActive ?? true,
+        }
+        try {
+            const visualMeta = { type: form.type, color: form.color, responsible: form.responsible }
+            if (isEdit) {
+                await updateCostCenter(editingCC.publicId, { ...payload, publicId: editingCC.publicId })
+                const meta = loadMeta()
+                meta[editingCC.publicId] = visualMeta
+                saveMeta(meta)
+            } else {
+                const created = await createCostCenter(payload)
+                if (created?.publicId) {
+                    const meta = loadMeta()
+                    meta[created.publicId] = visualMeta
+                    saveMeta(meta)
+                }
+            }
+            await loadFromApi()
+            setCCDialog(false)
+            toast.push(<Notification type='success' title={isEdit?'Centro atualizado':'Centro criado'}/>, {placement:'top-center'})
+        } catch (err) {
+            const msg = err?.response?.data ?? (isEdit ? 'Erro ao atualizar' : 'Erro ao criar')
+            toast.push(<Notification type='danger' title={typeof msg === 'string' ? msg : 'Erro ao salvar'}/>, {placement:'top-center'})
+            throw err
+        }
     }
+
     const handleDeleteCC = () => {
         if (!deletingCC) return
-        persistCC(costCenters.filter(c=>c.id!==deletingCC.id))
-        persistGoals(goals.filter(g=>g.costCenterId!==deletingCC.id))
-        if (selectedCC===deletingCC.id) setSelectedCC(null)
-        toast.push(<Notification type='success' title='Centro removido'/>, {placement:'top-center'})
+        // soft: marcar inativo via update
+        updateCostCenter(deletingCC.publicId, {
+            companyPublicId,
+            code: deletingCC.code, name: deletingCC.name,
+            description: deletingCC.description, isActive: false,
+        }).then(() => {
+            loadFromApi()
+            persistGoals(goals.filter(g=>g.costCenterId!==deletingCC.id))
+            if (selectedCC===deletingCC.id) setSelectedCC(null)
+            toast.push(<Notification type='success' title='Centro desativado'/>, {placement:'top-center'})
+        }).catch(() => {
+            toast.push(<Notification type='danger' title='Erro ao desativar'/>, {placement:'top-center'})
+        })
         setConfirmCCOpen(false); setDeletingCC(null)
     }
 
@@ -868,7 +915,14 @@ const CostCenterGoalsIndex = () => {
             </div>
 
             {/* ── Two-panel layout ── */}
-            {activeCCs.length === 0 ? (
+            {loading ? (
+                <Card className='border border-gray-100 dark:border-gray-700/50'>
+                    <div className='flex items-center justify-center py-12 gap-3 text-gray-400'>
+                        <div className='w-5 h-5 border-2 border-violet-400 border-t-transparent rounded-full animate-spin'/>
+                        <span className='text-sm'>Carregando centros de custo…</span>
+                    </div>
+                </Card>
+            ) : activeCCs.length === 0 ? (
                 <Card className='border border-gray-100 dark:border-gray-700/50'>
                     <EmptyState
                         icon={<HiOutlineOfficeBuilding />}

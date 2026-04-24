@@ -56,3 +56,46 @@ export const sessionFinish = (id, data) =>
 
 export const sessionCancel = (id) =>
     consultationTypeApi.post(endpoints.sessionAPI_cancel(id))
+
+// ── Treatment Plans ───────────────────────────────────────────────────────────
+
+export const treatmentPlanCreate = (data) =>
+    consultationTypeApi.post(endpoints.treatmentPlanAPI_create, data)
+
+export const treatmentPlanGetByPatient = (patientId) =>
+    consultationTypeApi.get(endpoints.treatmentPlanAPI_getByPatient(patientId)).then(unwrap)
+
+export const treatmentPlanGetById = (publicId) =>
+    consultationTypeApi.get(endpoints.treatmentPlanAPI_getById(publicId)).then(unwrap)
+
+export const treatmentPlanAddItem = (publicId, data) =>
+    consultationTypeApi.post(endpoints.treatmentPlanAPI_addItem(publicId), data)
+
+export const treatmentPlanRemoveItem = (publicId, itemId) =>
+    consultationTypeApi.delete(endpoints.treatmentPlanAPI_removeItem(publicId, itemId))
+
+export const treatmentPlanSubmit = (publicId) =>
+    consultationTypeApi.post(endpoints.treatmentPlanAPI_submit(publicId))
+
+export const treatmentPlanApprove = (publicId) =>
+    consultationTypeApi.post(endpoints.treatmentPlanAPI_approve(publicId))
+
+export const treatmentPlanReject = (publicId) =>
+    consultationTypeApi.post(endpoints.treatmentPlanAPI_reject(publicId))
+
+export const treatmentPlanDelete = (publicId) =>
+    consultationTypeApi.delete(endpoints.treatmentPlanAPI_delete(publicId))
+
+// ── Treatment Contracts ───────────────────────────────────────────────────────
+
+export const treatmentContractGetByPatient = (patientId) =>
+    consultationTypeApi.get(endpoints.treatmentContractAPI_getByPatient(patientId)).then(unwrap)
+
+export const treatmentContractGetById = (publicId) =>
+    consultationTypeApi.get(endpoints.treatmentContractAPI_getById(publicId)).then(unwrap)
+
+export const treatmentContractCompleteItem = (publicId, itemId) =>
+    consultationTypeApi.post(endpoints.treatmentContractAPI_completeItem(publicId, itemId))
+
+export const treatmentContractCancel = (publicId) =>
+    consultationTypeApi.post(endpoints.treatmentContractAPI_cancel(publicId))

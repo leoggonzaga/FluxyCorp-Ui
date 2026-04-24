@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { HiOutlinePlus, HiOutlineBeaker, HiOutlineClipboardList, HiOutlineTruck, HiOutlineCurrencyDollar, HiOutlineCalendar } from 'react-icons/hi'
 import { Button, Card, Dialog, Notification, toast } from '@/components/ui'
 import { Loading } from '@/components/shared'
+import PillTabs from '@/components/shared/PillTabs'
 import { getProsthesisRequestsPaged } from '@/api/prosthesis/prosthesisService'
 import ProsthesisRequestUpsert from './components/ProsthesisRequestUpsert'
 import ProsthesisStatusBadge from './components/ProsthesisStatusBadge'
@@ -133,21 +134,11 @@ const ProsthesisDashboard = () => {
                         <HiOutlineCalendar className="w-4 h-4" />
                         <span className="text-xs font-medium">Período</span>
                     </div>
-                    <div className="flex gap-1.5 flex-wrap">
-                        {DATE_PRESETS.map(p => (
-                            <button
-                                key={p.days}
-                                onClick={() => applyPreset(p.days)}
-                                className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                                    activePreset === p.days
-                                        ? 'bg-indigo-600 text-white shadow-sm'
-                                        : 'bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
-                                }`}
-                            >
-                                {p.label}
-                            </button>
-                        ))}
-                    </div>
+                    <PillTabs
+                        items={DATE_PRESETS.map((p) => ({ value: String(p.days), label: p.label }))}
+                        value={activePreset == null ? '' : String(activePreset)}
+                        onChange={(val) => applyPreset(Number(val))}
+                    />
                     <div className="flex items-center gap-2 ml-auto">
                         <input
                             type="date"
@@ -195,31 +186,14 @@ const ProsthesisDashboard = () => {
             </div>
 
             {/* Filter tabs */}
-            <div className="flex flex-wrap gap-2">
-                <button
-                    onClick={() => setFilterStatus('')}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                        !filterStatus
-                            ? 'bg-indigo-600 text-white shadow-sm'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                >
-                    Todos
-                </button>
-                {statuses.map(s => (
-                    <button
-                        key={s}
-                        onClick={() => setFilterStatus(s === filterStatus ? '' : s)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                            filterStatus === s
-                                ? 'bg-indigo-600 text-white shadow-sm'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                    >
-                        {s}
-                    </button>
-                ))}
-            </div>
+            <PillTabs
+                items={[
+                    { value: '', label: 'Todos' },
+                    ...statuses.map((s) => ({ value: s, label: s })),
+                ]}
+                value={filterStatus}
+                onChange={(val) => setFilterStatus(val)}
+            />
 
             {/* Requests List */}
             <Loading loading={loading}>

@@ -35,10 +35,12 @@ import {
     HiOutlineCreditCard,
     HiOutlineReceiptRefund,
 } from 'react-icons/hi'
+import { SiWhatsapp } from 'react-icons/si'
 import SectionCard from './components/SectionCard'
 import AppointmentCard from './components/AppointmentCard'
 import FilePermissionPopover from './components/FilePermissionPopover'
 import ConsumerUpsertDialog from './components/ConsumerUpsertDialog'
+import TreatmentTab from './components/TreatmentTab'
 import {
     getConsumerById,
     getConsumerConvenios,
@@ -744,6 +746,14 @@ const sortByDateAsc  = (items) => [...items].sort((a, b) => new Date(a.date) - n
 
 const RECENTES_KEY = 'prontuario_recentes'
 
+const toWhatsAppUrl = (phone) => {
+    if (!phone) return null
+    const digits = String(phone).replace(/\D/g, '')
+    if (!digits) return null
+    const withCode = digits.startsWith('55') ? digits : `55${digits}`
+    return `https://wa.me/${withCode}`
+}
+
 const displayName = (patient) => patient.socialName || patient.name
 
 const toPatternItem = (patient, operadoraNameByPublicId = new Map()) => {
@@ -1323,18 +1333,30 @@ const PatientRecordIndex = () => {
 
                                 <div className='grid grid-cols-1 sm:grid-cols-3 gap-3'>
                                     {[
-                                        { icon: <HiOutlinePhone />, label: 'Telefone', value: selectedPatient.phoneNumber ?? selectedPatient.phone ?? '—', color: 'indigo' },
+                                        { icon: <HiOutlinePhone />, label: 'Telefone', value: selectedPatient.phoneNumber ?? selectedPatient.phone ?? '—', color: 'indigo', whatsapp: toWhatsAppUrl(selectedPatient.phoneNumber ?? selectedPatient.phone) },
                                         { icon: <HiOutlineMail />, label: 'E-mail', value: selectedPatient.email ?? '—', color: 'purple' },
                                         { icon: <HiOutlineLocationMarker />, label: 'Endereço', value: buildAddress(selectedPatient), color: 'sky' },
-                                    ].map(({ icon, label, value, color }) => (
+                                    ].map(({ icon, label, value, color, whatsapp }) => (
                                         <div key={label} className='flex items-center gap-2.5 bg-white/60 backdrop-blur-sm rounded-xl px-3 py-2.5 border border-white/80'>
                                             <div className={`w-7 h-7 rounded-lg bg-${color}-50 flex items-center justify-center flex-shrink-0`}>
                                                 <span className={`text-${color}-400 w-3.5 h-3.5 flex`}>{icon}</span>
                                             </div>
-                                            <div className='min-w-0'>
+                                            <div className='min-w-0 flex-1'>
                                                 <p className='text-[10px] text-gray-400 uppercase tracking-wider font-medium'>{label}</p>
                                                 <p className='text-sm font-semibold text-gray-700 truncate'>{value}</p>
                                             </div>
+                                            {whatsapp && (
+                                                <a
+                                                    href={whatsapp}
+                                                    target='_blank'
+                                                    rel='noopener noreferrer'
+                                                    title='Abrir no WhatsApp'
+                                                    className='w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center text-green-500 hover:bg-green-100 hover:text-green-600 transition flex-shrink-0'
+                                                    onClick={e => e.stopPropagation()}
+                                                >
+                                                    <SiWhatsapp className='w-3.5 h-3.5' />
+                                                </a>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -1384,9 +1406,10 @@ const PatientRecordIndex = () => {
                             <TabList>
                                 <div className='flex flex-wrap items-center gap-2 w-full'>
                                     <TabNav value='dashboard' icon={<HiOutlineClipboardList />}>Dashboard</TabNav>
+                                    <TabNav value='treatment' icon={<HiOutlineDocumentText />}>Planejamentos</TabNav>
                                     <TabNav value='financial' icon={<HiOutlineCurrencyDollar />}>Financeiro</TabNav>
-                                    <TabNav value='appointments' icon={<HiOutlineCalendar />}>Atendimentos</TabNav>
                                     <TabNav value='notes' icon={<HiOutlineAnnotation />}>Anotações</TabNav>
+                                    <TabNav value='appointments' icon={<HiOutlineCalendar />}>Atendimentos</TabNav>
                                     <TabNav value='media' icon={<HiOutlinePhotograph />}>Imagens e Documentos</TabNav>
                                 </div>
                             </TabList>
@@ -2028,6 +2051,11 @@ const PatientRecordIndex = () => {
                                     </div>
                                 </TabContent>
 
+                                {/* ── Planejamentos ── */}
+                                <TabContent value='treatment'>
+                                    <TreatmentTab patientId={selectedPatient?.publicId} />
+                                </TabContent>
+
                             </div>
                         </Tabs>
                     </Card>
@@ -2071,12 +2099,24 @@ const PatientRecordIndex = () => {
                                 items={apiResults.map((p) => toPatternItem(p, operadoraNameByPublicId))}
                                 emptyMessage={searchTerm.trim().length < 2 ? 'Digite ao menos 2 caracteres…' : 'Nenhum paciente encontrado'}
                                 onItemClick={(item) => { setSearchTerm(''); setApiResults([]); openPatient(item._raw, 'Busca') }}
-                                actions={[{
-                                    key: 'edit',
-                                    icon: <HiOutlinePencil />,
-                                    tooltip: 'Editar',
-                                    onClick: (item) => openEdit(item._raw),
-                                }]}
+                                actions={[
+                                    {
+                                        key: 'whatsapp',
+                                        icon: <SiWhatsapp />,
+                                        tooltip: 'WhatsApp',
+                                        visible: (item) => !!(item._raw.phoneNumber || item._raw.phone),
+                                        onClick: (item) => {
+                                            const url = toWhatsAppUrl(item._raw.phoneNumber ?? item._raw.phone)
+                                            if (url) window.open(url, '_blank', 'noopener,noreferrer')
+                                        },
+                                    },
+                                    {
+                                        key: 'edit',
+                                        icon: <HiOutlinePencil />,
+                                        tooltip: 'Editar',
+                                        onClick: (item) => openEdit(item._raw),
+                                    },
+                                ]}
                             />
                         </div>
                     ) : (
@@ -2097,12 +2137,24 @@ const PatientRecordIndex = () => {
                                 )}
                                 emptyMessage='Nenhum prontuário acessado recentemente'
                                 onItemClick={(item) => openPatient(item._raw, 'Prontuários Recentes')}
-                                actions={[{
-                                    key: 'edit',
-                                    icon: <HiOutlinePencil />,
-                                    tooltip: 'Editar',
-                                    onClick: (item) => openEdit(item._raw),
-                                }]}
+                                actions={[
+                                    {
+                                        key: 'whatsapp',
+                                        icon: <SiWhatsapp />,
+                                        tooltip: 'WhatsApp',
+                                        visible: (item) => !!(item._raw.phoneNumber || item._raw.phone),
+                                        onClick: (item) => {
+                                            const url = toWhatsAppUrl(item._raw.phoneNumber ?? item._raw.phone)
+                                            if (url) window.open(url, '_blank', 'noopener,noreferrer')
+                                        },
+                                    },
+                                    {
+                                        key: 'edit',
+                                        icon: <HiOutlinePencil />,
+                                        tooltip: 'Editar',
+                                        onClick: (item) => openEdit(item._raw),
+                                    },
+                                ]}
                             />
                         </div>
                     )}

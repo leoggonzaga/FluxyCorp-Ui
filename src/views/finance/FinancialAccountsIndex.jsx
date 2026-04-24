@@ -1,6 +1,12 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
+import { useSelector } from 'react-redux'
 import { Card, Notification, toast } from '@/components/ui'
 import { ConfirmDialog } from '@/components/shared'
+import {
+    getFinancialAccounts,
+    createFinancialAccount,
+    updateFinancialAccount,
+} from '@/api/billing/billingService'
 import {
     HiOutlinePlus,
     HiOutlinePencil,
@@ -96,50 +102,41 @@ const PALETTE = [
 const paletteMeta  = (v) => PALETTE.find((p) => p.value === v) ?? PALETTE[0]
 const accountType  = (v) => ACCOUNT_TYPES.find((t) => t.value === v) ?? ACCOUNT_TYPES[0]
 
-const STORAGE_KEY  = 'fluxy_financial_accounts'
+// ─── Mapeamento tipo API ↔ tipo interno ───────────────────────────────────────
 
-const SEED = [
-    {
-        id: 'seed_1', name: 'Caixa Geral', type: 'caixa', bank: '',
-        agency: '', accountNumber: '', digit: '',
-        balance: 3200.00, color: 'emerald', isActive: true, isMain: false,
-        description: 'Dinheiro físico no consultório',
-    },
-    {
-        id: 'seed_2', name: 'Itaú Principal', type: 'corrente', bank: 'Banco Itaú Unibanco',
-        agency: '0245', accountNumber: '12345', digit: '6',
-        balance: 28540.75, color: 'blue', isActive: true, isMain: true,
-        description: 'Conta principal de recebimentos',
-    },
-    {
-        id: 'seed_3', name: 'Nubank', type: 'digital', bank: 'Nu Pagamentos',
-        agency: '', accountNumber: '7890', digit: '1',
-        balance: 4120.30, color: 'violet', isActive: true, isMain: false,
-        description: 'Recebimento via Pix e digital',
-    },
-    {
-        id: 'seed_4', name: 'Reserva / Poupança', type: 'poupanca', bank: 'Caixa Econômica Federal',
-        agency: '1234', accountNumber: '00056789', digit: '0',
-        balance: 50000.00, color: 'teal', isActive: true, isMain: false,
-        description: 'Reserva de emergência da clínica',
-    },
-]
+const TYPE_TO_API = { caixa: 0, corrente: 1, poupanca: 2, digital: 3, investimento: 4, outro: 99 }
+const API_TO_TYPE = { 0: 'caixa', 1: 'corrente', 2: 'poupanca', 3: 'digital', 4: 'investimento', 99: 'outro' }
 
-// ─── Storage ──────────────────────────────────────────────────────────────────
+const normalize = (a) => ({
+    id:            a.publicId,
+    publicId:      a.publicId,
+    name:          a.name,
+    type:          API_TO_TYPE[a.type] ?? 'outro',
+    bank:          a.bankName ?? '',
+    agency:        a.agencyNumber ?? '',
+    accountNumber: a.accountNumber ?? '',
+    digit:         a.accountDigit ?? '',
+    balance:       a.currentBalance ?? 0,
+    isMain:        a.isMain,
+    isActive:      a.isActive,
+    description:   a.description ?? '',
+    color:         a.colorTag ?? 'blue',
+})
 
-const load = () => {
-    try {
-        const raw = localStorage.getItem(STORAGE_KEY)
-        if (raw) return JSON.parse(raw)
-    } catch (_) {}
-    return SEED
-}
-
-const save = (data) => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)) } catch (_) {}
-}
-
-const genId = () => `acc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+const buildPayload = (form, companyPublicId) => ({
+    companyPublicId,
+    name:          form.name,
+    type:          TYPE_TO_API[form.type] ?? 99,
+    bankName:      form.bank || null,
+    agencyNumber:  form.agency || null,
+    accountNumber: form.accountNumber || null,
+    accountDigit:  form.digit || null,
+    currentBalance: Number(form.balance) || 0,
+    isMain:        form.isMain,
+    isActive:      form.isActive ?? true,
+    description:   form.description || null,
+    colorTag:      form.color || 'blue',
+})
 
 const fmt = (v) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v ?? 0)
@@ -321,7 +318,7 @@ const EMPTY = {
     digit: '', balance: '', color: 'blue', isActive: true, isMain: false, description: '',
 }
 
-const AccountDialog = ({ isOpen, onClose, onSuccess, initial }) => {
+const AccountDialog = ({ isOpen, onClose, onSave, initial }) => {
     const isEdit = !!initial
     const [form, setForm]     = useState(EMPTY)
     const [errors, setErrors] = useState({})
@@ -349,28 +346,27 @@ const AccountDialog = ({ isOpen, onClose, onSuccess, initial }) => {
         return e
     }
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         const e = validate()
         if (Object.keys(e).length) { setErrors(e); return }
         setSaving(true)
-        setTimeout(() => {
-            const account = {
-                id:            initial?.id ?? genId(),
+        try {
+            await onSave({
                 name:          form.name.trim(),
                 type:          form.type,
                 bank:          form.bank.trim(),
                 agency:        form.agency.trim(),
                 accountNumber: form.accountNumber.trim(),
                 digit:         form.digit.trim(),
-                balance:       form.balance !== '' ? Number(form.balance) : 0,
+                balance:       form.balance !== '' ? form.balance : '0',
                 color:         form.color,
                 isActive:      form.isActive,
                 isMain:        form.isMain,
                 description:   form.description.trim(),
-            }
+            }, isEdit)
+        } finally {
             setSaving(false)
-            onSuccess(account, isEdit)
-        }, 280)
+        }
     }
 
     const accent = isEdit
@@ -645,59 +641,70 @@ const ConsolidatedBar = ({ accounts, masked }) => {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 const FinancialAccountsIndex = () => {
-    const [accounts, setAccounts] = useState(load)
-    const [dialog, setDialog]     = useState(false)
-    const [editing, setEditing]   = useState(null)
-    const [deleting, setDeleting] = useState(null)
-    const [confirmOpen, setConfirmOpen] = useState(false)
-    const [search, setSearch]     = useState('')
-    const [filterType, setFilterType] = useState('')
-    const [masked, setMasked]     = useState(false)
+    const companyPublicId = useSelector((s) => s.auth.user.companyPublicId)
 
-    const persist = (data) => {
-        setAccounts(data)
-        save(data)
-    }
+    const [accounts, setAccounts]   = useState([])
+    const [loading, setLoading]     = useState(false)
+    const [dialog, setDialog]       = useState(false)
+    const [editing, setEditing]     = useState(null)
+    const [deleting, setDeleting]   = useState(null)
+    const [confirmOpen, setConfirmOpen] = useState(false)
+    const [search, setSearch]       = useState('')
+    const [filterType, setFilterType] = useState('')
+    const [masked, setMasked]       = useState(false)
+
+    const loadAccounts = useCallback(async () => {
+        if (!companyPublicId) return
+        setLoading(true)
+        try {
+            const data = await getFinancialAccounts(companyPublicId, false)
+            setAccounts((data ?? []).map(normalize))
+        } catch {
+            toast.push(<Notification type='danger' title='Erro ao carregar contas' />, { placement: 'top-center' })
+        } finally {
+            setLoading(false)
+        }
+    }, [companyPublicId])
+
+    useEffect(() => { loadAccounts() }, [loadAccounts])
 
     const openNew    = () => { setEditing(null); setDialog(true) }
     const openEdit   = (a) => { setEditing(a);   setDialog(true) }
     const openDelete = (a) => { setDeleting(a); setConfirmOpen(true) }
 
-    const handleSuccess = (account, isEdit) => {
-        setDialog(false)
-        let next
-        if (account.isMain) {
-            // remove isMain from others
-            next = accounts.map((a) => ({ ...a, isMain: false }))
-            next = isEdit
-                ? next.map((a) => a.id === account.id ? account : a)
-                : [...next, account]
+    const handleSave = async (formData, isEdit) => {
+        const payload = buildPayload(formData, companyPublicId)
+        if (isEdit) {
+            await updateFinancialAccount(editing.publicId, payload)
         } else {
-            next = isEdit
-                ? accounts.map((a) => a.id === account.id ? account : a)
-                : [...accounts, account]
+            await createFinancialAccount(payload)
         }
-        persist(next)
+        setDialog(false)
+        await loadAccounts()
         toast.push(
             <Notification type='success' title={isEdit ? 'Conta atualizada' : 'Conta criada'} />,
             { placement: 'top-center' }
         )
     }
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (!deleting) return
-        persist(accounts.filter((a) => a.id !== deleting.id))
-        toast.push(<Notification type='success' title='Conta removida' />, { placement: 'top-center' })
+        await updateFinancialAccount(deleting.publicId, {
+            ...buildPayload(deleting, companyPublicId),
+            isActive: false,
+        })
+        await loadAccounts()
+        toast.push(<Notification type='success' title='Conta desativada' />, { placement: 'top-center' })
         setConfirmOpen(false)
         setDeleting(null)
     }
 
-    const toggleMain = (account) => {
-        const isAlready = account.isMain
-        persist(accounts.map((a) => ({
-            ...a,
-            isMain: isAlready ? false : a.id === account.id,
-        })))
+    const toggleMain = async (account) => {
+        await updateFinancialAccount(account.publicId, {
+            ...buildPayload(account, companyPublicId),
+            isMain: !account.isMain,
+        })
+        await loadAccounts()
     }
 
     const filtered = useMemo(() => {
@@ -735,7 +742,7 @@ const FinancialAccountsIndex = () => {
             <AccountDialog
                 isOpen={dialog}
                 onClose={() => setDialog(false)}
-                onSuccess={handleSuccess}
+                onSave={handleSave}
                 initial={editing}
             />
 
@@ -835,7 +842,11 @@ const FinancialAccountsIndex = () => {
             </Card>
 
             {/* ── Cards grid ── */}
-            {filtered.length === 0 ? (
+            {loading ? (
+                <div className='flex justify-center py-16'>
+                    <div className='w-8 h-8 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin' />
+                </div>
+            ) : filtered.length === 0 ? (
                 <Card className='border border-gray-100 dark:border-gray-700/50'>
                     <EmptyState
                         icon={<HiOutlineCreditCard />}

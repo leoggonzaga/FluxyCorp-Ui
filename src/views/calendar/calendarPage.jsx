@@ -19,12 +19,15 @@ const CalendarPage = () => {
         setSelectedEvent(null)
     }
 
+    const handleRefresh = () => {
+        calendarRef.current?.getApi?.()?.refetchEvents()
+    }
+
     const handleChangeDate = (dateStr) => {
         const api = calendarRef.current?.getApi?.()
         if (!api) return
         api.gotoDate(dateStr)
-        api.unselect()
-        api.select(dateStr)
+        api.changeView('timeGridDay')
     }
 
     return (
@@ -58,7 +61,7 @@ const CalendarPage = () => {
                 onClose={closeUpsert}
                 width={630}
             >
-                <AppointmentUpsert data={selectedEvent} onClose={closeUpsert} />
+                <AppointmentUpsert data={selectedEvent} onClose={closeUpsert} onRefresh={handleRefresh} />
             </Dialog>
         </div>
     )

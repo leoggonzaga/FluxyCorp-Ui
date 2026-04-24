@@ -2,123 +2,236 @@ import { Formik, Field, Form } from 'formik'
 import { FormItem, FormContainer } from '@/components/ui/Form'
 import { HiOutlineBan, HiOutlineCheckCircle, HiOutlineClock, HiOutlineTrash, HiOutlineUser, HiOutlineCalendar } from "react-icons/hi"
 import dayjs from 'dayjs'
-import { Button, Input, Notification, Select, toast, InputPhone, InputNationalDocument, TimeInput, Avatar } from '../../components/ui';
+import { Button, Input, Notification, Select, toast, InputPhone, Avatar } from '../../components/ui';
 import * as Yup from 'yup'
 import DatePickerInputtable from '../../components/ui/DatePicker/DatePickerInputtable';
 import TimeInputRange from '../../components/ui/TimeInput/TimeInputRange';
 import { components } from 'react-select'
 import Loading from '../../components/shared/Loading'
 import ConsumerSearchInput from '@/components/shared/ConsumerSearchInput'
-import { enterpriseApiGetEmployees, enterpriseApiGetEmployeeSimplifiedById, roomsGetAll } from '../../api/enterprise/EnterpriseService';
+import { enterpriseApiGetEmployees, roomsGetAll } from '../../api/enterprise/EnterpriseService';
 import { useEffect, useState } from 'react';
 import { consultationTypeApiGetTypes } from '../../api/consultation/consultationService';
-import CreatableSelect from 'react-select/creatable'
+import {
+    appointmentApiCreateService,
+    appointmentApiEditService,
+    appointmentApiConfirm,
+    appointmentApiCancel,
+    appointmentApiDelete,
+} from '../../api/appointment/appointmentService'
 
+const { Control } = components
 
+const CustomControl = ({ children, ...props }) => (
+    <Control {...props}>
+        <Avatar
+            className="ltr:ml-4 rtl:mr-4"
+            shape="circle"
+            size={25}
+            icon={<HiOutlineUser size={15} />}
+        />
+        {children}
+    </Control>
+)
 
-const { MultiValueLabel, Control } = components
-
-
-const CustomControl = ({ children, ...props }) => {
-    const selected = props.getValue()[0]
-    return (
-        <Control {...props}>
-            <Avatar
-                className="ltr:ml-4 rtl:mr-4"
-                shape="circle"
-                size={25}
-                icon={<HiOutlineUser size={15} />}
-            />
-            {children}
-        </Control>
-    )
+const getInitialValues = (data) => {
+    if (!data) return {}
+    const timeRange = data.start && data.end
+        ? [new Date(data.start), new Date(data.end)]
+        : [null, null]
+    return { ...data, timeRange }
 }
 
-const CustomSelectOption = ({ innerProps, label, data, isSelected }) => {
-    return (
-        <div
-            className={`flex items-center justify-between p-2 ${isSelected
-                ? 'bg-gray-100 dark:bg-gray-500'
-                : 'hover:bg-gray-50 dark:hover:bg-gray-600'
-                }`}
-            {...innerProps}
-        >
-            <div className="flex items-center">
-                <Avatar shape="circle" size={20} src={data.imgPath} />
-                <span className="ml-2 rtl:mr-2">{label}</span>
-            </div>
-            {isSelected && <HiCheck className="text-emerald-500 text-xl" />}
-        </div>
-    )
+const validationSchema = Yup.object().shape({
+    consumerName: Yup.string().required('Paciente é obrigatório'),
+    start: Yup.mixed().required('Data é obrigatória'),
+    timeRange: Yup.mixed().required('Horário é obrigatório'),
+    roomPublicId: Yup.mixed().required('Sala é obrigatória').test('not-empty', 'Sala é obrigatória', v => v != null && v !== ''),
+    consultationTypePublicId: Yup.mixed().required('Tipo de atendimento é obrigatório').test('not-empty', 'Tipo de atendimento é obrigatório', v => v != null && v !== ''),
+    employeePublicId: Yup.mixed().required('Profissional é obrigatório').test('not-empty', 'Profissional é obrigatório', v => v != null && v !== ''),
+})
+
+const buildScheduledTimes = (values) => {
+    const [tStart, tEnd] = Array.isArray(values.timeRange) ? values.timeRange : [null, null]
+    const baseDate = dayjs(values.start)
+    if (!baseDate.isValid()) throw new Error('Data inválida')
+
+    if (tStart instanceof Date && tEnd instanceof Date) {
+        return {
+            scheduledAt: baseDate.hour(tStart.getHours()).minute(tStart.getMinutes()).second(0).millisecond(0).toISOString(),
+            scheduledEnd: baseDate.hour(tEnd.getHours()).minute(tEnd.getMinutes()).second(0).millisecond(0).toISOString(),
+        }
+    }
+
+    const endDate = values.end ? dayjs(values.end) : baseDate.add(1, 'hour')
+    return {
+        scheduledAt: baseDate.startOf('minute').toISOString(),
+        scheduledEnd: endDate.startOf('minute').toISOString(),
+    }
 }
 
-const AppointmentUpsert = ({ data, onClose }) => {
-    console.log(data);
+const AppointmentUpsert = ({ data, onClose, onRefresh }) => {
+    const isEdit = !!data?.publicId
 
-    const [isLoading, setIsLoading] = useState(false);
-    const [phoneKey, setPhoneKey] = useState(0);
-
-    const [employees, setEmployees] = useState([]);
-    const [consultationTypes, setConsultationTypes] = useState([]);
-    const [rooms, setRooms] = useState([]);
+    const [isLoading, setIsLoading] = useState(false)
+    const [phoneKey, setPhoneKey] = useState(0)
+    const [employees, setEmployees] = useState([])
+    const [consultationTypes, setConsultationTypes] = useState([])
+    const [rooms, setRooms] = useState([])
 
     const getEmployees = async () => {
-        const result = await enterpriseApiGetEmployees();
+        const result = await enterpriseApiGetEmployees()
         if (result?.data)
-            setEmployees(result.data.map(x => ({ label: x.fullName, value: x.publicId })));
+            setEmployees(result.data.map(x => ({ label: x.fullName, value: x.publicId })))
     }
 
     const getConsultationTypes = async () => {
-        const result = await consultationTypeApiGetTypes();
-        const list = Array.isArray(result) ? result : result?.data;
+        const result = await consultationTypeApiGetTypes()
+        const list = Array.isArray(result) ? result : result?.data
         if (Array.isArray(list))
-            setConsultationTypes(list.map(x => ({ label: x.name, value: x.publicId })));
+            setConsultationTypes(list.map(x => ({ label: x.name, value: x.publicId })))
     }
 
     const getRooms = async () => {
-        const result = await roomsGetAll();
-        const list = Array.isArray(result) ? result : result?.data;
+        const result = await roomsGetAll()
+        const list = Array.isArray(result) ? result : result?.data
         if (Array.isArray(list))
-            setRooms(
-                list
-                    .filter(x => x.isAvailable)
-                    .map(x => ({
-                        label: `${x.name}`,
-                        value: x.publicId,
-                    }))
-            );
+            setRooms(list.filter(x => x.isAvailable).map(x => ({ label: x.name, value: x.publicId })))
     }
-
-    const handleCreate = (values) => {
-    }
-
-    const handleUpdate = (values) => {
-    }
-
-    const validationSchema = Yup.object().shape({
-
-    })
 
     useEffect(() => {
-        setIsLoading(true);
-
-        Promise.all([
-            getEmployees(),
-            getConsultationTypes(),
-            getRooms(),
-        ])
+        setIsLoading(true)
+        Promise.all([getEmployees(), getConsultationTypes(), getRooms()])
             .finally(() => setIsLoading(false))
     }, [])
+
+    const showToast = (title, type) =>
+        toast.push(<Notification title={title} type={type} />, { placement: 'top-center' })
+
+    const handleCreate = async (values) => {
+        try {
+            setIsLoading(true)
+            const employee = employees.find(e => e.value === values.employeePublicId)
+            const room = rooms.find(r => r.value === values.roomPublicId)
+            const consultType = consultationTypes.find(c => c.value === values.consultationTypePublicId)
+            const { scheduledAt, scheduledEnd } = buildScheduledTimes(values)
+
+            const dto = {
+                employeePublicId: values.employeePublicId,
+                employeeName: employee?.label ?? '',
+                consumerPublicId: values.consumerPublicId ?? null,
+                consumerName: values.consumerName ?? '',
+                consumerEmail: values.email ?? '',
+                consumerPhone: (values.customerPhone ?? '').replace(/\D/g, ''),
+                roomPublicId: values.roomPublicId,
+                roomName: room?.label ?? '',
+                scheduledAt,
+                scheduledEnd,
+                note: values.note ?? null,
+                consultationTypePublicId: values.consultationTypePublicId,
+                consultationType: consultType?.label ?? '',
+            }
+
+            const result = await appointmentApiCreateService(dto)
+            if (result === null) return
+            showToast('Agendamento criado com sucesso!', 'success')
+            onRefresh?.()
+            onClose?.()
+        } catch (e) {
+            console.error('[handleCreate]', e)
+            showToast('Erro ao criar agendamento', 'danger')
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const handleUpdate = async (values) => {
+        try {
+            setIsLoading(true)
+            const employee = employees.find(e => e.value === values.employeePublicId)
+            const room = rooms.find(r => r.value === values.roomPublicId)
+            const consultType = consultationTypes.find(c => c.value === values.consultationTypePublicId)
+            const { scheduledAt, scheduledEnd } = buildScheduledTimes(values)
+
+            const dto = {
+                publicId: data.publicId,
+                employeePublicId: values.employeePublicId,
+                employeeName: employee?.label ?? '',
+                consumerPublicId: values.consumerPublicId ?? null,
+                consumerName: values.consumerName ?? '',
+                consumerEmail: values.email ?? '',
+                consumerCellPhone: (values.customerPhone ?? '').replace(/\D/g, ''),
+                roomPublicId: values.roomPublicId,
+                roomName: room?.label ?? '',
+                scheduledAt,
+                scheduledEnd,
+                note: values.note ?? null,
+                consultationTypePublicId: values.consultationTypePublicId,
+                consultationType: consultType?.label ?? '',
+            }
+
+            const result = await appointmentApiEditService(data.publicId, dto)
+            if (result === null) return
+            showToast('Agendamento atualizado!', 'success')
+            onRefresh?.()
+            onClose?.()
+        } catch (e) {
+            console.error('[handleUpdate]', e)
+            showToast('Erro ao atualizar agendamento', 'danger')
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const handleConfirm = async () => {
+        try {
+            setIsLoading(true)
+            await appointmentApiConfirm(data.publicId)
+            showToast('Agendamento confirmado!', 'success')
+            onRefresh?.()
+            onClose?.()
+        } catch {
+            showToast('Erro ao confirmar agendamento', 'danger')
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const handleCancel = async () => {
+        try {
+            setIsLoading(true)
+            await appointmentApiCancel(data.publicId)
+            showToast('Agendamento desmarcado!', 'success')
+            onRefresh?.()
+            onClose?.()
+        } catch {
+            showToast('Erro ao desmarcar agendamento', 'danger')
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const handleDelete = async () => {
+        try {
+            setIsLoading(true)
+            await appointmentApiDelete(data.publicId)
+            showToast('Agendamento removido!', 'success')
+            onRefresh?.()
+            onClose?.()
+        } catch {
+            showToast('Erro ao remover agendamento', 'danger')
+        } finally {
+            setIsLoading(false)
+        }
+    }
 
     return (
         <div>
             <Loading loading={isLoading}>
                 <div className='flex w-full justify-center'>
-                    <h3>{data ? 'Editar' : 'Cadastrar'} Agendamento</h3>
+                    <h3>{isEdit ? 'Editar' : 'Cadastrar'} Agendamento</h3>
                 </div>
 
-
-                {/* Badge de range pré-selecionado (só aparece quando vem do drag) */}
                 {data?.timeRange && (
                     <div className="flex items-center gap-2 px-3 py-2 mb-4 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/40">
                         <HiOutlineCalendar className="w-4 h-4 text-indigo-500 shrink-0" />
@@ -137,19 +250,16 @@ const AppointmentUpsert = ({ data, onClose }) => {
 
                 <Formik
                     enableReinitialize
-                    initialValues={data || {}}
+                    initialValues={getInitialValues(data) || {}}
                     validationSchema={validationSchema}
                     onSubmit={(values) => {
-                        !data ?
-                            handleCreate(values)
-                            :
-                            handleUpdate(values)
+                        console.log('[AppointmentUpsert] onSubmit chamado, isEdit:', isEdit, 'values:', values)
+                        return isEdit ? handleUpdate(values) : handleCreate(values)
                     }}
                 >
-                    {({ values, touched, errors, resetForm }) => (
+                    {({ values, touched, errors }) => (
                         <Form>
                             <FormContainer>
-
                                 <div className='mt-4'>
                                     <FormItem
                                         label="Paciente"
@@ -178,46 +288,42 @@ const AppointmentUpsert = ({ data, onClose }) => {
                                     </FormItem>
 
                                     <div className='flex items-center justify-between'>
-                                        <div>
-                                            <FormItem
-                                                label="Email"
-                                                invalid={errors.customerEmail && touched.customerEmail}
-                                                errorMessage={errors.customerEmail}
-                                            >
-                                                <Field name='email'>
-                                                    {({ field }) => (
-                                                        <Input
-                                                            {...field}
-                                                            placeholder='Email'
-                                                            className='w-[380px]'
-                                                        />
-                                                    )}
-                                                </Field>
-                                            </FormItem>
-                                        </div>
+                                        <FormItem
+                                            label="Email"
+                                            invalid={errors.email && touched.email}
+                                            errorMessage={errors.email}
+                                        >
+                                            <Field name='email'>
+                                                {({ field }) => (
+                                                    <Input
+                                                        {...field}
+                                                        placeholder='Email'
+                                                        className='w-[380px]'
+                                                    />
+                                                )}
+                                            </Field>
+                                        </FormItem>
 
-                                        <div>
-                                            <FormItem
-                                                label="Telefone"
-                                                invalid={errors.customerEmail && touched.customerEmail}
-                                                errorMessage={errors.customerEmail}
-                                            >
-                                                <Field name='customerPhone'>
-                                                    {({ field, form }) => (
-                                                        <InputPhone
-                                                            key={phoneKey}
-                                                            field={field}
-                                                            form={form}
-                                                            mask="(00) 00000-0000"
-                                                            className='w-[190px]'
-                                                        />
-                                                    )}
-                                                </Field>
-                                            </FormItem>
-                                        </div>
+                                        <FormItem
+                                            label="Telefone"
+                                            invalid={errors.customerPhone && touched.customerPhone}
+                                            errorMessage={errors.customerPhone}
+                                        >
+                                            <Field name='customerPhone'>
+                                                {({ field, form }) => (
+                                                    <InputPhone
+                                                        key={phoneKey}
+                                                        field={field}
+                                                        form={form}
+                                                        mask="(00) 00000-0000"
+                                                        className='w-[190px]'
+                                                    />
+                                                )}
+                                            </Field>
+                                        </FormItem>
                                     </div>
 
-                                    <div className='flex items-center gap-2 '>
+                                    <div className='flex items-center gap-2'>
                                         <FormItem
                                             asterisk
                                             label="Data"
@@ -233,14 +339,7 @@ const AppointmentUpsert = ({ data, onClose }) => {
                                                         name='start'
                                                         field={field}
                                                         form={form}
-                                                        onChange={(value) => {
-                                                            form.setFieldValue(
-                                                                field.name,
-                                                                value
-                                                            )
-                                                        }
-
-                                                        }
+                                                        onChange={(value) => form.setFieldValue(field.name, value)}
                                                     />
                                                 )}
                                             </Field>
@@ -260,13 +359,7 @@ const AppointmentUpsert = ({ data, onClose }) => {
                                                         defaultValue={values?.timeRange}
                                                         field={field}
                                                         form={form}
-                                                        onChange={(value) => {
-                                                            form.setFieldValue(
-                                                                field.name,
-                                                                value
-                                                            )
-                                                        }
-                                                        }
+                                                        onChange={(value) => form.setFieldValue(field.name, value)}
                                                     />
                                                 )}
                                             </Field>
@@ -294,60 +387,48 @@ const AppointmentUpsert = ({ data, onClose }) => {
                                     </div>
 
                                     <div className='flex items-center justify-between'>
-                                        <div>
-                                            <FormItem
-                                                asterisk
-                                                label="Tipo de Atendimento"
-                                                invalid={errors.consultationTypePublicId && touched.consultationTypePublicId}
-                                                errorMessage={errors.consultationTypePublicId}
-                                                className='w-full'
-                                            >
-                                                <Field name='consultationTypePublicId'>
-                                                    {({ field, form }) => (
-                                                        <Select
-                                                            options={consultationTypes}
-                                                            placeholder='Tipo de Atendimento'
-                                                            onChange={(opt) => form.setFieldValue(field.name, opt?.value)}
-                                                            defaultValue={values?.consultationTypePublicId ? consultationTypes.find(x => x.value === values.consultationTypePublicId) : null}
-                                                            className='w-[290px]'
-                                                            size='lg'
-                                                        />
-                                                    )}
-                                                </Field>
-                                            </FormItem>
-                                        </div>
+                                        <FormItem
+                                            asterisk
+                                            label="Tipo de Atendimento"
+                                            invalid={errors.consultationTypePublicId && touched.consultationTypePublicId}
+                                            errorMessage={errors.consultationTypePublicId}
+                                            className='w-full'
+                                        >
+                                            <Field name='consultationTypePublicId'>
+                                                {({ field, form }) => (
+                                                    <Select
+                                                        options={consultationTypes}
+                                                        placeholder='Tipo de Atendimento'
+                                                        onChange={(opt) => form.setFieldValue(field.name, opt?.value)}
+                                                        defaultValue={values?.consultationTypePublicId ? consultationTypes.find(x => x.value === values.consultationTypePublicId) : null}
+                                                        className='w-[290px]'
+                                                        size='lg'
+                                                    />
+                                                )}
+                                            </Field>
+                                        </FormItem>
 
-                                        <div>
-                                            <FormItem
-                                                asterisk
-                                                label="Dentista"
-                                                invalid={errors.employeePublicId && touched.employeePublicId}
-                                                errorMessage={errors.employeePublicId}
-                                                className='w-full'
-                                            >
-                                                <Field name='employeePublicId'>
-                                                    {({ field, form }) => (
-                                                        <Select
-                                                            options={employees}
-                                                            placeholder='Selecione o Profissional'
-                                                            onChange={(options) => {
-                                                                form.setFieldValue(
-                                                                    field.name,
-                                                                    options.value
-                                                                )
-                                                            }
-                                                            }
-                                                            defaultValue={values?.employeePublicId ? employees.find(x => x.value == values.employeePublicId) : null}
-                                                            className='w-[280px]'
-                                                            size='lg'
-                                                        />
-                                                    )}
-                                                </Field>
-                                            </FormItem>
-                                        </div>
+                                        <FormItem
+                                            asterisk
+                                            label="Profissional"
+                                            invalid={errors.employeePublicId && touched.employeePublicId}
+                                            errorMessage={errors.employeePublicId}
+                                            className='w-full'
+                                        >
+                                            <Field name='employeePublicId'>
+                                                {({ field, form }) => (
+                                                    <Select
+                                                        options={employees}
+                                                        placeholder='Selecione o Profissional'
+                                                        onChange={(opt) => form.setFieldValue(field.name, opt?.value)}
+                                                        defaultValue={values?.employeePublicId ? employees.find(x => x.value === values.employeePublicId) : null}
+                                                        className='w-[280px]'
+                                                        size='lg'
+                                                    />
+                                                )}
+                                            </Field>
+                                        </FormItem>
                                     </div>
-
-
 
                                     <FormItem
                                         label="Observações"
@@ -355,65 +436,65 @@ const AppointmentUpsert = ({ data, onClose }) => {
                                         errorMessage={errors.note}
                                     >
                                         <Field name='note'>
-                                            {({ field, form }) => (
+                                            {({ field }) => (
                                                 <Input
                                                     textArea
+                                                    {...field}
                                                     placeholder='Observações'
                                                 />
                                             )}
                                         </Field>
                                     </FormItem>
-
-
-
                                 </div>
 
                                 <div className='flex items-center gap-2 justify-between mt-3'>
                                     <div className='flex items-center gap-2'>
-                                        <Button
-                                            variant="twoTone"
-                                            icon={<HiOutlineCheckCircle />}
-                                            size='sm'
-                                            color='emerald-500'
-                                        >
-                                            Confirmar
-                                        </Button>
+                                        {isEdit && (
+                                            <>
+                                                <Button
+                                                    type="button"
+                                                    variant="twoTone"
+                                                    icon={<HiOutlineCheckCircle />}
+                                                    size='sm'
+                                                    color='emerald-500'
+                                                    onClick={handleConfirm}
+                                                >
+                                                    Confirmar
+                                                </Button>
 
-                                        <Button
-                                            variant="twoTone"
-                                            icon={<HiOutlineBan />}
-                                            size='sm'
-                                            color='orange-500'
-                                        >
-                                            Desmarcar
-                                        </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="twoTone"
+                                                    icon={<HiOutlineBan />}
+                                                    size='sm'
+                                                    color='orange-500'
+                                                    onClick={handleCancel}
+                                                >
+                                                    Desmarcar
+                                                </Button>
 
-                                        <Button
-                                            variant="twoTone"
-                                            icon={<HiOutlineTrash />}
-                                            size='sm'
-                                            color='red-500'
-                                        >
-                                            Excluir
-                                        </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="twoTone"
+                                                    icon={<HiOutlineTrash />}
+                                                    size='sm'
+                                                    color='red-500'
+                                                    onClick={handleDelete}
+                                                >
+                                                    Excluir
+                                                </Button>
+                                            </>
+                                        )}
                                     </div>
 
-
-                                    <div >
-
-
-
-
-                                        <Button
-                                            variant='solid'
-                                            icon={<HiOutlineCheckCircle />}
-                                            size='sm'
-                                        >
-                                            Salvar
-                                        </Button>
-                                    </div>
-
-
+                                    <Button
+                                        type="submit"
+                                        variant='solid'
+                                        icon={<HiOutlineCheckCircle />}
+                                        size='sm'
+                                    >
+                                        Salvar
+                                    </Button>
                                 </div>
                             </FormContainer>
                         </Form>

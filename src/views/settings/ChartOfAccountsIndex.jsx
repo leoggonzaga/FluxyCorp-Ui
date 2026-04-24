@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Card, Notification, toast } from '@/components/ui'
 import { ConfirmDialog } from '@/components/shared'
+import PillTabs from '@/components/shared/PillTabs'
 import {
     HiOutlineBookOpen,
     HiOutlinePlus,
@@ -238,6 +239,38 @@ const Field = ({ label, error, children, hint }) => (
         {hint && !error && <p className='text-xs text-gray-400 mt-1'>{hint}</p>}
         {error && <p className='text-xs text-rose-500 mt-1'>{error}</p>}
     </div>
+)
+
+const TopKpiCard = ({ icon, label, value, color, shadowColor, sub, onClick, active }) => (
+    <Card
+        className={`border-l-4 ${color} backdrop-blur-sm bg-white/80 dark:bg-gray-900/60 ${
+            onClick
+                ? `!cursor-pointer transition-shadow ${active && shadowColor ? `hover:${shadowColor}` : 'hover:shadow-sm'}`
+                : ''
+        } ${active && shadowColor ? shadowColor : ''}`}
+        style={{
+            ...(onClick ? { cursor: 'pointer' } : {}),
+        }}
+        onClick={onClick}
+        title={onClick ? 'Clique para filtrar' : undefined}
+    >
+        <div className={onClick ? '!cursor-pointer relative flex items-center justify-between' : 'relative flex items-center justify-between'}>
+            <div>
+                <p className='text-sm text-gray-500 dark:text-gray-400 font-medium'>{label}</p>
+                <p className='text-3xl font-bold text-gray-800 dark:text-gray-100 mt-1 tabular-nums'>{value}</p>
+                {sub && <p className='text-xs text-gray-400 mt-1'>{sub}</p>}
+                {active && (
+                    <div className='mt-1.5 inline-flex items-center gap-1.5'>
+                        <span className='w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse' />
+                        <span className='text-[10px] font-semibold text-violet-600 dark:text-violet-300'>ativo</span>
+                    </div>
+                )}
+            </div>
+            <div className='p-3 rounded-xl bg-gray-100 dark:bg-gray-800'>
+                {icon}
+            </div>
+        </div>
+    </Card>
 )
 
 // ─── Suggest next code ────────────────────────────────────────────────────────
@@ -811,20 +844,29 @@ const ChartOfAccountsIndex = () => {
                 {stats.byType.map((t) => {
                     const Icon = t.icon
                     return (
-                        <Card key={t.value} className='border border-gray-100 dark:border-gray-700/50 cursor-pointer hover:shadow-sm transition-shadow' onClick={() => setFilterType(filterType === t.value ? '' : t.value)}>
-                            <div className='flex items-center gap-3'>
-                                <div className={`p-2 rounded-xl ${t.iconBg} flex-shrink-0`}>
-                                    <Icon className='w-4 h-4 text-white' />
-                                </div>
-                                <div className='min-w-0'>
-                                    <p className='text-xl font-bold text-gray-800 dark:text-gray-100 tabular-nums'>{t.count}</p>
-                                    <p className='text-xs text-gray-400 truncate'>{t.label}</p>
-                                </div>
-                                {filterType === t.value && (
-                                    <div className={`w-1.5 h-8 rounded-full ${t.dot} ml-auto`} />
-                                )}
-                            </div>
-                        </Card>
+                        <TopKpiCard
+                            key={t.value}
+                            icon={<Icon className='w-7 h-7 text-gray-600 dark:text-gray-300' />}
+                            label={t.label}
+                            value={t.count}
+                            color={t.value === 'receita'
+                                ? 'border-emerald-500'
+                                : t.value === 'despesa'
+                                    ? 'border-rose-500'
+                                    : t.value === 'ativo'
+                                        ? 'border-blue-500'
+                                        : 'border-amber-500'}
+                            sub={filterType === t.value ? '' : 'Clique para filtrar'}
+                            active={filterType === t.value}
+                            shadowColor={t.value === 'receita'
+                                ? 'shadow-[0_0_0_1px_rgba(16,185,129,0.18),0_10px_24px_-14px_rgba(16,185,129,0.45)]'
+                                : t.value === 'despesa'
+                                    ? 'shadow-[0_0_0_1px_rgba(244,63,94,0.18),0_10px_24px_-14px_rgba(244,63,94,0.45)]'
+                                    : t.value === 'Ativo'
+                                        ? 'shadow-[0_0_0_1px_rgba(59,130,246,0.18),0_10px_24px_-14px_rgba(59,130,246,0.45)]'
+                                        : 'shadow-[0_0_0_1px_rgba(245,158,11,0.18),0_10px_24px_-14px_rgba(245,158,11,0.45)]'}
+                            onClick={() => setFilterType(filterType === t.value ? '' : t.value)}
+                        />
                     )
                 })}
             </div>
@@ -841,14 +883,14 @@ const ChartOfAccountsIndex = () => {
                             className='w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-400/40 focus:border-violet-400 placeholder-gray-400 transition-all'
                         />
                     </div>
-                    <select
+                    <PillTabs
+                        items={[
+                            { value: '', label: 'Todos os tipos' },
+                            ...TYPES.map((t) => ({ value: t.value, label: t.label })),
+                        ]}
                         value={filterType}
-                        onChange={(e) => setFilterType(e.target.value)}
-                        className='py-2.5 px-3 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-400/40 focus:border-violet-400 transition-all'
-                    >
-                        <option value=''>Todos os tipos</option>
-                        {TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                    </select>
+                        onChange={setFilterType}
+                    />
                     <select
                         value={filterNature}
                         onChange={(e) => setFilterNature(e.target.value)}
