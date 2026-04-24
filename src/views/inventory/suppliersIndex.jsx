@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { HiOutlinePlus, HiOutlineSearch, HiOutlinePencil, HiOutlineTrash, HiOutlineArrowLeft } from 'react-icons/hi'
-import { Button, Dialog, Input, Notification, Pagination, toast } from '@/components/ui'
+import { Button, Card, Dialog, Input, Notification, Pagination, toast } from '@/components/ui'
+import CreateButton from '@/components/ui/Button/CreateButton'
 import { ConfirmDialog } from '@/components/shared'
 import { Pattern1 } from '@/components/shared/listPatterns'
 import { getSuppliers, createSupplier, updateSupplier, deleteSupplier } from '@/api/inventory/inventoryService'
@@ -136,14 +137,9 @@ const SuppliersIndex = () => {
                     </p>
                     </div>
                 </div>
-                <Button
-                    icon={<HiOutlinePlus />}
-                    variant="solid"
-                    size="sm"
-                    onClick={openNew}
-                >
+                <CreateButton onClick={openNew}>
                     Novo Fornecedor
-                </Button>
+                </CreateButton>
             </div>
 
             {/* Busca */}

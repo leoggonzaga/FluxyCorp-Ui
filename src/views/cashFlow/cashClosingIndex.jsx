@@ -21,6 +21,7 @@ import {
     HiOutlineLockOpen,
 } from 'react-icons/hi'
 import { Notification, toast } from '@/components/ui'
+import CreateButton from '@/components/ui/Button/CreateButton'
 import {
     getCashSessions,
     getCashSessionDetail,
@@ -743,11 +744,9 @@ const CashClosingIndex = () => {
                         </button>
                     </div>
                     {isCurrentMonth && !todayExists && (
-                        <button onClick={() => setShowAbrirModal(true)}
-                            className='flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-sm font-bold transition shadow-lg shadow-indigo-500/20'>
-                            <HiOutlinePlus className='w-4 h-4' />
+                        <CreateButton onClick={() => setShowAbrirModal(true)}>
                             Abrir Caixa Hoje
-                        </button>
+                        </CreateButton>
                     )}
                     <button onClick={load} title='Atualizar' className='w-8 h-8 flex items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 transition'>
                         <HiOutlineRefresh className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />

@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux'
 import { Card, Notification, toast } from '@/components/ui'
 import { ConfirmDialog } from '@/components/shared'
 import { Pattern1 } from '@/components/shared/listPatterns'
+import CreateButton from '@/components/ui/Button/CreateButton'
 import {
     HiOutlineCreditCard,
     HiOutlinePlus,
@@ -937,13 +938,9 @@ const PaymentMethodsIndex = () => {
                         Configure as taxas de recebimento por método de pagamento
                     </p>
                 </div>
-                <button
-                    onClick={openNew}
-                    className='flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl bg-violet-600 hover:bg-violet-700 text-white transition shadow-sm shadow-violet-200 whitespace-nowrap'
-                >
-                    <HiOutlinePlus className='w-4 h-4' />
+                <CreateButton onClick={openNew}>
                     Novo Método
-                </button>
+                </CreateButton>
             </div>
 
             {/* ── Resumo ── */}

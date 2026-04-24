@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { HiOutlinePlus, HiOutlineTrash, HiOutlineArrowLeft } from 'react-icons/hi'
 import { Button, Card, Dialog, Input, Notification, toast } from '@/components/ui'
+import CreateButton from '@/components/ui/Button/CreateButton'
 import { ConfirmDialog, Loading } from '@/components/shared'
 import { Field, Form, Formik } from 'formik'
 import { FormContainer, FormItem } from '@/components/ui/Form'
@@ -87,9 +88,9 @@ const ProsthesisTypesIndex = () => {
                         </p>
                     </div>
                 </div>
-                <Button variant="solid" icon={<HiOutlinePlus />} onClick={() => setIsCreateOpen(true)}>
+                <CreateButton onClick={() => setIsCreateOpen(true)}>
                     Novo Tipo
-                </Button>
+                </CreateButton>
             </div>
 
             {/* Default types info */}

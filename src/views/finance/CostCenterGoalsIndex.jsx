@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { Card, Notification, toast } from '@/components/ui'
 import { ConfirmDialog } from '@/components/shared'
+import CreateButton from '@/components/ui/Button/CreateButton'
 import { getCostCenters, createCostCenter, updateCostCenter } from '@/api/billing/billingService'
 import {
     HiOutlinePlus,
@@ -890,9 +891,9 @@ const CostCenterGoalsIndex = () => {
                     <button onClick={openNewGoal} className='flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-xl border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition whitespace-nowrap'>
                         <HiOutlinePlus className='w-4 h-4'/> Nova Meta
                     </button>
-                    <button onClick={openNewCC} className='flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl bg-violet-600 hover:bg-violet-700 text-white transition shadow-sm shadow-violet-200 whitespace-nowrap'>
-                        <HiOutlinePlus className='w-4 h-4'/> Novo Centro
-                    </button>
+                    <CreateButton onClick={openNewCC}>
+                        Novo Centro
+                    </CreateButton>
                 </div>
             </div>
 

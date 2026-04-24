@@ -7,6 +7,7 @@ import {
 } from 'react-icons/hi'
 import { Calendar, Checkbox } from '../../components/ui'
 import { Loading } from '../../components/shared'
+import CreateButton from '../../components/ui/Button/CreateButton'
 import { enterpriseApiGetEmployees } from '../../api/enterprise/EnterpriseService'
 import { useEffect, useState } from 'react'
 
@@ -82,13 +83,9 @@ const CalendarOptions = ({ handleChangeDate, openUpsert }) => {
 
             {/* New appointment button */}
             <div className="px-3 pb-3">
-                <button
-                    onClick={openUpsert}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-semibold transition-all shadow-sm shadow-indigo-500/30"
-                >
-                    <HiOutlinePlus className="w-4 h-4" />
+                <CreateButton onClick={openUpsert} className='w-full justify-center'>
                     Novo Agendamento
-                </button>
+                </CreateButton>
             </div>
 
             {/* Divider */}

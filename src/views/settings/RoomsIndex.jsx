@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Card, Notification, toast } from '@/components/ui'
 import { Pattern1 } from '@/components/shared/listPatterns'
+import CreateButton from '@/components/ui/Button/CreateButton'
 import {
     HiOutlinePlus,
     HiOutlinePencil,
@@ -386,13 +387,9 @@ const RoomsIndex = () => {
                         onChange={(e) => setSearch(e.target.value)}
                     />
                 </div>
-                <button
-                    onClick={() => setCreateOpen(true)}
-                    className='flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold rounded-xl bg-violet-600 hover:bg-violet-700 text-white transition shadow-sm shadow-violet-200 whitespace-nowrap'
-                >
-                    <HiOutlinePlus className='w-4 h-4' />
+                <CreateButton onClick={() => setCreateOpen(true)}>
                     Nova Sala
-                </button>
+                </CreateButton>
             </div>
 
             {/* Lista */}

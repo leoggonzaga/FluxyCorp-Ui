@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button, Dialog, Dropdown, MoneyInput, Tabs } from "../../components/ui";
+import CreateButton from '../../components/ui/Button/CreateButton'
 import { HiInformationCircle, HiOutlineInformationCircle, HiOutlinePlus, HiOutlineQuestionMarkCircle, HiOutlineX, HiPlus, HiPlusCircle } from "react-icons/hi";
 import TabList from "../../components/ui/Tabs/TabList";
 import TabNav from "../../components/ui/Tabs/TabNav";
@@ -64,7 +65,7 @@ const ReceivableIndex = () => {
                 <div className='flex items-center gap-1'>
                     <h2 className='text-gray-800'>Recebíveis</h2>
                     <Dropdown
-                        renderTitle={<Button
+                        renderTitle={<CreateButton
                             className='ml-2'
                             shape='circle'
                             variant='solid'

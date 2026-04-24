@@ -21,6 +21,7 @@ import {
     HiOutlineExclamation,
 } from 'react-icons/hi'
 import { Button, Dialog, Input, Select, Notification, toast } from '@/components/ui'
+import CreateButton from '@/components/ui/Button/CreateButton'
 import { KanbanCard, KanbanColumn } from '@/components/shared'
 import { FormItem, FormContainer } from '@/components/ui/Form'
 import { Formik, Field, Form } from 'formik'
@@ -734,14 +735,9 @@ const LeadsIndex = () => {
                             <HiOutlineViewBoards className='text-sm' /> Kanban
                         </button>
                     </div>
-                    <Button
-                        icon={<HiOutlinePlus />}
-                        variant='solid'
-                        size='sm'
-                        onClick={() => { setEditData(null); setModalOpen(true) }}
-                    >
+                    <CreateButton onClick={() => { setEditData(null); setModalOpen(true) }}>
                         Nova Negociação
-                    </Button>
+                    </CreateButton>
                 </div>
             </div>
 

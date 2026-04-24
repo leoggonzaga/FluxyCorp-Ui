@@ -51,7 +51,7 @@ const Pattern5 = ({ items = [], loading, onItemClick, emptyMessage, actions = []
                         <div
                             key={item.id}
                             onClick={() => onItemClick?.(item)}
-                            className={`group flex items-stretch gap-0 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/40 rounded-xl overflow-hidden hover:border-indigo-200 dark:hover:border-indigo-700/50 hover:shadow-sm hover:shadow-indigo-100/60 hover:-translate-y-px transition-all duration-150 ${onItemClick ? 'cursor-pointer' : ''}`}
+                            className={`group flex items-stretch gap-0 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/40 rounded-xl overflow-hidden hover:border-indigo-200 dark:hover:border-indigo-700/50 hover:shadow-sm hover:shadow-indigo-100/60 hover:-translate-y-px transition-all duration-150 ${onItemClick ? 'cursor-pointer' : 'cursor-default'}`}
                         >
                             {/* Barra lateral de cor */}
                             <div className={`w-1 flex-shrink-0 ${item.barColor ?? 'bg-gray-200 dark:bg-gray-700'}`} />

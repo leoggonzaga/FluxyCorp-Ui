@@ -37,7 +37,7 @@ const Pattern1 = ({ items = [], loading, onItemClick, emptyMessage, actions = []
                         <div
                             key={item.id}
                             onClick={() => onItemClick?.(item)}
-                            className={`group flex items-center gap-4 px-4 py-3 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/40 rounded-xl hover:border-indigo-200 dark:hover:border-indigo-700/50 hover:shadow-sm hover:shadow-indigo-100/60 hover:-translate-y-px transition-all duration-150 ${onItemClick ? 'cursor-pointer' : ''}`}
+                            className={`group flex items-center gap-4 px-4 py-3 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/40 rounded-xl hover:border-indigo-200 dark:hover:border-indigo-700/50 hover:shadow-sm hover:shadow-indigo-100/60 hover:-translate-y-px transition-all duration-150 ${onItemClick ? 'cursor-pointer' : 'cursor-default'}`}
                         >
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-sm ${item.avatarColor ?? getAvatarColor(item.avatarName ?? item.name)}`}>
                                 {getInitials(item.avatarName ?? item.name)}

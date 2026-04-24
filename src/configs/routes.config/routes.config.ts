@@ -59,21 +59,15 @@ export const protectedRoutes = [
         authority: [],
     },
     {
-        key: 'catalog',
-        path: '/catalog',
-        component: lazy(() => import('@/views/catalog/catalogIndex')),
+        key: 'services_catalog',
+        path: '/services-catalog',
+        component: lazy(() => import('@/views/services_catalog/ServicesCatalogIndex')),
         authority: [],
     },
     {
         key: 'catalog',
         path: '/catalog/:id',
         component: lazy(() => import('@/views/catalog/catalogView')),
-        authority: [],
-    },
-    {
-        key: 'service_product',
-        path: '/service-product',
-        component: lazy(() => import('@/views/service_product/service_productIndex')),
         authority: [],
     },
     {

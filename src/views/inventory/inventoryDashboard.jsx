@@ -7,6 +7,7 @@ import {
     HiOutlineClipboardList,
 } from 'react-icons/hi'
 import { Button, Card, Dialog, Input, Notification, Select, toast } from '@/components/ui'
+import CreateButton from '@/components/ui/Button/CreateButton'
 import { ConfirmDialog, Loading } from '@/components/shared'
 import {
     getProductsPaged, getCategories, getSuppliers, deleteProduct,
@@ -138,9 +139,9 @@ const InventoryDashboard = () => {
                     <Button size="sm" variant="plain" icon={<HiOutlineTruck />} onClick={() => navigate('/inventory/suppliers')}>
                         Fornecedores
                     </Button>
-                    <Button size="sm" variant="solid" icon={<HiOutlinePlus />} onClick={() => { setEditProduct(null); setIsUpsertOpen(true) }}>
+                    <CreateButton onClick={() => { setEditProduct(null); setIsUpsertOpen(true) }}>
                         Novo Produto
-                    </Button>
+                    </CreateButton>
                 </div>
             </div>
 

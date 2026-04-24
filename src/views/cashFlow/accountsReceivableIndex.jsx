@@ -20,6 +20,7 @@ import {
 } from 'react-icons/hi'
 import { Notification, toast } from '@/components/ui'
 import { DateRangeFilter } from '@/components/shared'
+import CreateButton from '@/components/ui/Button/CreateButton'
 import {
     getChargesByCompany,
     createCharge,
@@ -711,11 +712,9 @@ export default function AccountsReceivableIndex() {
                     <button onClick={load} title='Atualizar' className='w-8 h-8 flex items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 transition'>
                         <HiOutlineRefresh className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                     </button>
-                    <button onClick={() => setShowNova(true)}
-                        className='flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-sm self-start'>
-                        <HiOutlinePlus className='w-4 h-4' />
+                    <CreateButton onClick={() => setShowNova(true)} className='self-start'>
                         Nova Cobrança
-                    </button>
+                    </CreateButton>
                 </div>
             </div>
 

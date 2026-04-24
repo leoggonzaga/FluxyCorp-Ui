@@ -384,9 +384,9 @@ const TemplateManagement = () => {
                         <p className='text-sm text-gray-600 mt-1'>Crie modelos formatados para uso no prontuario do paciente.</p>
                     </div>
                     {!isEditing && (
-                        <Button size='sm' variant='solid' icon={<HiOutlinePlus />} onClick={startCreate}>
+                        <CreateButton onClick={startCreate}>
                             Novo Template
-                        </Button>
+                        </CreateButton>
                     )}
                 </div>
             </Card>

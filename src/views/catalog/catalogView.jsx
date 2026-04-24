@@ -1,142 +1,107 @@
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { Button, Card, Dialog, Input } from "../../components/ui";
-import { HiExclamation, HiOutlinePlus, HiOutlineSearch } from "react-icons/hi";
-import { catalogApiGetCatalogById } from "../../api/catalog/catalogService";
-import { ConfirmDialog, Loading } from "../../components/shared";
-import CatalogItemDualList from "./components/catalogItemDualList";
-import CatalogItemList from "./catalogItem/catalogItemList";
-
-
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { Card, Dialog, Notification, toast } from '../../components/ui'
+import CreateButton from '../../components/ui/Button/CreateButton'
+import { HiOutlineArrowLeft } from 'react-icons/hi'
+import { catalogApiGetCatalogById } from '../../api/catalog/catalogService'
+import { Loading } from '../../components/shared'
+import CatalogItemDualList from './components/catalogItemDualList'
+import CatalogItemList from './catalogItem/catalogItemList'
 
 const CatalogView = () => {
-    const { id } = useParams();
+    const { id }   = useParams()
+    const navigate = useNavigate()
 
-    const [isLoading, setIsLoading] = useState(false)
-
-    const [catalog, setCatalog] = useState({ items: []})
-
+    const [isLoading, setIsLoading]               = useState(false)
+    const [catalog, setCatalog]                   = useState({ items: [] })
     const [isDualListOpen, setIsDualListOpen] = useState(false)
-    const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
-    const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false)
+
+    const closeDualList = () => setIsDualListOpen(false)
 
     const pushNewCatalogItems = (catalogItems) => {
+        setCatalog(prev => ({ ...prev, items: catalogItems }))
+    }
+
+    const patchCatalogItemPrice = (itemId, newPrice) => {
         setCatalog(prev => ({
             ...prev,
-            items: [...(prev.items ?? []), ...catalogItems]
-        }));
-    }
-
-    const onDialogClose = () => {
-        setIsCancelDialogOpen(true)
-    }
-
-    const onConfirmDialogClose = () => {
-        setIsCancelDialogOpen(false)
-        setIsDualListOpen(false)
-        setIsConfirmDialogOpen(false)
+            items: (prev.items ?? []).map(it => it.id === itemId ? { ...it, price: newPrice } : it),
+        }))
     }
 
     const loadCatalog = async () => {
         setIsLoading(true)
-
-        const result = await catalogApiGetCatalogById(id);
-        debugger;
-        if (result) {
-            debugger;
+        const result = await catalogApiGetCatalogById(id)
+        if (result?.data) {
             setCatalog(result.data)
-        }
-        else {
+        } else {
             toast.push(
                 <Notification type='danger' title='Falha'>
                     Falha ao acessar o catálogo.
                 </Notification>
             )
         }
-
         setIsLoading(false)
     }
 
-    const loadServices = async () => {
-        const result = apiCatalog
-
-        setServiceTableInfo(result)
-        setServicesByCategory((result?.categories ?? []).map(category => {
-            let s = (result.services ?? []).filter(x => x.categoryId == category.id);
-
-            if (s?.length)
-                return {
-                    categoryId: category.id,
-                    categoryName: category.name,
-                    services: s
-                }
-        }).filter(Boolean)); //retira os valores falsy da lista, ou seja, categorias que não possuem procedimentos
-    }
-
-    useEffect(() => {
-        loadCatalog();
-    }, [])
+    useEffect(() => { loadCatalog() }, [])
 
     return (
         <Loading loading={isLoading}>
+            {!catalog?.name ? (
+                <div className='flex flex-col items-center justify-center mt-8 gap-2'>
+                    <span className='font-bold text-lg text-gray-700 dark:text-gray-200'>
+                        Catálogo não encontrado
+                    </span>
+                </div>
+            ) : (
+                <div className='flex flex-col gap-4'>
 
-
-            {
-                !catalog
-                    ?
-                    <div className="flex flex-col justify-center items-center mt-4">
-                        <span className="font-bold text-lg">Catálogo não encontrado!</span>
+                    {/* Header */}
+                    <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3'>
+                        <div className='flex items-center gap-3 min-w-0'>
+                            <button
+                                onClick={() => navigate(-1)}
+                                className='p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shrink-0'
+                            >
+                                <HiOutlineArrowLeft size={18} />
+                            </button>
+                            <div className='min-w-0'>
+                                <h1 className='text-xl font-bold text-gray-800 dark:text-gray-100 truncate'>
+                                    {catalog.name}
+                                </h1>
+                                {catalog.description && (
+                                    <p className='text-sm text-gray-400 dark:text-gray-500 mt-0.5 truncate'>
+                                        {catalog.description}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                        <CreateButton onClick={() => setIsDualListOpen(true)}>
+                            Associar Itens
+                        </CreateButton>
                     </div>
-                    :
 
-                    <>
-                        <div className="flex items-center gap-2">
-                            <h2 className='text-gray-800'>{catalog.name}</h2>
-                            <Button
-                                shape='circle'
-                                icon={<HiOutlinePlus />}
-                                variant='solid'
-                                size='xs'
-                                onClick={() => setIsDualListOpen(true)}
-                            />
-                        </div>
-
-                        <div className='flex justify-end mt-4'>
-                            <Input placeholder="Pesquisar pelo Nome do Serviço" className="w-[280px]" prefix={<HiOutlineSearch />} size="sm"/>
-                        </div>
-
-                        <div className="mt-4 flex flex-col gap-2">
-                            <CatalogItemList data={catalog} load={() => loadCatalog()} type='service'/>
-                        </div>
-                    </>
-            }
+                    <CatalogItemList data={catalog} load={loadCatalog} onPriceUpdate={patchCatalogItemPrice} />
+                </div>
+            )}
 
             <Dialog
                 isOpen={isDualListOpen}
-                onClose={() => onDialogClose()}
-                onRequestClose={() => onDialogClose()}
-                width={900}
+                onClose={closeDualList}
+                onRequestClose={closeDualList}
+                width={960}
             >
-                <div className='flex justify-center'>
-                    <h3>Cadastrar Itens de Catálogo</h3>
-                </div>
-
-                <div className="mt-4">
-                    <CatalogItemDualList catalogId={id} onClose={() => onDialogClose()} onConfirmDialogClose={() => onConfirmDialogClose()} updateCatalogItems={(newCatalogItems) => pushNewCatalogItems(newCatalogItems)} />
-                </div>
+                <CatalogItemDualList
+                    catalogId={id}
+                    existingItems={catalog.items ?? []}
+                    onClose={closeDualList}
+                    onConfirmDialogClose={closeDualList}
+                    updateCatalogItems={pushNewCatalogItems}
+                />
             </Dialog>
-
-            <ConfirmDialog
-                isOpen={isCancelDialogOpen}
-                onConfirm={() => onConfirmDialogClose()}
-                onCancel={() => setIsCancelDialogOpen(false)}
-                onRequestClose={() => setIsCancelDialogOpen(false)}
-                type="warning"
-            >
-                Tem certeza que deseja <b>cancelar</b> esta operação?
-            </ConfirmDialog>
         </Loading>
     )
 }
 
-export default CatalogView;
+export default CatalogView

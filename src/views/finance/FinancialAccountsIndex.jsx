@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useCallback } from 'react'
 import { useSelector } from 'react-redux'
 import { Card, Notification, toast } from '@/components/ui'
 import { ConfirmDialog } from '@/components/shared'
+import CreateButton from '@/components/ui/Button/CreateButton'
 import {
     getFinancialAccounts,
     createFinancialAccount,
@@ -776,13 +777,9 @@ const FinancialAccountsIndex = () => {
                         {masked ? <HiOutlineEye className='w-3.5 h-3.5' /> : <HiOutlineEyeOff className='w-3.5 h-3.5' />}
                         {masked ? 'Mostrar' : 'Ocultar'}
                     </button>
-                    <button
-                        onClick={openNew}
-                        className='flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl bg-violet-600 hover:bg-violet-700 text-white transition shadow-sm shadow-violet-200 whitespace-nowrap'
-                    >
-                        <HiOutlinePlus className='w-4 h-4' />
+                    <CreateButton onClick={openNew}>
                         Nova Conta
-                    </button>
+                    </CreateButton>
                 </div>
             </div>
 

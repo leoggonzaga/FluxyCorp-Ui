@@ -1,57 +1,48 @@
-import { HiOutlinePencil, HiOutlineTrash } from "react-icons/hi";
-import { Button, MoneyValue, Pagination } from "../../../../components/ui";
-import { useEffect, useState } from "react";
+import { HiOutlineCurrencyDollar, HiOutlinePencil, HiOutlineTrash } from 'react-icons/hi'
+import { Card } from '../../../../components/ui'
+import { Pattern1 } from '../../../../components/shared/listPatterns'
 
-const CatalogItemTableList = ({ data, load, onEdit, onDelete }) => {
-    const [paging, setPaging] = useState({
-        pageNumber: 1,
-        pageSize: 10,
-        total: 0
-    })
+const fmtMoney = (v) => v != null
+    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
+    : ''
 
-    useEffect(() => {
+const CatalogItemTableList = ({ data, onEdit, onDelete }) => {
+    const items = (data ?? []).map(item => ({
+        id:         item.id,
+        name:       item.name,
+        badge:      fmtMoney(item.price),
+        badgeColor: 'bg-emerald-50 text-emerald-600 border border-emerald-100',
+        badgeIcon:  HiOutlineCurrencyDollar,
+        _raw:       item,
+    }))
 
-    }, [])
+    const actions = [
+        {
+            key:       'edit',
+            icon:      <HiOutlinePencil size={15} />,
+            tooltip:   'Editar',
+            onClick:   (item) => onEdit(item._raw),
+            className: 'p-1.5 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors',
+        },
+        {
+            key:       'delete',
+            icon:      <HiOutlineTrash size={15} />,
+            tooltip:   'Excluir',
+            onClick:   (item) => onDelete(item._raw.id),
+            className: 'p-1.5 rounded-lg text-red-400 hover:bg-red-50 transition-colors',
+        },
+    ]
 
     return (
-        <>
-            <ul>
-                {
-                    !data?.length ?
-                        <span className="font-bold text-sm flex justify-center mt-3">Nenhum item cadastrado.</span>
-
-                        :
-
-                        <>
-                            {
-                                data?.map(item => (
-                                    <li key={item.id} className="first:rounded-t-lg last:rounded-b-lg odd:bg-gray-50 even:bg-gray-100 p-4 flex justify-between">
-                                        <div className="flex items-center gap-3 font-semibold">
-                                            <span className="text-lg">{item.name}</span>
-                                            {' - '}
-                                            <MoneyValue className='text-base text-emerald-600' value={item.price} />
-                                        </div>
-
-                                        <div className="flex items-center gap-2">
-                                            <Button icon={<HiOutlinePencil />} onClick={() => onEdit(item)} className="text-sky-700" size="xs" />
-                                            <Button icon={<HiOutlineTrash />} onClick={() => onDelete(item.id)} className="text-red-700" size='xs' />
-                                        </div>
-                                    </li>
-                                ))
-                            }
-
-                            <div className="flex justify-center mt-4">
-                                <Pagination
-                                    total={paging.total}
-                                    currentPage={paging.pageNumber}
-                                    pageSize={paging.pageSize}
-                                />
-                            </div>
-                        </>
-                }
-            </ul>
-        </>
+        <Card className='border border-gray-100'>
+            <Pattern1
+                items={items}
+                actions={actions}
+                onItemClick={(item) => onEdit(item._raw)}
+                emptyMessage='Nenhum item cadastrado neste catálogo'
+            />
+        </Card>
     )
 }
 
-export default CatalogItemTableList;
+export default CatalogItemTableList

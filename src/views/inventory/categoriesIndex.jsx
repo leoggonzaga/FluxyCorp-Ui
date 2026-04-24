@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { HiOutlinePlus, HiOutlineArrowLeft, HiOutlineTag } from 'react-icons/hi'
 import { Button, Card, Dialog, Input, Notification, toast } from '@/components/ui'
+import CreateButton from '@/components/ui/Button/CreateButton'
 import { ConfirmDialog, Loading } from '@/components/shared'
 import { getCategories, createCategory, updateCategory, deleteCategory } from '@/api/inventory/inventoryService'
 
@@ -62,7 +63,7 @@ const CategoriesIndex = () => {
                         <p className="text-sm text-gray-500">Organize os produtos do estoque por categoria</p>
                     </div>
                 </div>
-                <Button variant="solid" icon={<HiOutlinePlus />} onClick={openNew}>Nova Categoria</Button>
+                <CreateButton onClick={openNew}>Nova Categoria</CreateButton>
             </div>
 
             <Loading loading={loading}>

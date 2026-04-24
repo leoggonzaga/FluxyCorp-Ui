@@ -3,6 +3,7 @@ import { HiOutlinePlus, HiOutlineSearch } from 'react-icons/hi'
 import { enterpriseApiGetEmployees } from '../../api/enterprise/EnterpriseService'
 import { useEffect, useState } from 'react'
 import { Button, Dialog, Input, Notification, Pagination, toast } from '../../components/ui'
+import CreateButton from '../../components/ui/Button/CreateButton'
 import EmployeeUpsert from './employeeUpsert'
 
 const EmployeeList = (props) => {
@@ -70,14 +71,9 @@ const EmployeeList = (props) => {
                         )}
                     </p>
                 </div>
-                <Button
-                    icon={<HiOutlinePlus />}
-                    variant='solid'
-                    size='sm'
-                    onClick={() => setIsUpsertOpen(true)}
-                >
+                <CreateButton onClick={() => setIsUpsertOpen(true)}>
                     Novo Funcionário
-                </Button>
+                </CreateButton>
             </div>
 
             {/* Busca */}

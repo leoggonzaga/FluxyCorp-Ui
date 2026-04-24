@@ -1,5 +1,6 @@
 import { HiOutlinePlus, HiOutlineTrash, HiOutlinePencil, HiOutlineChevronDown } from "react-icons/hi"
 import { Button, Card, Input, Notification, toast } from "@/components/ui"
+import CreateButton from '@/components/ui/Button/CreateButton'
 import { useState } from "react"
 
 const RoleManagement = () => {
@@ -142,14 +143,9 @@ const RoleManagement = () => {
                         <p className='text-sm text-gray-600 mt-1'>Configure os perfis de acesso e suas permissões de menu</p>
                     </div>
                     {!isAdding && (
-                        <Button
-                            size='sm'
-                            variant='solid'
-                            icon={<HiOutlinePlus />}
-                            onClick={() => setIsAdding(true)}
-                        >
+                        <CreateButton onClick={() => setIsAdding(true)}>
                             Novo Perfil
-                        </Button>
+                        </CreateButton>
                     )}
                 </div>
             </Card>
@@ -319,15 +315,9 @@ const RoleManagement = () => {
             {roles.length === 0 && !isAdding && (
                 <Card className='p-8 text-center'>
                     <p className='text-gray-600'>Nenhum perfil criado ainda</p>
-                    <Button
-                        size='sm'
-                        variant='solid'
-                        icon={<HiOutlinePlus />}
-                        onClick={() => setIsAdding(true)}
-                        className='mt-4'
-                    >
+                    <CreateButton onClick={() => setIsAdding(true)} className='mt-4'>
                         Criar Primeiro Perfil
-                    </Button>
+                        </CreateButton>
                 </Card>
             )}
         </div>

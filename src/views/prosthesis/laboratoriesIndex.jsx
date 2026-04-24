@@ -9,6 +9,7 @@ import {
     HiOutlineMail,
 } from 'react-icons/hi'
 import { Button, Card, Dialog, Input, Notification, toast } from '@/components/ui'
+import CreateButton from '@/components/ui/Button/CreateButton'
 import { ConfirmDialog, Loading } from '@/components/shared'
 import { Field, Form, Formik } from 'formik'
 import { FormContainer, FormItem } from '@/components/ui/Form'
@@ -139,16 +140,9 @@ const LaboratoriesIndex = () => {
                         <p className="text-sm text-gray-500">Gerencie seus laboratórios parceiros</p>
                     </div>
                 </div>
-                <Button
-                    variant="solid"
-                    icon={<HiOutlinePlus />}
-                    onClick={() => {
-                        setSelectedLab(null)
-                        setIsUpsertOpen(true)
-                    }}
-                >
+                <CreateButton onClick={() => { setSelectedLab(null); setIsUpsertOpen(true) }}>
                     Novo Laboratório
-                </Button>
+                </CreateButton>
             </div>
 
             <Loading loading={loading}>

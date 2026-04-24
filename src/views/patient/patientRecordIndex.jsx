@@ -3,6 +3,7 @@ import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { Badge, Card, Notification, Tabs, toast } from '@/components/ui'
 import { Pattern1 } from '@/components/shared/listPatterns'
+import CreateButton from '@/components/ui/Button/CreateButton'
 import {
     HiOutlineCalendar,
     HiOutlineChevronLeft,
@@ -2076,13 +2077,9 @@ const PatientRecordIndex = () => {
                                 placeholder='Buscar paciente por nome, nome social ou CPF…'
                             />
                         </div>
-                        <button
-                            onClick={() => setShowNewDialog(true)}
-                            className='flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl bg-violet-600 hover:bg-violet-700 text-white transition shadow-sm shadow-violet-200 whitespace-nowrap'
-                        >
-                            <HiOutlinePlus className='w-4 h-4' />
+                        <CreateButton onClick={() => setShowNewDialog(true)}>
                             Novo Prontuário
-                        </button>
+                        </CreateButton>
                     </div>
 
                     {searchTerm.trim() ? (

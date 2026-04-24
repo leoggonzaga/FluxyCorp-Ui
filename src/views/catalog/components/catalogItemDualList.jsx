@@ -1,353 +1,475 @@
-import { useEffect, useState } from "react"
-import { Badge, Button, Card, Checkbox, MoneyValue, Notification, Select, Tabs, toast } from "../../../components/ui"
-import TabNav from "../../../components/ui/Tabs/TabNav"
-import TabList from "../../../components/ui/Tabs/TabList"
-import TabContent from "../../../components/ui/Tabs/TabContent"
-import { catalogApiGetProducts, catalogApiGetServices, catalogApiPostCatalogItem } from "../../../api/catalog/catalogService"
-import { ConfirmDialog, FormNumericInput } from "../../../components/shared"
-import { HiOutlineChevronDown, HiOutlineChevronUp } from "react-icons/hi"
+import { useEffect, useState } from 'react'
+import { Notification, toast } from '../../../components/ui'
+import TabContent from '../../../components/ui/Tabs/TabContent'
+import TabList from '../../../components/ui/Tabs/TabList'
+import TabNav from '../../../components/ui/Tabs/TabNav'
+import { Tabs } from '../../../components/ui'
+import { FormNumericInput } from '../../../components/shared'
+import {
+    catalogApiGetServices,
+    catalogApiGetProducts,
+    catalogApiGetBundle,
+    catalogApiPostCatalogItem,
+} from '../../../api/catalog/catalogService'
+import {
+    HiOutlineChevronDown,
+    HiOutlineChevronUp,
+    HiOutlineSearch,
+    HiOutlineCheckCircle,
+    HiOutlineX,
+} from 'react-icons/hi'
 
-const CatalogItemDualList = ({ catalogId, onClose, onConfirmDialogClose, updateCatalogItems }) => {
-    const [currentTab, setCurrentTab] = useState('service')
-    const [isLoading, setIsLoading] = useState(false)
-    const [catalogItemsSubmitted, setCatalogItemsSubmitted] = useState([])
+// ─── helpers ─────────────────────────────────────────────────────────────────
 
-    const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
+const fmt = (v) =>
+    v != null
+        ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
+        : '—'
 
-    const [itemByCategory, setItemByCategory] = useState({
-        service: [],
-        product: [],
-        bundle: []
-    })
-    const [categorySelected, setCategorySelected] = useState({
-        service: null,
-        product: null,
-        bundle: null
-    })
+// CatalogItemDto.publicId é mapeado para o publicId do serviço/produto/bundle associado.
+// Compara case-insensitive pois C# pode retornar uppercase e JS lowercase.
+function findExisting(existingItems, publicId) {
+    const norm = (v) => v?.toString().toLowerCase()
+    return existingItems?.find(ci => norm(ci.publicId) === norm(publicId)) ?? null
+}
 
-
-
-    const patchCategories = (tab, updater) => {
-        setItemByCategory(prev => ({ ...prev, [tab]: updater(prev[tab]) }))
+function groupByCategory(items) {
+    const map = new Map()
+    for (const it of items) {
+        const catId   = it.categoryId   ?? '__sem_cat'
+        const catName = it.categoryName ?? it.category ?? 'Sem categoria'
+        if (!map.has(catId)) map.set(catId, { id: catId, name: catName, items: [], isOpen: true })
+        map.get(catId).items.push(it)
     }
+    return [...map.values()]
+}
 
-    const handleCheckItem = (value, itemId, categoryId, tab) => {
-        patchCategories(tab, prev =>
-            prev.map(cat =>
-                cat.id === categoryId
-                    ? { ...cat, items: cat.items.map(it => it.publicId === itemId ? { ...it, isCatalogItem: value } : it) }
-                    : cat
-            )
-        )
-    }
+// ─── Sub-componentes fora do componente pai para evitar remount no re-render ──
 
-    const handleCategoryToggle = (categoryId, tab) => {
-        patchCategories(tab, prev => prev.map(c => c.id === categoryId ? { ...c, isOpen: !c.isOpen } : c))
-    }
+function EmptyPanel({ message }) {
+    return (
+        <div className='flex flex-col items-center justify-center h-full gap-2 text-center py-8'>
+            <div className='w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-2xl'>
+                📦
+            </div>
+            <p className='text-sm font-medium text-gray-500 dark:text-gray-400'>{message}</p>
+        </div>
+    )
+}
 
-    const handleCheckAllCategoryItems = (categoryId, value, tab) => {
-        patchCategories(tab, prev =>
-            prev.map(c => c.id === categoryId ? { ...c, items: c.items.map(it => ({ ...it, isCatalogItem: value })) } : c)
-        )
-    }
+function AvailablePanel({ tab, categories, isLoading, onToggleCategory, onCheckAll, onPatchItem }) {
+    const hasAny = categories.some(c => c.items.some(it => !it.isCatalogItem))
 
-    const applyCategoryFilter = (tab) => {
-        const selected = categorySelected[tab]
-        patchCategories(tab, prev => {
-            if (selected?.value) {
-                return prev.map(cat => cat.id !== selected.value ? { ...cat, isVisible: false } : { ...cat, isVisible: true })
-            }
-            return prev.map(cat => ({ ...cat, isVisible: true }))
-        })
-    }
+    if (isLoading) return (
+        <div className='flex-1 space-y-2 animate-pulse'>
+            {[...Array(3)].map((_, i) => (
+                <div key={i} className='h-10 rounded-xl bg-gray-100 dark:bg-gray-700' />
+            ))}
+        </div>
+    )
 
-    const onSubmit = () => {
-        debugger;
-        const result = {}
-
-        let itemTypes = Object.keys(itemByCategory);
-        var items = []
-
-        if (itemTypes?.length > 0) {
-            for (var i = 0; i < itemTypes.length; i++) {
-                itemByCategory[itemTypes[i]]?.forEach(category => {
-
-                    category.items?.forEach(item => {
-                        if (item.isCatalogItem == true && item.publicId) {
-                            items.push({
-                                ...item,
-                                type: itemTypes[i]
-                            });
-                        }
-                    })
-                })
-            }
-        }
-
-        if (items?.length > 0) {
-            setCatalogItemsSubmitted(items)
-            setConfirmSubmitOpen(true)
-        }
-
-    }
-
-    const handleCreateCatalogItems = async () => {
-        debugger;
-        const items = catalogItemsSubmitted.map(catalogItem => { return ({ itemPublicId: catalogItem.publicId, price: catalogItem.price, itemType: catalogItem.type }) })
-
-        const result = await catalogApiPostCatalogItem(catalogId, { items: items });
-        updateCatalogItems(result.data)
-
-        setConfirmSubmitOpen(false)
-
-        if (result?.data?.erros){
-            toast.push(
-                <Notification type='danger' title='Falha na Criação'>
-                    Falha ao criar itens de catálogo. Tente novamente mais tarde.
-                </Notification>
-            )
-        }
-        else if (result?.data){
-            toast.push(
-                <Notification type='success' title='Item de Catálogo Criado'>
-                    Item de Catálogo criado com sucesso!
-                </Notification>
-            )
-
-            onConfirmDialogClose();
-        }
-    }
-    const getServicesAndProducts = async () => {
-        setIsLoading(true)
-
-        const resultService = await catalogApiGetServices()
-        if (resultService?.data) {
-            const categories = [
-                ...new Map(resultService.data.map((it, idx) => [it.categoryId, { id: it.categoryId, name: (idx === 0 ? 'Avaliação' : 'Orto') }])).values()
-            ]
-            const mapped = categories.map(cat => ({
-                ...cat,
-                items: resultService.data.filter(x => x.categoryId === cat.id).map(s => ({
-                    publicId: s.publicId,
-                    name: s.name,
-                    price: s.price,
-                    categoryId: s.categoryId,
-                    isCatalogItem: s.isCatalogItem || false
-                })),
-                isOpen: true,
-                isVisible: true
-            }))
-            setItemByCategory(prev => ({ ...prev, service: mapped }))
-        }
-
-        const resultProduct = await catalogApiGetProducts()
-        if (resultProduct?.data) {
-            const prodWithCat = resultProduct.data.map((p, idx) => ({ ...p, categoryId: idx >= 0 ? 2 : 1, category: idx >= 0 ? 'Orto' : 'Avaliação' }))
-            const prodCategories = [
-                ...new Map(prodWithCat.map(it => [it.categoryId, { id: it.categoryId, name: it.category }])).values()
-            ]
-            const mappedProd = prodCategories.map(cat => ({
-                ...cat,
-                items: prodWithCat.filter(x => x.categoryId === cat.id).map(p => ({
-                    publicId: p.publicId,
-                    name: p.name,
-                    price: p.price,
-                    categoryId: p.categoryId,
-                    isCatalogItem: p.isCatalogItem || false
-                })),
-                isOpen: true,
-                isVisible: true
-            }))
-            setItemByCategory(prev => ({ ...prev, product: mappedProd }))
-        }
-
-        setItemByCategory(prev => ({
-            ...prev,
-            bundle: prev.bundle.length ? prev.bundle : []
-        }))
-
-        setIsLoading(false)
-    }
-
-    useEffect(() => {
-        getServicesAndProducts()
-    }, [])
-
-    useEffect(() => {
-        applyCategoryFilter(currentTab)
-    }, [categorySelected, currentTab])
-
-    const leftColumn = (tab) => {
-        const categories = itemByCategory[tab] || []
-        return (
-            <>
-                <Select
-                    placeholder="Filtrar por Categoria"
-                    options={categories.map(cat => ({ label: cat.name, value: cat.id }))}
-                    isClearable
-                    onChange={(option) => setCategorySelected(prev => ({ ...prev, [tab]: option }))}
-                    value={categorySelected[tab]}
-                />
-
-                <div className="border-1 h-[400px] mt-4 rounded-lg p-2">
-                    <div className="flex flex-col gap-2">
-                        {
-                            categories.filter(x => x.isVisible === true).map(category => {
-                                if (category.items?.every(x => x.isCatalogItem === true)) return null
-                                return (
-                                    <div className="mb-6" key={`${tab}-${category.id}`}>
-                                        <div className="font-bold text-sm flex items-center justify-between bg-gray-50 p-2 rounded-lg">
-                                            <div className="flex items-center gap-1">
-                                                <div className="flex items-center">
-                                                    <Checkbox onChange={(value) => handleCheckAllCategoryItems(category.id, value, tab)} />
-                                                    <span>{category.name}</span>
-                                                </div>
-                                                <span className="text-xs">{`(${category.items?.length})`}</span>
-                                            </div>
-                                            <div
-                                                onClick={() => handleCategoryToggle(category.id, tab)}
-                                                className="cursor-pointer p-1 hover:bg-gray-100 rounded-full"
-                                            >
-                                                {category.isOpen ? <HiOutlineChevronUp /> : <HiOutlineChevronDown />}
-                                            </div>
-                                        </div>
-
-                                        {
-                                            category.isOpen && category.items?.filter(x => !x.isCatalogItem).map(item => (
-                                                <div className="flex items-center ml-8 mt-2" key={`${tab}-${item.id}`}>
-                                                    <Checkbox onChange={(value) => handleCheckItem(value, item.publicId, category.id, tab)} checked={false} />
-                                                    <span>{item.name}</span>
-                                                    <MoneyValue className='text-emerald-600 font-semibold ml-4 mr-2' value={item.price} />
-                                                </div>
-                                            ))
-                                        }
-                                    </div>
-                                )
-                            })
-                        }
-                    </div>
-                </div>
-            </>
-        )
-    }
-
-    const rightColumn = (tab) => {
-        const categories = itemByCategory[tab] || []
-        const itemsFiltered = categories.filter(x => x?.items?.some(y => y?.isCatalogItem === true))
-        const catalogItemsCount = categories.reduce((acc, cat) => {
-            return acc + cat.items?.filter(it => it.isCatalogItem).length
-        }, 0)
-
-        return (
-            <>
-                <div className="h-[38px] flex items-center">
-                    <span className="flex items-center font-semibold">Itens Selecionados ({catalogItemsCount})</span>
-                </div>
-                <div className="border-1 h-[400px] mt-4 rounded-lg p-3 ">
-                    {
-                        itemsFiltered.map(category => (
-                            <div className="mb-6" key={`${tab}-sel-${category.id}`}>
-                                <span className="font-bold text-sm">
-                                    <div className="flex items-center bg-gray-50 p-2 rounded-lg">
-                                        <span>{category.name}</span>
-                                    </div>
-                                </span>
-
-                                {
-                                    category.items?.filter(x => x?.isCatalogItem === true).map((item, index) => (
-                                        <div className="flex items-center ml-4 mt-1" key={`${tab}-sel-${item.id}`}>
-                                            <div className="flex items-center w-6/10">
-                                                <Checkbox
-                                                    onChange={(value) => handleCheckItem(value, item.id, category.id, tab)}
-                                                    checked={true}
-                                                />
-                                                <span>{item.name}</span>
-                                            </div>
-
-                                            <div className="w-4/10 ml-4 mr-2 mt-2">
-                                                <FormNumericInput size='xs' className={`font-semibold ${index === 1 ? 'text-emerald-700' : ''}`} defaultValue={item.price} />
-                                            </div>
-                                        </div>
-                                    ))
-                                }
-                            </div>
-                        ))
-                    }
-                </div>
-            </>
-
-        )
-    }
+    if (!hasAny) return <EmptyPanel message='Todos os itens já estão no catálogo' />
 
     return (
-        <div className="">
-            <Tabs
-                defaultValue="service"
-                onChange={(tab) => setCurrentTab(tab)}
-            >
-                <TabList>
-                    <div className="flex items-center justify-center w-full">
-                        <TabNav value='service' className="flex items-start">
-                            <span>Serviço</span>
-                        </TabNav>
-                        <TabNav value='product'>Produto</TabNav>
-                        <TabNav value='bundle'>Kit</TabNav>
-                    </div>
-                </TabList>
+        <div className='flex-1 overflow-y-auto space-y-2 pr-1'>
+            {categories.map(cat => {
+                const available = cat.items.filter(it => !it.isCatalogItem)
+                if (!available.length) return null
 
-                <div className="mt-6 flex justify-center gap-4 h-[500px]">
-                    <div className="w-[415px] border-1 h-full p-4 rounded-lg">
-                        <div className="">
-                            <TabContent value="service">
-                                {leftColumn('service')}
-                            </TabContent>
-                            <TabContent value="product">
-                                {leftColumn('product')}
-                            </TabContent>
-                            <TabContent value="bundle">
-                                {leftColumn('bundle')}
-                            </TabContent>
+                const allSelected  = available.every(it => it.selected)
+                const someSelected = available.some(it => it.selected)
+
+                return (
+                    <div key={cat.id} className='rounded-xl border border-gray-100 dark:border-gray-700/50 overflow-hidden'>
+                        <div
+                            className='flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-gray-800/50 cursor-pointer select-none'
+                            onClick={() => onToggleCategory(tab, cat.id)}
+                        >
+                            <label className='flex items-center gap-2 cursor-pointer' onClick={e => e.stopPropagation()}>
+                                <input
+                                    type='checkbox'
+                                    checked={allSelected}
+                                    ref={el => { if (el) el.indeterminate = !allSelected && someSelected }}
+                                    onChange={e => onCheckAll(tab, cat.id, e.target.checked)}
+                                    className='w-3.5 h-3.5 rounded accent-amber-500'
+                                />
+                                <span className='text-xs font-semibold text-gray-700 dark:text-gray-200'>{cat.name}</span>
+                                <span className='text-[10px] text-gray-400'>({available.length})</span>
+                            </label>
+                            <span className='text-gray-400'>
+                                {cat.isOpen
+                                    ? <HiOutlineChevronUp className='w-3.5 h-3.5' />
+                                    : <HiOutlineChevronDown className='w-3.5 h-3.5' />}
+                            </span>
                         </div>
-                    </div>
 
-                    <div className="w-[400px] border-1 h-full p-4 rounded-lg">
-                        <TabContent value="service">
-                            {rightColumn('service')}
-                        </TabContent>
-                        <TabContent value="product">
-                            {rightColumn('product')}
-                        </TabContent>
-                        <TabContent value="bundle">
-                            {rightColumn('bundle')}
-                        </TabContent>
+                        {cat.isOpen && (
+                            <div className='divide-y divide-gray-50 dark:divide-gray-700/30'>
+                                {available.map(item => (
+                                    <label
+                                        key={item.publicId}
+                                        className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-colors ${
+                                            item.selected
+                                                ? 'bg-amber-50/60 dark:bg-amber-900/10'
+                                                : 'hover:bg-gray-50 dark:hover:bg-gray-700/20'
+                                        }`}
+                                    >
+                                        <input
+                                            type='checkbox'
+                                            checked={item.selected ?? false}
+                                            onChange={e => onPatchItem(tab, cat.id, item.publicId, { selected: e.target.checked })}
+                                            className='w-3.5 h-3.5 rounded accent-amber-500 shrink-0'
+                                        />
+                                        <span className='flex-1 text-xs text-gray-700 dark:text-gray-200 truncate'>{item.name}</span>
+                                        <span className='text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold tabular-nums shrink-0'>
+                                            {fmt(item.basePrice)}
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        )}
                     </div>
+                )
+            })}
+        </div>
+    )
+}
+
+function SelectedPanel({ tab, categories, onPatchItem }) {
+    const selected = categories
+        .flatMap(cat => cat.items.filter(it => it.selected).map(it => ({ ...it, categoryId: cat.id })))
+
+    if (!selected.length) return <EmptyPanel message='Nenhum item selecionado ainda' />
+
+    return (
+        <div className='flex-1 overflow-y-auto space-y-2 pr-1'>
+            {selected.map(item => (
+                <div
+                    key={item.publicId}
+                    className={`rounded-xl border p-3 flex items-center gap-3 transition-colors ${
+                        item.isCatalogItem
+                            ? 'border-amber-100 dark:border-amber-800/30 bg-amber-50/40 dark:bg-amber-900/10'
+                            : 'border-amber-100 dark:border-amber-800/30 bg-amber-50/30 dark:bg-amber-900/5'
+                    }`}
+                >
+                    <div className='flex-1 min-w-0'>
+                        <div className='flex items-center gap-1.5 flex-wrap'>
+                            <p className='text-xs font-semibold text-gray-800 dark:text-gray-100 truncate'>{item.name}</p>
+                            {item.isCatalogItem && (
+                                <span className='text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 shrink-0'>
+                                    já no catálogo
+                                </span>
+                            )}
+                        </div>
+                        <p className='text-[10px] text-gray-400 dark:text-gray-500 mt-0.5'>
+                            Preço base: {fmt(item.basePrice)}
+                        </p>
+                    </div>
+                    <div className='w-28 shrink-0'>
+                        <FormNumericInput
+                            size='xs'
+                            value={item.price}
+                            onValueChange={(vals) =>
+                                onPatchItem(tab, item.categoryId, item.publicId, { price: vals.floatValue ?? 0 })
+                            }
+                        />
+                    </div>
+                    <button
+                        onClick={() => onPatchItem(tab, item.categoryId, item.publicId, { selected: false, isCatalogItem: false })}
+                        className='p-1 rounded-lg text-gray-300 dark:text-gray-600 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors shrink-0'
+                        title='Remover'
+                    >
+                        <HiOutlineX className='w-3.5 h-3.5' />
+                    </button>
                 </div>
-            </Tabs>
+            ))}
+        </div>
+    )
+}
 
-            <div className="flex items-center gap-2 justify-center mt-8">
-                <Button
-                    onClick={() => onClose()}
-                >
-                    Cancelar
-                </Button>
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
-                <Button
-                    variant="solid"
-                    onClick={() => onSubmit()}
-                >
-                    Salvar
-                </Button>
+const CatalogItemDualList = ({
+    catalogId,
+    existingItems = [],
+    onClose,
+    onConfirmDialogClose,
+    updateCatalogItems,
+}) => {
+    const [isLoading, setIsLoading]     = useState(false)
+    const [search, setSearch]           = useState('')
+    const [isSaving, setIsSaving]       = useState(false)
+
+    const [itemByCategory, setItemByCategory] = useState({ service: [], product: [], bundle: [] })
+
+    // ── Patch helpers ──────────────────────────────────────────────────────
+
+    const patchItem = (tab, categoryId, publicId, patch) => {
+        setItemByCategory(prev => ({
+            ...prev,
+            [tab]: prev[tab].map(cat =>
+                cat.id !== categoryId ? cat : {
+                    ...cat,
+                    items: cat.items.map(it =>
+                        it.publicId !== publicId ? it : { ...it, ...patch }
+                    ),
+                }
+            ),
+        }))
+    }
+
+    const toggleCategory = (tab, categoryId) => {
+        setItemByCategory(prev => ({
+            ...prev,
+            [tab]: prev[tab].map(cat =>
+                cat.id === categoryId ? { ...cat, isOpen: !cat.isOpen } : cat
+            ),
+        }))
+    }
+
+    const checkAll = (tab, categoryId, value) => {
+        setItemByCategory(prev => ({
+            ...prev,
+            [tab]: prev[tab].map(cat =>
+                cat.id !== categoryId ? cat : {
+                    ...cat,
+                    items: cat.items.map(it => ({ ...it, selected: value })),
+                }
+            ),
+        }))
+    }
+
+    // ── Load data ─────────────────────────────────────────────────────────
+
+    const buildItems = (rawList, type) =>
+        rawList.map(item => {
+            const existing = findExisting(existingItems, item.publicId)
+            return {
+                publicId:      item.publicId,
+                name:          item.name,
+                basePrice:     item.price ?? 0,
+                price:         existing?.price ?? item.price ?? 0,
+                categoryId:    item.categoryId   ?? '__sem_cat',
+                categoryName:  item.categoryName ?? item.category ?? 'Sem categoria',
+                isCatalogItem: !!existing,
+                selected:      !!existing,
+            }
+        })
+
+    const loadData = async () => {
+        setIsLoading(true)
+        try {
+            const [resSvc, resProd, resBun] = await Promise.all([
+                catalogApiGetServices().catch(() => null),
+                catalogApiGetProducts().catch(() => null),
+                catalogApiGetBundle().catch(() => null),
+            ])
+
+            setItemByCategory({
+                service: groupByCategory(buildItems(resSvc?.data ?? [], 'service')),
+                product: groupByCategory(buildItems(resProd?.data ?? [], 'product')),
+                bundle:  groupByCategory(buildItems(resBun?.data  ?? [], 'bundle')),
+            })
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    useEffect(() => { loadData() }, [])
+
+    // ── Search filter ──────────────────────────────────────────────────────
+
+    const filteredCategories = (tab) => {
+        const q = search.trim().toLowerCase()
+        return itemByCategory[tab].map(cat => ({
+            ...cat,
+            items: q
+                ? cat.items.filter(it => it.name.toLowerCase().includes(q))
+                : cat.items,
+        })).filter(cat => cat.items.length > 0)
+    }
+
+    // ── Selected items (across all tabs) ──────────────────────────────────
+
+    const selectedAll = Object.entries(itemByCategory).flatMap(([type, cats]) =>
+        cats.flatMap(cat => cat.items.filter(it => it.selected).map(it => ({ ...it, type })))
+    )
+
+    // ── Submit ────────────────────────────────────────────────────────────
+
+    const handleSave = async () => {
+        setIsSaving(true)
+        try {
+            const items = selectedAll.map(it => ({
+                itemPublicId: it.publicId,
+                price:        it.price,
+                itemType:     it.type,
+            }))
+            const result = await catalogApiPostCatalogItem(catalogId, { items })
+            if (result?.data) {
+                updateCatalogItems(result.data)
+                toast.push(
+                    <Notification type='success' title='Itens salvos'>
+                        Itens de catálogo salvos com sucesso!
+                    </Notification>
+                )
+                onConfirmDialogClose()
+            } else {
+                throw new Error()
+            }
+        } catch {
+            toast.push(
+                <Notification type='danger' title='Falha'>
+                    Falha ao salvar os itens. Tente novamente.
+                </Notification>
+            )
+        } finally {
+            setIsSaving(false)
+        }
+    }
+
+    // ── Render ────────────────────────────────────────────────────────────
+
+    return (
+        <div className='flex flex-col gap-0'>
+
+            {/* Header */}
+            <div className='flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700/50'>
+                <div>
+                    <h3 className='font-semibold text-gray-800 dark:text-gray-100'>Gerenciar Itens do Catálogo</h3>
+                    <p className='text-xs text-gray-400 dark:text-gray-500 mt-0.5'>
+                        Selecione os itens e defina o preço de cada um neste catálogo
+                    </p>
+                </div>
+                {selectedAll.length > 0 && (
+                    <span className='text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'>
+                        {selectedAll.length} selecionado{selectedAll.length !== 1 ? 's' : ''}
+                    </span>
+                )}
             </div>
 
-            <ConfirmDialog
-                isOpen={confirmSubmitOpen}
-                onCancel={() => setConfirmSubmitOpen(false)}
-                onConfirm={() => handleCreateCatalogItems()}
-                confirmText="Salvar"
-                type="warning"
-            >
-                <span>Tem certeza que deseja <b>salvar</b> a operação?</span>
-            </ConfirmDialog>
+            {/* Search */}
+            <div className='px-6 pt-4 pb-2'>
+                <div className='relative'>
+                    <HiOutlineSearch className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400' />
+                    <input
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        placeholder='Buscar item por nome...'
+                        className='w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-400'
+                    />
+                </div>
+            </div>
+
+            {/* Tabs + panels */}
+            <div className='px-6 pb-2'>
+                <Tabs defaultValue='service'>
+                    <TabList>
+                        <TabNav value='service'>Serviços</TabNav>
+                        <TabNav value='product'>Produtos</TabNav>
+                        <TabNav value='bundle'>Kits</TabNav>
+                    </TabList>
+
+                    <div className='mt-4 grid grid-cols-2 gap-4 h-[400px]'>
+
+                        {/* Left: disponíveis */}
+                        <div className='flex flex-col gap-2 h-full overflow-hidden'>
+                            <span className='text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider'>
+                                Disponíveis
+                            </span>
+                            <div className='flex-1 overflow-hidden flex flex-col'>
+                                <TabContent value='service'>
+                                    <AvailablePanel
+                                        tab='service'
+                                        categories={filteredCategories('service')}
+                                        isLoading={isLoading}
+                                        onToggleCategory={toggleCategory}
+                                        onCheckAll={checkAll}
+                                        onPatchItem={patchItem}
+                                    />
+                                </TabContent>
+                                <TabContent value='product'>
+                                    <AvailablePanel
+                                        tab='product'
+                                        categories={filteredCategories('product')}
+                                        isLoading={isLoading}
+                                        onToggleCategory={toggleCategory}
+                                        onCheckAll={checkAll}
+                                        onPatchItem={patchItem}
+                                    />
+                                </TabContent>
+                                <TabContent value='bundle'>
+                                    <AvailablePanel
+                                        tab='bundle'
+                                        categories={filteredCategories('bundle')}
+                                        isLoading={isLoading}
+                                        onToggleCategory={toggleCategory}
+                                        onCheckAll={checkAll}
+                                        onPatchItem={patchItem}
+                                    />
+                                </TabContent>
+                            </div>
+                        </div>
+
+                        {/* Right: selecionados */}
+                        <div className='flex flex-col gap-2 h-full overflow-hidden border-l border-gray-100 dark:border-gray-700/50 pl-4'>
+                            <span className='text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider'>
+                                Selecionados — preço no catálogo
+                            </span>
+                            <div className='flex-1 overflow-hidden flex flex-col'>
+                                <TabContent value='service'>
+                                    <SelectedPanel
+                                        tab='service'
+                                        categories={itemByCategory['service']}
+                                        onPatchItem={patchItem}
+                                    />
+                                </TabContent>
+                                <TabContent value='product'>
+                                    <SelectedPanel
+                                        tab='product'
+                                        categories={itemByCategory['product']}
+                                        onPatchItem={patchItem}
+                                    />
+                                </TabContent>
+                                <TabContent value='bundle'>
+                                    <SelectedPanel
+                                        tab='bundle'
+                                        categories={itemByCategory['bundle']}
+                                        onPatchItem={patchItem}
+                                    />
+                                </TabContent>
+                            </div>
+                        </div>
+                    </div>
+                </Tabs>
+            </div>
+
+            {/* Footer */}
+            <div className='flex items-center justify-between px-6 py-4 border-t border-gray-100 dark:border-gray-700/50 mt-2'>
+                <p className='text-xs text-gray-400 dark:text-gray-500'>
+                    {selectedAll.length === 0
+                        ? 'Nenhum item selecionado'
+                        : `${selectedAll.length} item${selectedAll.length !== 1 ? 's' : ''} pronto${selectedAll.length !== 1 ? 's' : ''} para salvar`}
+                </p>
+                <div className='flex gap-2'>
+                    <button
+                        onClick={onClose}
+                        className='px-4 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={handleSave}
+                        disabled={selectedAll.length === 0 || isSaving}
+                        className='flex items-center gap-1.5 px-5 py-2 text-sm font-semibold rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors'
+                    >
+                        {isSaving
+                            ? <><div className='w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin' />Salvando…</>
+                            : <><HiOutlineCheckCircle className='w-4 h-4' />Salvar Seleção</>
+                        }
+                    </button>
+                </div>
+            </div>
         </div>
     )
 }

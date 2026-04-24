@@ -1,130 +1,118 @@
-import { HiOutlinePencil, HiOutlinePlus, HiOutlineSearch, HiOutlineTrash } from "react-icons/hi";
-import { Button, Input, MoneyValue, Notification, toast } from "../../../components/ui";
-import { useEffect, useState } from "react";
-import { ConfirmDialog, Loading } from "../../../components/shared";
-import { catalogApiDeleteProduct } from "../../../api/catalog/catalogService";
+import { HiOutlinePencil, HiOutlineTag, HiOutlineTrash } from 'react-icons/hi'
+import { Card, Dialog, Notification, toast } from '../../../components/ui'
+import { useEffect, useState } from 'react'
+import { ConfirmDialog } from '../../../components/shared'
+import { Pattern1 } from '../../../components/shared/listPatterns'
+import { catalogApiDeleteProduct, catalogApiGetProducts } from '../../../api/catalog/catalogService'
+import ProductUpsert from './productUpsert'
 
-const ProductList = ({ data, load, onOpenUpsert }) => {
-    const [isLoading, setIsLoading] = useState(true)
+const fmtMoney = (v) => v != null
+    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
+    : ''
 
-    const [isDeleteOpen, setIsDeleteOpen] = useState(false)
-    const [deletedItemId, setDeletedItemId] = useState(null)
-    const [isDeleting, setIsDeleting] = useState(false)
+const ProductList = ({ search, reloadTrigger }) => {
+    const [items, setItems]             = useState([])
+    const [isLoading, setIsLoading]     = useState(true)
+    const [editItem, setEditItem]       = useState(null)
+    const [deleteId, setDeleteId]       = useState(null)
+    const [isDeleting, setIsDeleting]   = useState(false)
 
-
-    const onDelete = (publicId) => {
-        setIsDeleteOpen(true)
-        setDeletedItemId(publicId)
+    const load = async () => {
+        const result = await catalogApiGetProducts()
+        if (result?.data) setItems(result.data)
     }
 
-    const onCloseDelete = () => {
-        setIsDeleteOpen(false)
-        setDeletedItemId(null)
-    }
+    useEffect(() => { load().then(() => setIsLoading(false)) }, [])
+    useEffect(() => { if (reloadTrigger > 0) load() }, [reloadTrigger])
+
+    const onUpdate = (publicId, values) =>
+        setItems(prev => prev.map(p => p.publicId === publicId ? { ...p, ...values } : p))
+
+    const onDelete      = (publicId) => setDeleteId(publicId)
+    const onCloseDelete = ()         => setDeleteId(null)
 
     const handleDelete = async () => {
         setIsDeleting(true)
-
-        const result = await catalogApiDeleteProduct(deletedItemId);
-
+        const result = await catalogApiDeleteProduct(deleteId)
         if (result?.data) {
-            toast.push(
-                <Notification type="success" title="Excluído">
-                    Item Excluído com sucesso!
-                </Notification>
-            )
-            load();
-            onCloseDelete();
+            setItems(prev => prev.filter(p => p.publicId !== deleteId))
+            toast.push(<Notification type='success' title='Excluído'>Item excluído com sucesso!</Notification>)
+        } else {
+            toast.push(<Notification type='danger' title='Falha'>Falha ao excluir. Tente novamente.</Notification>)
         }
-        else {
-            toast.push(
-                <Notification type="danger" title="Falha na Exclusão">
-                    Falha na exclusão do item. Tente novamente mais tarde.
-                </Notification>
-            )
-            onCloseDelete();
-        }
-
         setIsDeleting(false)
+        onCloseDelete()
     }
 
-    useEffect(() => {
-        Promise.all([
-            load()
-        ]).then(() => setIsLoading(false))
-    }, [])
+    const filtered = items.filter(i => i.name?.toLowerCase().includes((search ?? '').toLowerCase()))
+
+    const patternItems = filtered.map(item => ({
+        id:         item.publicId ?? item.id,
+        name:       item.name,
+        email:      item.category || undefined,
+        emailIcon:  HiOutlineTag,
+        meta:       item.description || undefined,
+        badge:      fmtMoney(item.price),
+        badgeColor: 'bg-emerald-50 text-emerald-600 border border-emerald-100',
+        _raw:       item,
+    }))
+
+    const actions = [
+        {
+            key:       'edit',
+            icon:      <HiOutlinePencil size={15} />,
+            tooltip:   'Editar',
+            onClick:   (item) => setEditItem(item._raw),
+            className: 'p-1.5 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors',
+        },
+        {
+            key:       'delete',
+            icon:      <HiOutlineTrash size={15} />,
+            tooltip:   'Excluir',
+            onClick:   (item) => onDelete(item._raw.publicId),
+            className: 'p-1.5 rounded-lg text-red-400 hover:bg-red-50 transition-colors',
+        },
+    ]
 
     return (
-        <div>
-            <Loading loading={isLoading}>
-                <div className="">
-                    {
-                        data?.length == 0 &&
-                        <span className="bg-gray-50 rounded-lg py-2 flex w-full justify-center font-semibold text-gray-700">Nenhum Serviço Cadastrado</span>
-                    }
+        <>
+            <Card className='border border-gray-100'>
+                <Pattern1
+                    items={patternItems}
+                    loading={isLoading}
+                    actions={actions}
+                    onItemClick={(item) => setEditItem(item._raw)}
+                    emptyMessage='Nenhum produto cadastrado'
+                />
+            </Card>
 
-                    {
-                        data?.length > 0 &&
-                        <ul>
-                            {
-                                data?.map(item => {
-                                    return (
-                                        <li key={item.id} className="first:rounded-t-lg last:rounded-b-lg odd:bg-gray-50 even:bg-gray-100 p-4 flex justify-between">
-                                            <div className="flex flex-col">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-gray-800 text-base font-semibold">{item.name}</span>
-                                                    {' - '}
-                                                    <MoneyValue className='text-base font-bold text-emerald-600' value={item.price} />
-                                                </div>
-
-                                                <span className="text-gray-600 font-semibold">{item.category}</span>
-                                                <span>{item.description}</span>
-
-                                                {
-                                                    item.catalogList?.length > 0 &&
-                                                    <div className="flex items-center gap-1 text-sm mt-2">
-                                                        <span className=" ">Catálogos:</span>
-                                                        {item.catalogList?.map((catalog, index) => {
-                                                            return (
-                                                                <div key={catalog.id}>
-                                                                    <span className="font-semibold">{catalog.name}</span>
-                                                                    {index + 1 < item.catalogList?.length ? ' / ' : ''}
-                                                                </div>
-                                                            )
-                                                        })}
-                                                    </div>
-                                                }
-                                            </div>
-
-                                            <div className="flex items-center gap-2">
-                                                <Button icon={<HiOutlinePencil />} onClick={() => onOpenUpsert(item)} className="text-sky-700" size="xs" />
-                                                <Button icon={<HiOutlineTrash />} onClick={() => onDelete(item.publicId)} className="text-red-700" size='xs' />
-                                            </div>
-                                        </li>
-                                    )
-                                })
-                            }
-                        </ul>
-                    }
-                </div>
-            </Loading>
+            <Dialog isOpen={!!editItem} onClose={() => setEditItem(null)} onRequestClose={() => setEditItem(null)} width={950}>
+                {editItem && (
+                    <ProductUpsert
+                        data={editItem}
+                        onClose={() => setEditItem(null)}
+                        load={load}
+                        onUpdate={onUpdate}
+                    />
+                )}
+            </Dialog>
 
             <ConfirmDialog
-                isOpen={isDeleteOpen}
-                onRequestClose={() => onCloseDelete()}
-                onClose={() => onCloseDelete()}
-                onCancel={() => onCloseDelete()}
-                confirmButtonColor="red-600"
+                isOpen={!!deleteId}
+                onClose={onCloseDelete}
+                onRequestClose={onCloseDelete}
+                onCancel={onCloseDelete}
+                confirmButtonColor='red-600'
                 confirmText={isDeleting ? 'Excluindo...' : 'Excluir'}
                 confirmDisabled={isDeleting}
                 cancelText='Cancelar'
                 type='danger'
-                onConfirm={() => handleDelete()}
+                onConfirm={handleDelete}
             >
                 Tem certeza que deseja excluir este item? Esta ação não poderá ser desfeita.
             </ConfirmDialog>
-        </div>
+        </>
     )
 }
 
-export default ProductList;
+export default ProductList

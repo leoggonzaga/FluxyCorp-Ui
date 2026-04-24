@@ -16,6 +16,7 @@ import {
 } from 'react-icons/hi'
 import { Notification, toast } from '@/components/ui'
 import { DateRangeFilter } from '@/components/shared'
+import CreateButton from '@/components/ui/Button/CreateButton'
 import {
     getPayables,
     createPayable,
@@ -474,7 +475,7 @@ export default function AccountsPayableIndex() {
     }
 
     return (
-        <div className="p-4 md:p-6 space-y-5">
+        <div className="space-y-5">
             {pagarItem && (
                 <PagarModal item={pagarItem} onClose={() => setPagarItem(null)} onConfirm={handlePagar} financialAccounts={financialAccounts} />
             )}
@@ -494,11 +495,9 @@ export default function AccountsPayableIndex() {
                         Controle de despesas, fornecedores e obrigações financeiras
                     </p>
                 </div>
-                <button onClick={() => setShowNovaConta(true)}
-                    className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-xl bg-violet-600 hover:bg-violet-700 text-white transition-colors shadow-sm self-start">
-                    <HiOutlinePlus className="w-4 h-4" />
+                <CreateButton onClick={() => setShowNovaConta(true)} className='self-start'>
                     Nova Conta a Pagar
-                </button>
+                </CreateButton>
             </div>
 
             {/* Summary cards */}

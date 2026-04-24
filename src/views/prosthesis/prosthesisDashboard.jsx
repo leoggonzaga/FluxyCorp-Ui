@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { HiOutlinePlus, HiOutlineBeaker, HiOutlineClipboardList, HiOutlineTruck, HiOutlineCurrencyDollar, HiOutlineCalendar } from 'react-icons/hi'
 import { Button, Card, Dialog, Notification, toast } from '@/components/ui'
+import CreateButton from '@/components/ui/Button/CreateButton'
 import { Loading } from '@/components/shared'
 import PillTabs from '@/components/shared/PillTabs'
 import { getProsthesisRequestsPaged } from '@/api/prosthesis/prosthesisService'
@@ -116,14 +117,9 @@ const ProsthesisDashboard = () => {
                     <Button size="sm" variant="plain" onClick={() => navigate('/prosthesis/laboratories')}>
                         Laboratórios
                     </Button>
-                    <Button
-                        size="sm"
-                        variant="solid"
-                        icon={<HiOutlinePlus />}
-                        onClick={() => setIsUpsertOpen(true)}
-                    >
+                    <CreateButton onClick={() => setIsUpsertOpen(true)}>
                         Nova Solicitação
-                    </Button>
+                    </CreateButton>
                 </div>
             </div>
 

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Button, Dialog, Input, Notification, Pagination, Select, toast } from '@/components/ui'
+import CreateButton from '@/components/ui/Button/CreateButton'
 import { ConfirmDialog } from '@/components/shared'
 import { HiOutlinePlus, HiOutlineSearch, HiChevronLeft, HiChevronRight } from 'react-icons/hi'
 import ClinicProductsTableList from './clinicProductsTableList'
@@ -230,9 +231,9 @@ const ClinicProductsIndex = () => {
                         {' '}produtos cadastrados
                     </p>
                 </div>
-                <Button icon={<HiOutlinePlus />} variant='solid' size='sm' onClick={openNew}>
+                <CreateButton onClick={openNew}>
                     Novo Produto
-                </Button>
+                </CreateButton>
             </div>
 
             {/* Busca */}
