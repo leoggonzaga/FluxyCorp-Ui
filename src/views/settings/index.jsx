@@ -2,7 +2,7 @@ import { HiOutlineShieldCheck } from 'react-icons/hi'
 import RoleManagement from "./RoleManagement"
 
 const Settings = () => {
-o que    return (
+    return (
         <div className='p-6 space-y-4'>
             <div className='flex items-center gap-3'>
                 <div className='w-9 h-9 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center flex-shrink-0'>
