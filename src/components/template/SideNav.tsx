@@ -1,5 +1,5 @@
 import classNames from 'classnames'
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import {
     SIDE_NAV_WIDTH,
     SIDE_NAV_COLLAPSED_WIDTH,
@@ -59,6 +59,27 @@ const SideNav = () => {
         (state) => state.theme.layout.sideNavCollapse,
     )
     const userAuthority = useAppSelector((state) => state.auth.user.authority)
+    const permissions   = useAppSelector((state) => state.auth.user.permissions)
+
+    const permissionedNav = useMemo(() => {
+        const hasPermissions = permissions && Object.keys(permissions).length > 0
+        if (!hasPermissions) return navigationConfig
+
+        function filterItems(items: typeof navigationConfig): typeof navigationConfig {
+            return items.reduce<typeof navigationConfig>((acc, item) => {
+                if ('subMenu' in item && item.subMenu) {
+                    const children = filterItems(item.subMenu as typeof navigationConfig)
+                    if (children.length > 0) acc.push({ ...item, subMenu: children } as typeof item)
+                } else {
+                    // show if key not in permissions dict (not a controlled feature) OR explicitly true
+                    if (!(item.key in permissions!) || permissions![item.key]) acc.push(item)
+                }
+                return acc
+            }, [])
+        }
+
+        return filterItems(navigationConfig)
+    }, [permissions])
 
     const { larger } = useResponsive()
 
@@ -66,6 +87,7 @@ const SideNav = () => {
     const [canScrollLeft, setCanScrollLeft] = useState(false)
     const [canScrollRight, setCanScrollRight] = useState(false)
     const carouselRef = useRef<HTMLDivElement>(null)
+    const itemRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
     const dragRef = useRef({ active: false, startX: 0, scrollLeft: 0, moved: false })
 
     const updateScrollState = useCallback(() => {
@@ -122,14 +144,26 @@ const SideNav = () => {
         toggleSection(key)
     }
 
+    const centerItem = useCallback((key: string) => {
+        const el = carouselRef.current
+        const btn = itemRefs.current.get(key)
+        if (!el || !btn) return
+        const target = btn.offsetLeft - el.clientWidth / 2 + btn.offsetWidth / 2
+        el.scrollTo({ left: target, behavior: 'smooth' })
+    }, [])
+
     const toggleSection = (key: string) =>
         setActiveSection((prev) => (prev === key ? null : key))
 
+    useEffect(() => {
+        if (activeSection) centerItem(activeSection)
+    }, [activeSection, centerItem])
+
     const filteredNav = activeSection
-        ? navigationConfig.filter(
+        ? permissionedNav.filter(
               (item) => item.key === 'home' || item.key === activeSection,
           )
-        : navigationConfig
+        : permissionedNav
     // sidebar only on screens ≥ 1024px; below that uses MobileNav drawer
 
     const sideNavColor = () => {
@@ -236,6 +270,10 @@ const SideNav = () => {
                                     return (
                                         <button
                                             key={key}
+                                            ref={(node) => {
+                                                if (node) itemRefs.current.set(key, node)
+                                                else itemRefs.current.delete(key)
+                                            }}
                                             title={label}
                                             onClick={onCarouselClick(key)}
                                             className="relative flex flex-col items-center gap-1 py-2 px-3 shrink-0 rounded-lg transition-all duration-200"
@@ -286,7 +324,27 @@ const SideNav = () => {
                     {sideNavCollapse ? (
                         menuContent
                     ) : (
-                        <div className="side-nav-content flex flex-col flex-1 min-h-0 overflow-y-auto">
+                        <div className={`side-nav-content flex flex-col flex-1 min-h-0 overflow-y-auto${activeSection ? ' section-filtered' : ''}`}>
+                            {(() => {
+                                const section = SECTIONS.find(s => s.key === activeSection)
+                                if (!section) return null
+                                const { Icon, label, neon } = section
+                                return (
+                                    <div
+                                        className="flex items-center gap-2 px-3 mb-3"
+                                        style={{ animation: 'fadeSlideIn 0.22s ease' }}
+                                    >
+                                        <Icon className="w-3.5 h-3.5 shrink-0" style={{ color: neon }} />
+                                        <span
+                                            className="text-[10px] font-bold tracking-widest uppercase whitespace-nowrap"
+                                            style={{ color: neon }}
+                                        >
+                                            {label}
+                                        </span>
+                                        <div className="flex-1 h-px rounded-full" style={{ background: `${neon}44` }} />
+                                    </div>
+                                )
+                            })()}
                             <div className="space-y-1">
                                 {menuContent}
                             </div>

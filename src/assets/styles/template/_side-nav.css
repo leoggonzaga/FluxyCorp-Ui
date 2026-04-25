@@ -73,5 +73,20 @@
       background-position: top right;
       background-repeat: no-repeat;
     }
-    
+
   }
+
+.section-filtered .menu-title {
+  display: none;
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

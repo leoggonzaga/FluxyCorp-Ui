@@ -35,6 +35,16 @@ function useAuth() {
         const decoded = JSON.parse(atob(resp.token.split('.')[1]));
         const decodedName = decoded?.["name"];
         const u = resp.user || {};
+
+        // Parse permissions from JWT claim (JSON string → object)
+        let permissions = {};
+        try {
+          if (decoded?.permissions)
+            permissions = typeof decoded.permissions === 'string'
+              ? JSON.parse(decoded.permissions)
+              : decoded.permissions;
+        } catch {}
+
         dispatch(setUser({
           avatar: u.avatar || '',
           userName: u.userName || decodedName || '',
@@ -44,6 +54,7 @@ function useAuth() {
           employeePublicId: u.employeePublicId || decoded?.employeePublicId,
           companyTypeId: u.companyTypeId || decoded?.companyTypeId,
           companyPublicId: u.companyPublicId || decoded?.companyPublicId,
+          permissions,
         }));
         dispatch(setLang(decoded.culture || 'pt-BR'))
         const redirectUrl = query.get(REDIRECT_URL_KEY);

@@ -30,6 +30,8 @@ import {
     HiOutlineFlag,
     HiOutlineOfficeBuilding,
     HiOutlineChartPie,
+    HiOutlineRefresh,
+    HiOutlineShieldCheck,
 } from 'react-icons/hi'
 import type { JSX } from 'react'
 
@@ -69,6 +71,8 @@ const navigationIcon: NavigationIcons = {
     officeBuilding:  <HiOutlineOfficeBuilding/>,
     percent:         <HiOutlineChartPie/>,
     monitor:         <HiOutlineDesktopComputer/>,
+    returnControl:   <HiOutlineRefresh/>,
+    shieldCheck:     <HiOutlineShieldCheck/>,
 }
 
 export default navigationIcon

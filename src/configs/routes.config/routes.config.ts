@@ -197,6 +197,12 @@ export const protectedRoutes = [
         authority: [],
     },
     {
+        key: 'returnControl',
+        path: '/return-control',
+        component: lazy(() => import('@/views/returnControl/ReturnControlIndex')),
+        authority: [],
+    },
+    {
         key: 'cashFlowDashboard',
         path: '/cash-flow',
         component: lazy(() => import('@/views/cashFlow/cashFlowDashboard')),
@@ -224,6 +230,18 @@ export const protectedRoutes = [
         key: 'costCenterGoals',
         path: '/finance/cost-center-goals',
         component: lazy(() => import('@/views/finance/CostCenterGoalsIndex')),
+        authority: [],
+    },
+    {
+        key: 'clinicalAudit',
+        path: '/reports/clinical-audit',
+        component: lazy(() => import('@/views/reports/clinicalAudit/ClinicalAuditIndex')),
+        authority: [],
+    },
+    {
+        key: 'professionalPerformance',
+        path: '/reports/professional-performance',
+        component: lazy(() => import('@/views/reports/professionalPerformance/ProfessionalPerformanceIndex')),
         authority: [],
     },
     {

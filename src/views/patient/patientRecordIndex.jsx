@@ -35,8 +35,10 @@ import {
     HiOutlineCash,
     HiOutlineCreditCard,
     HiOutlineReceiptRefund,
+    HiOutlineRefresh,
 } from 'react-icons/hi'
 import { SiWhatsapp } from 'react-icons/si'
+import ReturnRegisterModal from '@/views/returnControl/ReturnRegisterModal'
 import SectionCard from './components/SectionCard'
 import AppointmentCard from './components/AppointmentCard'
 import FilePermissionPopover from './components/FilePermissionPopover'
@@ -888,6 +890,7 @@ const PatientRecordIndex = () => {
     const [recordPaymentCharge, setRecordPaymentCharge] = useState(null)
     const [cancelingCharge, setCancelingCharge] = useState(null)
     const [expandedChargeId, setExpandedChargeId] = useState(null)
+    const [returnModalOpen, setReturnModalOpen] = useState(false)
 
     const operadoraNameByPublicId = useMemo(() => new Map(), [])
 
@@ -1198,6 +1201,15 @@ const PatientRecordIndex = () => {
     return (
         <div className='w-full p-4 space-y-6'>
 
+            <ReturnRegisterModal
+                isOpen={returnModalOpen}
+                onClose={() => setReturnModalOpen(false)}
+                patientId={selectedPatient?.publicId ?? selectedPatient?.id ?? null}
+                patientName={selectedPatient ? (selectedPatient.socialName || selectedPatient.name || selectedPatient.fullName || '') : ''}
+                patientPhone={selectedPatient?.phoneNumber ?? selectedPatient?.phone ?? ''}
+                lastProcedure=''
+            />
+
             <ConsumerUpsertDialog
                 isOpen={showEditDialog}
                 onClose={() => setShowEditDialog(false)}
@@ -1328,6 +1340,14 @@ const PatientRecordIndex = () => {
                                         <button title='Agendar' onClick={handleSchedule}
                                             className='w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-amber-700 hover:bg-amber-50 transition'>
                                             <HiOutlineCalendar className='w-4 h-4' />
+                                        </button>
+                                        <div className='w-px h-5 bg-gray-200 mx-0.5' />
+                                        <button
+                                            title='Registrar retorno'
+                                            onClick={() => setReturnModalOpen(true)}
+                                            className='w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-violet-700 hover:bg-violet-50 transition'
+                                        >
+                                            <HiOutlineRefresh className='w-4 h-4' />
                                         </button>
                                     </div>
                                 </div>

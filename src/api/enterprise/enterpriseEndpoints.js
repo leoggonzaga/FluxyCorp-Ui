@@ -4,6 +4,7 @@ export const enterpriseAPI_EmployeePersonalInfo      = (publicId) => `/Employees
 export const enterpriseAPI_EmployeeProfessionalInfo  = (publicId) => `/Employees/${publicId}/professional-info`
 export const enterpriseAPI_EmployeeSpecificDates     = (publicId) => `/Employees/${publicId}/specific-dates`
 export const enterpriseAPI_EmployeeUnavailabilities  = (publicId) => `/Employees/${publicId}/unavailabilities`
+export const enterpriseAPI_EmployeeRoleProfile       = (publicId) => `/Employees/${publicId}/role-profile`
 export const enterpriseAPI_JobTitles = '/Enterprises/jobtitles';
 export const enterpriseAPI_Genders = '/Enterprises/genders';
 export const enterpriseAPI_Catalog = '/Catalogs';
@@ -41,3 +42,8 @@ export const monitorAPI_callPatient                              = '/companies/m
 export const monitorAPI_verifyPassword                           = '/companies/monitor/verify-password'
 export const monitorAPI_getSettingsPublic                        = (cid) => `/companies/monitor-settings/public?cid=${cid}`
 export const monitorAPI_verifyPasswordPublic                     = '/companies/monitor/verify-password/public'
+
+export const roleProfilesAPI_getAll                              = '/RoleProfiles'
+export const roleProfilesAPI_create                              = '/RoleProfiles'
+export const roleProfilesAPI_update              = (publicId)   => `/RoleProfiles/${publicId}`
+export const roleProfilesAPI_delete              = (publicId)   => `/RoleProfiles/${publicId}`

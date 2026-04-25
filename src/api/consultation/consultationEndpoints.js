@@ -34,3 +34,13 @@ export const treatmentContractAPI_getById       = (publicId) => `/treatment/cont
 export const treatmentContractAPI_getByPatient  = (patientId) => `/treatment/contracts/patient/${patientId}`
 export const treatmentContractAPI_completeItem  = (publicId, itemId) => `/treatment/contracts/${publicId}/items/${itemId}/complete`
 export const treatmentContractAPI_cancel        = (publicId) => `/treatment/contracts/${publicId}/cancel`
+
+// ── Patient Returns ───────────────────────────────────────────────────────────
+export const patientReturnAPI_create            = '/consultation/returns'
+export const patientReturnAPI_list              = '/consultation/returns'
+export const patientReturnAPI_getById           = (id) => `/consultation/returns/${id}`
+export const patientReturnAPI_getByPatient      = (patientId) => `/consultation/returns/patient/${patientId}`
+export const patientReturnAPI_update            = (id) => `/consultation/returns/${id}`
+export const patientReturnAPI_complete          = (id) => `/consultation/returns/${id}/complete`
+export const patientReturnAPI_cancel            = (id) => `/consultation/returns/${id}/cancel`
+export const patientReturnAPI_schedule          = (id) => `/consultation/returns/${id}/schedule`

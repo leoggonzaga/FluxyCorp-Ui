@@ -10,6 +10,7 @@ export type UserState = {
     employeePublicId?: string
     companyTypeId?: string
     companyPublicId?: string
+    permissions?: Record<string, boolean>
 }
 
 const initialState: UserState = {
@@ -21,6 +22,7 @@ const initialState: UserState = {
     employeePublicId: '',
     companyTypeId: '',
     companyPublicId: '',
+    permissions: {},
 }
 
 const userSlice = createSlice({
@@ -36,6 +38,7 @@ const userSlice = createSlice({
             state.employeePublicId = action.payload?.employeePublicId
             state.companyTypeId = action.payload?.companyTypeId
             state.companyPublicId = action.payload?.companyPublicId
+            state.permissions = action.payload?.permissions ?? {}
         },
     },
 })

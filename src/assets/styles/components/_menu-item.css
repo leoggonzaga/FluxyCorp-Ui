@@ -3,7 +3,7 @@
     @apply cursor-pointer font-medium px-3 rounded-xl flex items-center w-full whitespace-nowrap gap-x-2 transition-all duration-200;
 
     &.menu-item-light {
-      @apply text-white/60;
+      @apply text-white/80;
 
       &.menu-item-hoverable {
         @apply hover:text-white/90 hover:bg-white/[0.07];
@@ -21,7 +21,7 @@
     }
 
     &.menu-item-dark {
-      @apply text-white/60;
+      @apply text-white/80;
 
       &.menu-item-hoverable {
         @apply hover:text-white/90 hover:bg-white/[0.07];
@@ -39,7 +39,7 @@
     }
 
     &.menu-item-themed {
-      @apply text-white/60;
+      @apply text-white/80;
 
       &.menu-item-hoverable {
         @apply hover:text-white/90 hover:bg-white/[0.07];
@@ -57,7 +57,7 @@
     }
 
     &.menu-item-transparent {
-      @apply text-white/60;
+      @apply text-white/80;
 
       &.menu-item-hoverable {
         @apply hover:text-white/90 hover:bg-white/[0.07];
@@ -75,19 +75,19 @@
     @apply cursor-pointer select-none font-medium px-3 h-10 rounded-xl flex items-center justify-between transition-all duration-200;
 
     &.menu-collapse-item-light {
-      @apply text-white/60 hover:text-white/90 hover:bg-white/[0.07];
+      @apply text-white/80 hover:text-white/90 hover:bg-white/[0.07];
     }
 
     &.menu-collapse-item-dark {
-      @apply text-white/60 hover:text-white/90 hover:bg-white/[0.07];
+      @apply text-white/80 hover:text-white/90 hover:bg-white/[0.07];
     }
 
     &.menu-collapse-item-themed {
-      @apply text-white/60 hover:text-white/90 hover:bg-white/[0.07];
+      @apply text-white/80 hover:text-white/90 hover:bg-white/[0.07];
     }
 
     &.menu-collapse-item-transparent {
-      @apply text-white/60 hover:text-white/90 hover:bg-white/[0.07];
+      @apply text-white/80 hover:text-white/90 hover:bg-white/[0.07];
     }
   }
 

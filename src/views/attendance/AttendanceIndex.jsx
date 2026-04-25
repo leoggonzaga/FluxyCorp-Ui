@@ -25,6 +25,7 @@ import {
     HiOutlineTrash,
     HiOutlineX,
 } from 'react-icons/hi'
+import ReturnRegisterModal from '@/views/returnControl/ReturnRegisterModal'
 import { getConsumerById } from '@/api/consumer/consumerService'
 import {
     sessionCreate,
@@ -354,6 +355,8 @@ const AttendanceIndex = () => {
     const [cameraOpen, setCameraOpen]         = useState(false)
     const [sessionPhotos, setSessionPhotos]   = useState([])
     const [finishing, setFinishing]           = useState(false)
+    const [registerReturn, setRegisterReturn] = useState(false)
+    const [returnModalOpen, setReturnModalOpen] = useState(false)
     const [showStartDialog, setShowStartDialog] = useState(false)
     const [catalogServices, setCatalogServices] = useState([])
     const [catalogLoading, setCatalogLoading]   = useState(false)
@@ -601,6 +604,7 @@ const AttendanceIndex = () => {
                     Registrado com sucesso · Duração: {formatTimer(elapsed)}
                 </Notification>,
             )
+            if (registerReturn) setReturnModalOpen(true)
         }
     }
 
@@ -737,7 +741,16 @@ const AttendanceIndex = () => {
                     </button>
 
                     {/* Save + Finalizar */}
-                    <div className='flex items-center gap-1.5 sm:gap-3 flex-shrink-0'>
+                    <div className='flex items-center gap-1.5 sm:gap-2 flex-shrink-0'>
+                        {/* Registrar Retorno */}
+                        <button
+                            onClick={() => setReturnModalOpen(true)}
+                            title='Registrar retorno do paciente'
+                            className='flex items-center gap-1.5 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-lg sm:rounded-xl border border-violet-400/40 bg-violet-500/20 hover:bg-violet-500/30 text-violet-200 hover:text-white text-xs font-semibold transition active:scale-95'
+                        >
+                            <HiOutlineRefresh className='w-4 h-4 flex-shrink-0' />
+                            <span className='hidden sm:inline'>Retorno</span>
+                        </button>
                         <div className={classNames(
                             'hidden md:flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded-lg transition-all',
                             saveStatus === 'saving' ? 'text-amber-200' : 'text-emerald-200',
@@ -1240,6 +1253,30 @@ const AttendanceIndex = () => {
                                 </p>
                             </div>
 
+                            {/* Toggle registrar retorno */}
+                            <button
+                                type='button'
+                                onClick={() => setRegisterReturn(p => !p)}
+                                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${
+                                    registerReturn
+                                        ? 'border-violet-400 bg-violet-50 dark:bg-violet-900/20'
+                                        : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 hover:border-violet-300'
+                                }`}
+                            >
+                                <div className='flex items-center gap-2.5'>
+                                    <HiOutlineRefresh className={`w-4 h-4 flex-shrink-0 ${registerReturn ? 'text-violet-600' : 'text-gray-400'}`} />
+                                    <div className='text-left'>
+                                        <p className={`text-sm font-semibold ${registerReturn ? 'text-violet-700 dark:text-violet-300' : 'text-gray-600 dark:text-gray-400'}`}>
+                                            Registrar retorno do paciente
+                                        </p>
+                                        <p className='text-xs text-gray-400'>Abre o formulário após finalizar</p>
+                                    </div>
+                                </div>
+                                <div className={`relative w-10 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ${registerReturn ? 'bg-violet-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                                    <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${registerReturn ? 'translate-x-4' : 'translate-x-0'}`} />
+                                </div>
+                            </button>
+
                             <div className='flex gap-3 pt-1'>
                                 <button
                                     onClick={() => setShowFinish(false)}
@@ -1268,6 +1305,16 @@ const AttendanceIndex = () => {
                 open={cameraOpen}
                 onClose={() => setCameraOpen(false)}
                 onSave={handleCameraSave}
+            />
+
+            <ReturnRegisterModal
+                isOpen={returnModalOpen}
+                onClose={() => { setReturnModalOpen(false); setRegisterReturn(false) }}
+                patientId={patientPublicId}
+                patientName={patientName}
+                patientPhone={patient?.phoneNumber ?? patient?.phone ?? ''}
+                lastProcedure={addedProcedures.length > 0 ? addedProcedures.map(p => p.name).join(', ') : ''}
+                dentist=''
             />
 
             {/* Dialog para iniciar atendimento */}

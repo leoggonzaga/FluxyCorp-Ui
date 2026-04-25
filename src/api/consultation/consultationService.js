@@ -99,3 +99,29 @@ export const treatmentContractCompleteItem = (publicId, itemId) =>
 
 export const treatmentContractCancel = (publicId) =>
     consultationTypeApi.post(endpoints.treatmentContractAPI_cancel(publicId))
+
+// ── Patient Returns ───────────────────────────────────────────────────────────
+
+export const patientReturnCreate = (data) =>
+    consultationTypeApi.post(endpoints.patientReturnAPI_create, data).then(unwrap)
+
+export const patientReturnList = (params) =>
+    consultationTypeApi.get(endpoints.patientReturnAPI_list, { params }).then(unwrap)
+
+export const patientReturnGetById = (id) =>
+    consultationTypeApi.get(endpoints.patientReturnAPI_getById(id)).then(unwrap)
+
+export const patientReturnGetByPatient = (patientId) =>
+    consultationTypeApi.get(endpoints.patientReturnAPI_getByPatient(patientId)).then(unwrap)
+
+export const patientReturnUpdate = (id, data) =>
+    consultationTypeApi.put(endpoints.patientReturnAPI_update(id), data).then(unwrap)
+
+export const patientReturnComplete = (id) =>
+    consultationTypeApi.post(endpoints.patientReturnAPI_complete(id)).then(unwrap)
+
+export const patientReturnCancel = (id) =>
+    consultationTypeApi.post(endpoints.patientReturnAPI_cancel(id)).then(unwrap)
+
+export const patientReturnSchedule = (id, data) =>
+    consultationTypeApi.post(endpoints.patientReturnAPI_schedule(id), data).then(unwrap)

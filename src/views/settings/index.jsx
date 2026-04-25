@@ -1,36 +1,20 @@
-import { Card, Tabs } from "@/components/ui"
+import { HiOutlineShieldCheck } from 'react-icons/hi'
 import RoleManagement from "./RoleManagement"
-import TemplateManagement from "./TemplateManagement"
-import PaymentMethodsIndex from "./PaymentMethodsIndex"
 
 const Settings = () => {
-    const { TabNav, TabList, TabContent } = Tabs
+o que    return (
+        <div className='p-6 space-y-4'>
+            <div className='flex items-center gap-3'>
+                <div className='w-9 h-9 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center flex-shrink-0'>
+                    <HiOutlineShieldCheck className='w-5 h-5 text-violet-600 dark:text-violet-400' />
+                </div>
+                <div>
+                    <h2 className='text-base font-bold text-gray-800 dark:text-gray-100 leading-tight'>Gerenciar Perfis</h2>
+                    <p className='text-xs text-gray-400 dark:text-gray-500'>Defina os perfis de acesso e as permissões de cada um</p>
+                </div>
+            </div>
 
-    return (
-        <div className='p-6'>
-            <Card>
-                <Tabs defaultValue='roles'>
-                    <TabList>
-                        <div className='flex flex-wrap items-center gap-2'>
-                            <TabNav value='roles'>Perfis e Permissoes</TabNav>
-                            <TabNav value='templates'>Contratos e Receitas</TabNav>
-                            <TabNav value='payment-methods'>Meios de Pagamento</TabNav>
-                        </div>
-                    </TabList>
-
-                    <div className='pt-4'>
-                        <TabContent value='roles'>
-                            <RoleManagement />
-                        </TabContent>
-                        <TabContent value='templates'>
-                            <TemplateManagement />
-                        </TabContent>
-                        <TabContent value='payment-methods'>
-                            <PaymentMethodsIndex />
-                        </TabContent>
-                    </div>
-                </Tabs>
-            </Card>
+            <RoleManagement />
         </div>
     )
 }

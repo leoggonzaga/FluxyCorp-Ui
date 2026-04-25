@@ -1,4 +1,4 @@
-import { useState, Suspense, lazy } from 'react'
+import { useState, Suspense, lazy, useMemo } from 'react'
 import classNames from 'classnames'
 import Drawer from '@/components/ui/Drawer'
 import {
@@ -47,6 +47,24 @@ const MobileNav = () => {
     )
 
     const userAuthority = useAppSelector((state) => state.auth.user.authority)
+    const permissions   = useAppSelector((state) => state.auth.user.permissions)
+
+    const permissionedNav = useMemo(() => {
+        const hasPermissions = permissions && Object.keys(permissions).length > 0
+        if (!hasPermissions) return navigationConfig
+        function filterItems(items: typeof navigationConfig): typeof navigationConfig {
+            return items.reduce<typeof navigationConfig>((acc, item) => {
+                if ('subMenu' in item && item.subMenu) {
+                    const children = filterItems(item.subMenu as typeof navigationConfig)
+                    if (children.length > 0) acc.push({ ...item, subMenu: children } as typeof item)
+                } else {
+                    if (!(item.key in permissions!) || permissions![item.key]) acc.push(item)
+                }
+                return acc
+            }, [])
+        }
+        return filterItems(navigationConfig)
+    }, [permissions])
 
     const { smaller } = useResponsive()
 
@@ -83,7 +101,7 @@ const MobileNav = () => {
                                 <VerticalMenuContent
                                     navMode={navMode}
                                     collapsed={false}
-                                    navigationTree={navigationConfig}
+                                    navigationTree={permissionedNav}
                                     routeKey={currentRouteKey}
                                     userAuthority={userAuthority as string[]}
                                     direction={direction}

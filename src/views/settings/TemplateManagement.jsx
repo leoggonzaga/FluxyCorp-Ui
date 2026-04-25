@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Button, Card, Input, Notification, Tabs, Badge, toast } from "@/components/ui"
+import CreateButton from "@/components/ui/Button/CreateButton"
 import { HiOutlinePlus, HiOutlineTrash, HiOutlinePencil, HiOutlineCheck, HiOutlineX } from "react-icons/hi"
 
 const initialTemplates = [

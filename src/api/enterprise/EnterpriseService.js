@@ -111,6 +111,9 @@ export const employeeGetUnavailabilities = (publicId) =>
 export const employeeReplaceUnavailabilities = (publicId, slots) =>
     enterpriseApi.put(endpoints.enterpriseAPI_EmployeeUnavailabilities(publicId), { slots })
 
+export const employeeUpdateRoleProfile = (publicId, roleProfileId) =>
+    enterpriseApi.put(endpoints.enterpriseAPI_EmployeeRoleProfile(publicId), { roleProfileId })
+
 export const estabelecimentoGetSettings = () =>
     enterpriseApi.get(endpoints.estabelecimentoAPI_getSettings)
 
@@ -141,3 +144,15 @@ export const monitorGetSettingsPublic = (companyPublicId) =>
 
 export const monitorVerifyPasswordPublic = (password, companyPublicId) =>
     enterpriseApi.post(endpoints.monitorAPI_verifyPasswordPublic, { password, companyPublicId })
+
+export const roleProfilesGetAll = () =>
+    enterpriseApi.get(endpoints.roleProfilesAPI_getAll)
+
+export const roleProfilesCreate = (body) =>
+    enterpriseApi.post(endpoints.roleProfilesAPI_create, body)
+
+export const roleProfilesUpdate = (publicId, body) =>
+    enterpriseApi.put(endpoints.roleProfilesAPI_update(publicId), body)
+
+export const roleProfilesDelete = (publicId) =>
+    enterpriseApi.delete(endpoints.roleProfilesAPI_delete(publicId))

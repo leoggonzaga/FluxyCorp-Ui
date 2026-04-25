@@ -173,8 +173,8 @@ const Field = ({ label, error, hint, children }) => (
 // ─── Chip SVG ─────────────────────────────────────────────────────────────────
 
 const CardChip = () => (
-    <div className='w-9 h-7 rounded-md bg-gradient-to-br from-yellow-300/80 to-yellow-500/60 border border-yellow-200/40 flex items-center justify-center overflow-hidden'>
-        <div className='w-full h-full grid grid-cols-2 grid-rows-3 gap-px p-1'>
+    <div className='w-7 h-5 rounded-md bg-gradient-to-br from-yellow-300/80 to-yellow-500/60 border border-yellow-200/40 flex items-center justify-center overflow-hidden'>
+        <div className='w-full h-full grid grid-cols-2 grid-rows-3 gap-px p-0.5'>
             {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className={`rounded-sm ${i === 2 || i === 3 ? 'bg-yellow-600/50' : 'bg-yellow-400/70'}`} />
             ))}
@@ -197,7 +197,7 @@ const BankCard = ({ account, masked, onEdit, onDelete, onToggleMain, onToggleMas
     return (
         <div className='group relative'>
             {/* Card face */}
-            <div className={`relative bg-gradient-to-br ${palette.card} rounded-2xl p-5 overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-default select-none aspect-[1.6/1]`}>
+            <div className={`relative bg-gradient-to-br ${palette.card} rounded-2xl p-3.5 overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-default select-none aspect-[1.6/1]`}>
 
                 {/* Background decoration */}
                 <div className='absolute -top-8 -right-8 w-36 h-36 rounded-full bg-white/5' />
@@ -219,15 +219,15 @@ const BankCard = ({ account, masked, onEdit, onDelete, onToggleMain, onToggleMas
                 )}
 
                 {/* Row 1: chip + type */}
-                <div className='flex items-start justify-between mb-4'>
+                <div className='flex items-start justify-between mb-2.5'>
                     <CardChip />
-                    <div className={`w-8 h-8 rounded-xl ${palette.pill} backdrop-blur-sm flex items-center justify-center`}>
-                        <TypeIcon className='w-4 h-4 text-white' />
+                    <div className={`w-6 h-6 rounded-lg ${palette.pill} backdrop-blur-sm flex items-center justify-center`}>
+                        <TypeIcon className='w-3 h-3 text-white' />
                     </div>
                 </div>
 
                 {/* Name + bank */}
-                <div className='mb-3'>
+                <div className='mb-2'>
                     <p className='text-sm font-bold text-white leading-tight truncate'>{account.name}</p>
                     {account.bank && (
                         <p className='text-xs text-white/60 mt-0.5 truncate'>{account.bank}</p>
@@ -238,26 +238,26 @@ const BankCard = ({ account, masked, onEdit, onDelete, onToggleMain, onToggleMas
                 <div className='flex items-end justify-between'>
                     <div className='space-y-0.5'>
                         {account.agency && (
-                            <p className='text-xs text-white/50 font-mono'>
+                            <p className='text-sm text-white/50 font-mono'>
                                 Ag {masked ? account.agency.replace(/\d/g, '•') : account.agency}
                             </p>
                         )}
                         {maskedAccount && (
-                            <p className='text-xs text-white/50 font-mono'>
+                            <p className='text-sm text-white/50 font-mono'>
                                 CC {masked ? maskedAccount : `${account.accountNumber}-${account.digit ?? ''}`}
                             </p>
                         )}
                         {!account.agency && !maskedAccount && (
-                            <p className='text-xs text-white/40 italic'>{type.label}</p>
+                            <p className='text-sm text-white/40 italic'>{type.label}</p>
                         )}
                     </div>
 
                     {/* Balance */}
                     <div className='text-right'>
                         {masked ? (
-                            <p className='text-lg font-bold text-white tracking-widest'>••••</p>
+                            <p className='text-base font-bold text-white tracking-widest'>••••</p>
                         ) : (
-                            <p className={`text-lg font-bold leading-none ${isNeg ? 'text-rose-300' : 'text-white'}`}>
+                            <p className={`text-base font-bold leading-none ${isNeg ? 'text-rose-300' : 'text-white'}`}>
                                 {fmt(account.balance)}
                             </p>
                         )}
@@ -860,7 +860,7 @@ const FinancialAccountsIndex = () => {
                     />
                 </Card>
             ) : (
-                <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5'>
+                <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'>
                     {filtered.map((account) => (
                         <BankCard
                             key={account.id}
@@ -876,12 +876,12 @@ const FinancialAccountsIndex = () => {
                     {/* Add card placeholder */}
                     <button
                         onClick={openNew}
-                        className='aspect-[1.6/1] rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-violet-300 dark:hover:border-violet-700 hover:text-violet-500 transition-all group'
+                        className='aspect-[1.6/1] rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center gap-1.5 text-gray-400 hover:border-violet-300 dark:hover:border-violet-700 hover:text-violet-500 transition-all group'
                     >
-                        <div className='w-10 h-10 rounded-xl border-2 border-dashed border-current flex items-center justify-center transition-colors'>
-                            <HiOutlinePlus className='w-5 h-5' />
+                        <div className='w-8 h-8 rounded-xl border-2 border-dashed border-current flex items-center justify-center transition-colors'>
+                            <HiOutlinePlus className='w-4 h-4' />
                         </div>
-                        <span className='text-xs font-semibold'>Nova Conta</span>
+                        <span className='text-[10px] font-semibold'>Nova Conta</span>
                     </button>
                 </div>
             )}
